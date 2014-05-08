@@ -16,28 +16,6 @@
   limitations under the License.
   -->
 <workflow-app xmlns='uri:oozie:workflow:0.3' name='falcon-feed-parent-workflow'>
-    <credentials>
-        <credential name="falconSourceHiveAuth" type="hcat">
-            <property>
-                <name>hcat.metastore.uri</name>
-                <value>${falcon_source_hive_metastore_uris}</value>
-            </property>
-            <property>
-                <name>hcat.metastore.principal</name>
-                <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-            </property>
-        </credential>
-        <credential name="falconTargetHiveAuth" type="hcat">
-            <property>
-                <name>hcat.metastore.uri</name>
-                <value>${falcon_target_hive_metastore_uris}</value>
-            </property>
-            <property>
-                <name>hcat.metastore.principal</name>
-                <value>${falcon_target_hive_metastore_kerberos_principal}</value>
-            </property>
-        </credential>
-    </credentials>
     <start to='should-record'/>
     <decision name='should-record'>
         <switch>
@@ -62,29 +40,8 @@
                 </property>
                 <!-- HCatalog jars -->
                 <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <property>
                     <name>oozie.action.sharelib.for.java</name>
                     <value>hcatalog</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_source_hive_metastore_sasl_enabled}</value>
                 </property>
             </configuration>
             <main-class>org.apache.falcon.latedata.LateDataHandler</main-class>
@@ -127,27 +84,6 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_source_hive_metastore_sasl_enabled}</value>
-                </property>
             </configuration>
             <script>${wf:appPath()}/scripts/falcon-table-export.hql</script>
             <param>falconSourceDatabase=${falconSourceDatabase}</param>
@@ -172,10 +108,6 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
             </configuration>
             <main-class>org.apache.falcon.replication.FeedReplicator</main-class>
             <arg>-Dfalcon.include.path=${sourceRelativePaths}</arg>
@@ -183,6 +115,8 @@
             <arg>-Dmapred.job.priority=${jobPriority}</arg>
             <arg>-maxMaps</arg>
             <arg>${maxMaps}</arg>
+            <arg>-mapBandwidthKB</arg>
+            <arg>${mapBandwidthKB}</arg>
             <arg>-sourcePaths</arg>
             <arg>${distcpSourcePaths}</arg>
             <arg>-targetPath</arg>
@@ -217,27 +151,6 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_target_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_target_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_target_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_target_hive_metastore_sasl_enabled}</value>
-                </property>
             </configuration>
             <script>${wf:appPath()}/scripts/falcon-table-import.hql</script>
             <param>falconTargetDatabase=${falconTargetDatabase}</param>
@@ -260,10 +173,6 @@
                 <property>
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
-                </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
                 </property>
             </configuration>
             <main-class>org.apache.falcon.workflow.FalconPostProcessing</main-class>
@@ -341,10 +250,6 @@
                 <property>
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
-                </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
                 </property>
             </configuration>
             <main-class>org.apache.falcon.workflow.FalconPostProcessing</main-class>

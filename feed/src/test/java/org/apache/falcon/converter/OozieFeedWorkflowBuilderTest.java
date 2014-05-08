@@ -41,6 +41,8 @@ import org.apache.falcon.oozie.workflow.DECISION;
 import org.apache.falcon.oozie.workflow.JAVA;
 import org.apache.falcon.oozie.workflow.WORKFLOWAPP;
 import org.apache.falcon.security.CurrentUser;
+import org.apache.falcon.security.SecurityUtil;
+import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.OozieFeedWorkflowBuilder;
 import org.apache.falcon.workflow.OozieWorkflowBuilder;
 import org.apache.hadoop.fs.FileSystem;
@@ -48,6 +50,7 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.xml.bind.JAXBContext;
@@ -95,8 +98,17 @@ public class OozieFeedWorkflowBuilderTest {
 
         cleanupStore();
 
+        org.apache.falcon.entity.v0.cluster.Property property =
+                new org.apache.falcon.entity.v0.cluster.Property();
+        property.setName(OozieWorkflowBuilder.METASTORE_KERBEROS_PRINCIPAL);
+        property.setValue("hive/_HOST");
+
         srcCluster = (Cluster) storeEntity(EntityType.CLUSTER, SRC_CLUSTER_PATH, srcHdfsUrl);
+        srcCluster.getProperties().getProperties().add(property);
+
         trgCluster = (Cluster) storeEntity(EntityType.CLUSTER, TRG_CLUSTER_PATH, trgHdfsUrl);
+        trgCluster.getProperties().getProperties().add(property);
+
         alphaTrgCluster = (Cluster) storeEntity(EntityType.CLUSTER, "/trg-cluster-alpha.xml", trgHdfsUrl);
         betaTrgCluster = (Cluster) storeEntity(EntityType.CLUSTER, "/trg-cluster-beta.xml", trgHdfsUrl);
 
@@ -139,7 +151,7 @@ public class OozieFeedWorkflowBuilderTest {
 
     @Test
     public void testReplicationCoordsForFSStorage() throws Exception {
-        OozieWorkflowBuilder builder = new OozieFeedWorkflowBuilder(feed);
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(feed);
         List<COORDINATORAPP> coords = builder.getCoordinators(trgCluster, new Path("/projects/falcon/"));
         //Assert retention coord
         COORDINATORAPP coord = coords.get(0);
@@ -148,8 +160,7 @@ public class OozieFeedWorkflowBuilderTest {
         //Assert replication coord
         coord = coords.get(1);
         Assert.assertEquals("2010-01-01T00:40Z", coord.getStart());
-        Assert.assertEquals("${nameNode}/projects/falcon/REPLICATION", coord
-                .getAction().getWorkflow().getAppPath());
+        Assert.assertEquals(getWorkflowAppPath(), coord.getAction().getWorkflow().getAppPath());
         Assert.assertEquals("FALCON_FEED_REPLICATION_" + feed.getName() + "_"
                 + srcCluster.getName(), coord.getName());
         Assert.assertEquals("${coord:minutes(20)}", coord.getFrequency());
@@ -218,47 +229,10 @@ public class OozieFeedWorkflowBuilderTest {
         assertLibExtensions(coord, "replication");
         WORKFLOWAPP wf = getWorkflowapp(coord);
         assertWorkflowRetries(wf);
-        assertReplicationHCatCredentials(wf, props);
     }
 
-    private void assertReplicationHCatCredentials(WORKFLOWAPP wf, HashMap<String, String> props) {
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTOREURIS_PROP),
-                ClusterHelper.getRegistryEndPoint(srcCluster));
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTORE_KERBEROS_PRINCIPAL_PROP), "IGNORE");
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTORE_USE_THRIFT_SASL_PROP), "false");
-
-        Assert.assertEquals(props.get("srcClusterName"), srcCluster.getName());
-        Assert.assertEquals(props.get("falconTargetClusterName"), trgCluster.getName());
-
-        Assert.assertEquals(props.get("falcon_source_" + OozieWorkflowBuilder.METASTOREURIS_PROP),
-                ClusterHelper.getRegistryEndPoint(srcCluster));
-        Assert.assertEquals(props.get("falcon_source_"
-                + OozieWorkflowBuilder.METASTORE_KERBEROS_PRINCIPAL_PROP), "IGNORE");
-        Assert.assertEquals(props.get("falcon_source_" + OozieWorkflowBuilder.METASTORE_USE_THRIFT_SASL_PROP), "false");
-
-        Assert.assertEquals(props.get("falcon_target_" + OozieWorkflowBuilder.METASTOREURIS_PROP),
-                ClusterHelper.getRegistryEndPoint(trgCluster));
-        Assert.assertEquals(props.get("falcon_target_" + OozieWorkflowBuilder.METASTORE_KERBEROS_PRINCIPAL_PROP), "IGNORE");
-        Assert.assertEquals(props.get("falcon_target_" + OozieWorkflowBuilder.METASTORE_USE_THRIFT_SASL_PROP), "false");
-
-        List<Object> actions = wf.getDecisionOrForkOrJoin();
-        for (Object obj : actions) {
-            if (!(obj instanceof ACTION)) {
-                continue;
-            }
-            ACTION action = (ACTION) obj;
-            String actionName = action.getName();
-
-            if ("table-export".equals(actionName)) {
-                Assert.assertNotNull(action.getCred());
-                Assert.assertEquals(action.getCred(), "falconSourceHiveAuth");
-            }
-
-            if ("table-import".equals(actionName)) {
-                Assert.assertNotNull(action.getCred());
-                Assert.assertEquals(action.getCred(), "falconTargetHiveAuth");
-            }
-        }
+    private String getWorkflowAppPath() {
+        return "${nameNode}/projects/falcon/REPLICATION/" + srcCluster.getName();
     }
 
     private void assertWorkflowRetries(COORDINATORAPP coord) throws JAXBException, IOException {
@@ -313,7 +287,7 @@ public class OozieFeedWorkflowBuilderTest {
 
     @Test
     public void testReplicationCoordsForFSStorageWithMultipleTargets() throws Exception {
-        OozieWorkflowBuilder builder = new OozieFeedWorkflowBuilder(fsReplFeed);
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(fsReplFeed);
 
         List<COORDINATORAPP> alphaCoords = builder.getCoordinators(alphaTrgCluster, new Path("/alpha/falcon/"));
         final COORDINATORAPP alphaCoord = alphaCoords.get(0);
@@ -341,11 +315,9 @@ public class OozieFeedWorkflowBuilderTest {
                 FeedHelper.getCluster(aFeed, targetCluster.getName()).getPartition());
         targetPart = FeedHelper.evaluateClusterExp(targetCluster, targetPart);
 
-        StringBuilder pathsWithPartitions = new StringBuilder();
-        pathsWithPartitions.append("${coord:dataIn('input')}/")
-                .append(FeedHelper.normalizePartitionExpression(srcPart, targetPart));
-
-        String parts = pathsWithPartitions.toString().replaceAll("//+", "/");
+        String pathsWithPartitions = "${coord:dataIn('input')}/"
+                + FeedHelper.normalizePartitionExpression(srcPart, targetPart);
+        String parts = pathsWithPartitions.replaceAll("//+", "/");
         parts = StringUtils.stripEnd(parts, "/");
         return parts;
     }
@@ -370,7 +342,7 @@ public class OozieFeedWorkflowBuilderTest {
 
         JAVA replication = replicationActionNode.getJava();
         List<String> args = replication.getArg();
-        Assert.assertEquals(args.size(), 11);
+        Assert.assertEquals(args.size(), 13);
 
         HashMap<String, String> props = new HashMap<String, String>();
         for (Property prop : coord.getAction().getWorkflow().getConfiguration().getProperty()) {
@@ -400,15 +372,25 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals("failed-post-processing", ((ACTION) decisionOrForkOrJoin.get(8)).getName());
     }
 
-    @Test
-    public void testReplicationCoordsForTableStorage() throws Exception {
-        OozieWorkflowBuilder builder = new OozieFeedWorkflowBuilder(tableFeed);
+    @DataProvider(name = "secureOptions")
+    private Object[][] createOptions() {
+        return new Object[][] {
+            {"simple"},
+            {"kerberos"},
+        };
+    }
+
+    @Test (dataProvider = "secureOptions")
+    public void testReplicationCoordsForTableStorage(String secureOption) throws Exception {
+        StartupProperties.get().setProperty(SecurityUtil.AUTHENTICATION_TYPE, secureOption);
+
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(tableFeed);
         List<COORDINATORAPP> coords = builder.getCoordinators(
                 trgCluster, new Path("/projects/falcon/"));
         COORDINATORAPP coord = coords.get(0);
 
         Assert.assertEquals("2010-01-01T00:40Z", coord.getStart());
-        Assert.assertEquals("${nameNode}/projects/falcon/REPLICATION",
+        Assert.assertEquals(getWorkflowAppPath(),
                 coord.getAction().getWorkflow().getAppPath());
         Assert.assertEquals("FALCON_FEED_REPLICATION_" + tableFeed.getName() + "_"
                 + srcCluster.getName(), coord.getName());
@@ -492,7 +474,53 @@ public class OozieFeedWorkflowBuilderTest {
         // verify the post processing params
         Assert.assertEquals(props.get("feedNames"), tableFeed.getName());
         Assert.assertEquals(props.get("feedInstancePaths"), "${coord:dataOut('output')}");
-        assertReplicationHCatCredentials(getWorkflowapp(coord), props);
+
+        Assert.assertTrue(Storage.TYPE.TABLE == FeedHelper.getStorageType(tableFeed, trgCluster));
+        assertReplicationHCatCredentials(getWorkflowapp(coord),
+                coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", ""));
+    }
+
+    private void assertReplicationHCatCredentials(WORKFLOWAPP wf, String wfPath) throws IOException {
+        FileSystem fs = trgMiniDFS.getFileSystem();
+
+        Path hiveConfPath = new Path(wfPath, "conf/falcon-source-hive-site.xml");
+        Assert.assertTrue(fs.exists(hiveConfPath));
+
+        hiveConfPath = new Path(wfPath, "conf/falcon-target-hive-site.xml");
+        Assert.assertTrue(fs.exists(hiveConfPath));
+
+        boolean isSecurityEnabled = SecurityUtil.isSecurityEnabled();
+        if (isSecurityEnabled) {
+            Assert.assertNotNull(wf.getCredentials());
+            Assert.assertEquals(2, wf.getCredentials().getCredential().size());
+        }
+
+        List<Object> actions = wf.getDecisionOrForkOrJoin();
+        for (Object obj : actions) {
+            if (!(obj instanceof ACTION)) {
+                continue;
+            }
+            ACTION action = (ACTION) obj;
+            String actionName = action.getName();
+
+            if (!isSecurityEnabled) {
+                Assert.assertNull(action.getCred());
+            }
+
+            if ("recordsize".equals(actionName)) {
+                Assert.assertEquals(action.getJava().getJobXml(), "${wf:appPath()}/conf/falcon-source-hive-site.xml");
+                if (isSecurityEnabled) {
+                    Assert.assertNotNull(action.getCred());
+                    Assert.assertEquals(action.getCred(), "falconSourceHiveAuth");
+                }
+            } else if ("table-export".equals(actionName) && isSecurityEnabled) {
+                Assert.assertNotNull(action.getCred());
+                Assert.assertEquals(action.getCred(), "falconSourceHiveAuth");
+            } else if ("table-import".equals(actionName) && isSecurityEnabled) {
+                Assert.assertNotNull(action.getCred());
+                Assert.assertEquals(action.getCred(), "falconTargetHiveAuth");
+            }
+        }
     }
 
     private void assertTableStorageProperties(Cluster cluster, CatalogStorage tableStorage,
@@ -513,7 +541,7 @@ public class OozieFeedWorkflowBuilderTest {
         instance.roll(Calendar.YEAR, 1);
         cluster.getValidity().setEnd(instance.getTime());
 
-        OozieWorkflowBuilder builder = new OozieFeedWorkflowBuilder(feed);
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(feed);
         List<COORDINATORAPP> coords = builder.getCoordinators(srcCluster, new Path("/projects/falcon/"));
         COORDINATORAPP coord = coords.get(0);
 
@@ -547,14 +575,66 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
 
         assertWorkflowRetries(coord);
-        assertHCatCredentials(getWorkflowapp(coord), props);
     }
 
-    private void assertHCatCredentials(WORKFLOWAPP wf, HashMap<String, String> props) {
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTOREURIS_PROP),
-                ClusterHelper.getRegistryEndPoint(srcCluster));
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTORE_KERBEROS_PRINCIPAL_PROP), "IGNORE");
-        Assert.assertEquals(props.get(OozieWorkflowBuilder.METASTORE_USE_THRIFT_SASL_PROP), "false");
+    @Test (dataProvider = "secureOptions")
+    public void testRetentionCoordsForTable(String secureOption) throws Exception {
+        StartupProperties.get().setProperty(SecurityUtil.AUTHENTICATION_TYPE, secureOption);
+
+        org.apache.falcon.entity.v0.feed.Cluster cluster = FeedHelper.getCluster(tableFeed, trgCluster.getName());
+        final Calendar instance = Calendar.getInstance();
+        instance.roll(Calendar.YEAR, 1);
+        cluster.getValidity().setEnd(instance.getTime());
+
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(tableFeed);
+        List<COORDINATORAPP> coords = builder.getCoordinators(trgCluster, new Path("/projects/falcon/"));
+        COORDINATORAPP coord = coords.get(0);
+
+        Assert.assertEquals(coord.getAction().getWorkflow().getAppPath(), "${nameNode}/projects/falcon/RETENTION");
+        Assert.assertEquals(coord.getName(), "FALCON_FEED_RETENTION_" + tableFeed.getName());
+        Assert.assertEquals(coord.getFrequency(), "${coord:hours(6)}");
+
+        HashMap<String, String> props = new HashMap<String, String>();
+        for (Property prop : coord.getAction().getWorkflow().getConfiguration().getProperty()) {
+            props.put(prop.getName(), prop.getValue());
+        }
+
+        String feedDataPath = props.get("feedDataPath");
+        String storageType = props.get("falconFeedStorageType");
+
+        // verify the param that feed evictor depends on
+        Assert.assertEquals(storageType, Storage.TYPE.TABLE.name());
+
+        final Storage storage = FeedHelper.createStorage(cluster, tableFeed);
+        if (feedDataPath != null) {
+            Assert.assertEquals(feedDataPath, storage.getUriTemplate()
+                    .replaceAll(Storage.DOLLAR_EXPR_START_REGEX, Storage.QUESTION_EXPR_START_REGEX));
+        }
+
+        if (storageType != null) {
+            Assert.assertEquals(storageType, storage.getType().name());
+        }
+
+        // verify the post processing params
+        Assert.assertEquals(props.get("feedNames"), tableFeed.getName());
+        Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
+
+        assertWorkflowRetries(coord);
+
+        Assert.assertTrue(Storage.TYPE.TABLE == FeedHelper.getStorageType(tableFeed, trgCluster));
+        assertHCatCredentials(getWorkflowapp(coord),
+                coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", ""));
+    }
+
+    private void assertHCatCredentials(WORKFLOWAPP wf, String wfPath) throws IOException {
+        Path hiveConfPath = new Path(wfPath, "conf/hive-site.xml");
+        FileSystem fs = trgMiniDFS.getFileSystem();
+        Assert.assertTrue(fs.exists(hiveConfPath));
+
+        if (SecurityUtil.isSecurityEnabled()) {
+            Assert.assertNotNull(wf.getCredentials());
+            Assert.assertEquals(1, wf.getCredentials().getCredential().size());
+        }
 
         List<Object> actions = wf.getDecisionOrForkOrJoin();
         for (Object obj : actions) {
@@ -565,8 +645,11 @@ public class OozieFeedWorkflowBuilderTest {
             String actionName = action.getName();
 
             if ("eviction".equals(actionName)) {
-                Assert.assertNotNull(action.getCred());
-                Assert.assertEquals(action.getCred(), "falconHiveAuth");
+                Assert.assertEquals(action.getJava().getJobXml(), "${wf:appPath()}/conf/hive-site.xml");
+                if (SecurityUtil.isSecurityEnabled()) {
+                    Assert.assertNotNull(action.getCred());
+                    Assert.assertEquals(action.getCred(), "falconHiveAuth");
+                }
             }
         }
     }

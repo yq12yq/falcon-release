@@ -15,39 +15,17 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<workflow-app xmlns='uri:oozie:workflow:0.3' name='falcon-feed-parent-workflow'>
-    <credentials>
-        <credential name="falconSourceHiveAuth" type="hcat">
-            <property>
-                <name>hcat.metastore.uri</name>
-                <value>${falcon_source_hive_metastore_uris}</value>
-            </property>
-            <property>
-                <name>hcat.metastore.principal</name>
-                <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-            </property>
-        </credential>
-        <credential name="falconTargetHiveAuth" type="hcat">
-            <property>
-                <name>hcat.metastore.uri</name>
-                <value>${falcon_target_hive_metastore_uris}</value>
-            </property>
-            <property>
-                <name>hcat.metastore.principal</name>
-                <value>${falcon_target_hive_metastore_kerberos_principal}</value>
-            </property>
-        </credential>
-    </credentials>
+<workflow-app xmlns='uri:oozie:workflow:0.3' name='falcon-process-parent-workflow'>
     <start to='should-record'/>
     <decision name='should-record'>
         <switch>
             <case to="recordsize">
                 ${shouldRecord=="true"}
             </case>
-            <default to="replication-decision"/>
+            <default to="user-workflow"/>
         </switch>
     </decision>
-    <action name='recordsize' cred="falconSourceHiveAuth">
+    <action name='recordsize'>
         <java>
             <job-tracker>${jobTracker}</job-tracker>
             <name-node>${nameNode}</name-node>
@@ -62,34 +40,13 @@
                 </property>
                 <!-- HCatalog jars -->
                 <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <property>
                     <name>oozie.action.sharelib.for.java</name>
                     <value>hcatalog</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_source_hive_metastore_sasl_enabled}</value>
                 </property>
             </configuration>
             <main-class>org.apache.falcon.latedata.LateDataHandler</main-class>
             <arg>-out</arg>
-            <arg>${logDir}/latedata/${nominalTime}/${srcClusterName}</arg>
+            <arg>${logDir}/latedata/${nominalTime}</arg>
             <arg>-paths</arg>
             <arg>${falconInPaths}</arg>
             <arg>-falconInputFeeds</arg>
@@ -98,69 +55,25 @@
             <arg>${falconInputFeedStorageTypes}</arg>
             <capture-output/>
         </java>
-        <ok to="replication-decision"/>
+        <ok to="user-workflow"/>
         <error to="failed-post-processing"/>
     </action>
-    <decision name="replication-decision">
+    <decision name='user-workflow'>
         <switch>
-            <case to="table-export">
-                ${falconFeedStorageType == "TABLE"}
+            <case to="user-oozie-workflow">
+                ${userWorkflowEngine=="oozie"}
             </case>
-            <default to="replication"/>
+            <case to="user-pig-job">
+                ${userWorkflowEngine=="pig"}
+            </case>
+            <case to="user-hive-job">
+                ${userWorkflowEngine=="hive"}
+            </case>
+            <default to="user-oozie-workflow"/>
         </switch>
     </decision>
-    <!-- Table Replication - Export data and metadata to HDFS Staging from Source Hive -->
-    <action name="table-export" cred="falconSourceHiveAuth">
-        <hive xmlns="uri:oozie:hive-action:0.2">
-            <job-tracker>${falconSourceJobTracker}</job-tracker>
-            <name-node>${falconSourceNameNode}</name-node>
-            <prepare>
-                <delete path="${distcpSourcePaths}"/>
-            </prepare>
-            <job-xml>${wf:appPath()}/conf/falcon-source-hive-site.xml</job-xml>
-            <configuration>
-                <property>
-                    <name>mapred.job.queue.name</name>
-                    <value>${queueName}</value>
-                </property>
-                <property>
-                    <name>oozie.launcher.mapred.job.priority</name>
-                    <value>${jobPriority}</value>
-                </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_source_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_source_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_source_hive_metastore_sasl_enabled}</value>
-                </property>
-            </configuration>
-            <script>${wf:appPath()}/scripts/falcon-table-export.hql</script>
-            <param>falconSourceDatabase=${falconSourceDatabase}</param>
-            <param>falconSourceTable=${falconSourceTable}</param>
-            <param>falconSourcePartition=${falconSourcePartition}</param>
-            <param>falconSourceStagingDir=${distcpSourcePaths}</param>
-        </hive>
-        <ok to="replication"/>
-        <error to="failed-post-processing"/>
-    </action>
-    <!-- Replication action -->
-    <action name="replication">
-        <java>
+    <action name='user-pig-job'>
+        <pig>
             <job-tracker>${jobTracker}</job-tracker>
             <name-node>${nameNode}</name-node>
             <configuration>
@@ -173,41 +86,20 @@
                     <value>${jobPriority}</value>
                 </property>
                 <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
+                    <name>oozie.action.sharelib.for.pig</name>
+                    <value>pig,hcatalog</value>
                 </property>
             </configuration>
-            <main-class>org.apache.falcon.replication.FeedReplicator</main-class>
-            <arg>-Dfalcon.include.path=${sourceRelativePaths}</arg>
-            <arg>-Dmapred.job.queue.name=${queueName}</arg>
-            <arg>-Dmapred.job.priority=${jobPriority}</arg>
-            <arg>-maxMaps</arg>
-            <arg>${maxMaps}</arg>
-            <arg>-sourcePaths</arg>
-            <arg>${distcpSourcePaths}</arg>
-            <arg>-targetPath</arg>
-            <arg>${distcpTargetPaths}</arg>
-            <arg>-falconFeedStorageType</arg>
-            <arg>${falconFeedStorageType}</arg>
-            <file>${wf:conf("falcon.libpath")}/hadoop-distcp.jar</file>
-        </java>
-        <ok to="post-replication-decision"/>
+            <script>#USER_WF_PATH#</script>
+        </pig>
+        <ok to="succeeded-post-processing"/>
         <error to="failed-post-processing"/>
     </action>
-    <decision name="post-replication-decision">
-        <switch>
-            <case to="table-import">
-                ${falconFeedStorageType == "TABLE"}
-            </case>
-            <default to="succeeded-post-processing"/>
-        </switch>
-    </decision>
-    <!-- Table Replication - Import data and metadata from HDFS Staging into Target Hive -->
-    <action name="table-import" cred="falconTargetHiveAuth">
+    <action name="user-hive-job">
         <hive xmlns="uri:oozie:hive-action:0.2">
-            <job-tracker>${falconTargetJobTracker}</job-tracker>
-            <name-node>${falconTargetNameNode}</name-node>
-            <job-xml>${wf:appPath()}/conf/falcon-target-hive-site.xml</job-xml>
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <job-xml>${wf:appPath()}/conf/hive-site.xml</job-xml>
             <configuration>
                 <property>
                     <name>mapred.job.queue.name</name>
@@ -217,34 +109,17 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
-                <!-- Hive credentials -->
-                <property>
-                    <name>hcat.metastore.uri</name>
-                    <value>${falcon_target_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.uris</name>
-                    <value>${falcon_target_hive_metastore_uris}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.kerberos.principal</name>
-                    <value>${falcon_target_hive_metastore_kerberos_principal}</value>
-                </property>
-                <property>
-                    <name>hive.metastore.sasl.enabled</name>
-                    <value>${falcon_target_hive_metastore_sasl_enabled}</value>
-                </property>
             </configuration>
-            <script>${wf:appPath()}/scripts/falcon-table-import.hql</script>
-            <param>falconTargetDatabase=${falconTargetDatabase}</param>
-            <param>falconTargetTable=${falconTargetTable}</param>
-            <param>falconTargetPartition=${falconTargetPartition}</param>
-            <param>falconTargetStagingDir=${distcpTargetPaths}</param>
+            <script>#USER_WF_PATH#</script>
         </hive>
+        <ok to="succeeded-post-processing"/>
+        <error to="failed-post-processing"/>
+    </action>
+    <action name='user-oozie-workflow'>
+        <sub-workflow>
+            <app-path>#USER_WF_PATH#</app-path>
+            <propagate-configuration/>
+        </sub-workflow>
         <ok to="succeeded-post-processing"/>
         <error to="failed-post-processing"/>
     </action>
@@ -261,10 +136,6 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
             </configuration>
             <main-class>org.apache.falcon.workflow.FalconPostProcessing</main-class>
             <arg>-cluster</arg>
@@ -276,7 +147,7 @@
             <arg>-nominalTime</arg>
             <arg>${nominalTime}</arg>
             <arg>-operation</arg>
-            <arg>REPLICATE</arg>
+            <arg>GENERATE</arg>
             <arg>-workflowId</arg>
             <arg>${wf:id()}</arg>
             <arg>-runId</arg>
@@ -300,19 +171,19 @@
             <arg>-feedInstancePaths</arg>
             <arg>${feedInstancePaths}</arg>
             <arg>-logFile</arg>
-            <arg>${logDir}/instancePaths-${nominalTime}-${srcClusterName}.csv</arg>
+            <arg>${logDir}/instancePaths-${nominalTime}.csv</arg>
             <arg>-workflowEngineUrl</arg>
             <arg>${workflowEngineUrl}</arg>
+            <arg>-subflowId</arg>
+            <arg>${wf:id()}${userWorkflowEngine == "oozie" ? "@user-oozie-workflow" : ""}</arg>
+            <arg>-userWorkflowEngine</arg>
+            <arg>${userWorkflowEngine}</arg>
             <arg>-userWorkflowName</arg>
             <arg>${userWorkflowName}</arg>
             <arg>-userWorkflowVersion</arg>
             <arg>${userWorkflowVersion}</arg>
-            <arg>-userWorkflowEngine</arg>
-            <arg>${userWorkflowEngine}</arg>
-            <arg>-subflowId</arg>
-            <arg>${wf:id()}</arg>
             <arg>-logDir</arg>
-            <arg>${logDir}/job-${nominalTime}/${srcClusterName}/</arg>
+            <arg>${logDir}/job-${nominalTime}/</arg>
             <arg>-workflowUser</arg>
             <arg>${wf:user()}</arg>
             <arg>-falconInputFeeds</arg>
@@ -342,10 +213,6 @@
                     <name>oozie.launcher.mapred.job.priority</name>
                     <value>${jobPriority}</value>
                 </property>
-                <property>
-                    <name>oozie.use.system.libpath</name>
-                    <value>true</value>
-                </property>
             </configuration>
             <main-class>org.apache.falcon.workflow.FalconPostProcessing</main-class>
             <arg>-cluster</arg>
@@ -357,7 +224,7 @@
             <arg>-nominalTime</arg>
             <arg>${nominalTime}</arg>
             <arg>-operation</arg>
-            <arg>REPLICATE</arg>
+            <arg>GENERATE</arg>
             <arg>-workflowId</arg>
             <arg>${wf:id()}</arg>
             <arg>-runId</arg>
@@ -381,13 +248,15 @@
             <arg>-feedInstancePaths</arg>
             <arg>${feedInstancePaths}</arg>
             <arg>-logFile</arg>
-            <arg>${logDir}/instancePaths-${nominalTime}-${srcClusterName}.csv</arg>
+            <arg>${logDir}/instancePaths-${nominalTime}.csv</arg>
             <arg>-workflowEngineUrl</arg>
             <arg>${workflowEngineUrl}</arg>
             <arg>-subflowId</arg>
-            <arg>${wf:id()}</arg>
+            <arg>${wf:id()}${userWorkflowEngine == "oozie" ? "@user-oozie-workflow" : ""}</arg>
+            <arg>-userWorkflowEngine</arg>
+            <arg>${userWorkflowEngine}</arg>
             <arg>-logDir</arg>
-            <arg>${logDir}/job-${nominalTime}/${srcClusterName}/</arg>
+            <arg>${logDir}/job-${nominalTime}/</arg>
             <arg>-workflowUser</arg>
             <arg>${wf:user()}</arg>
             <file>${wf:conf("falcon.libpath")}/activemq-core.jar</file>
