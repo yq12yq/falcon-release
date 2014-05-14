@@ -724,6 +724,11 @@ Lineage is exposed in 3 ways:
    * CLI
    * Dashboard - Interactive lineage for Process instances
 
+Dashboard uses falcon_dashboard as proxy user. falcon-dashboard must be configured as a valid user and be part of the proxyuser settings.
+There are 2 configuration properties needed to set up a proxyuser in oozie-site.xml :
+    * oozie.service.ProxyUserService.proxyuser.#USER#.hosts: hosts from where the user #USER# can impersonate other users
+    * oozie.service.ProxyUserService.proxyuser.#USER#.groups: groups the users being impersonated by user #USER# must belong to.
+
 This feature is enabled by default but could be disabled by removing the following from:
 <verbatim>
 config name: *.application.services
