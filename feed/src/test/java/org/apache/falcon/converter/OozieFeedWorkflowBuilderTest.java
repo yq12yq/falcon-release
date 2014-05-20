@@ -342,7 +342,7 @@ public class OozieFeedWorkflowBuilderTest {
 
         JAVA replication = replicationActionNode.getJava();
         List<String> args = replication.getArg();
-        Assert.assertEquals(args.size(), 13);
+        Assert.assertEquals(args.size(), 11);
 
         HashMap<String, String> props = new HashMap<String, String>();
         for (Property prop : coord.getAction().getWorkflow().getConfiguration().getProperty()) {
