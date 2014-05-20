@@ -99,6 +99,9 @@ Trunk (Unreleased)
     FALCON-123 Improve build speeds in falcon. (Srikanth Sundarrajan via Shwetha GS)
 
   BUG FIXES
+    FALCON-441 Lineage capture fails for feeds with multiple instances
+    (Venkatesh Seetharam)
+
     FALCON-437 Feed Replication workflows are failing (Venkatesh Seetharam)
 
     FALCON-352 old properties not removed on refresh of runtime properties. (Shaik Idris)

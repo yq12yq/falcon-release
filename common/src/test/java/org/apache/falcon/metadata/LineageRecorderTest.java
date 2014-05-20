@@ -62,7 +62,7 @@ public class LineageRecorderTest {
             "-" + LineageArgs.USER_WORKFLOW_ENGINE.getOptionName(), "oozie",
             "-" + LineageArgs.INPUT_FEED_NAMES.getOptionName(), "in-click-logs,in-raw-logs",
             "-" + LineageArgs.INPUT_FEED_PATHS.getOptionName(),
-            "/in-click-logs/10/05/05/00/20,/in-raw-logs/10/05/05/00/20",
+            "/in-click-logs/10/05/05/00/20#/in-raw-logs/10/05/05/00/20",
             "-" + LineageArgs.USER_WORKFLOW_NAME.getOptionName(), "test-workflow",
             "-" + LineageArgs.USER_WORKFLOW_VERSION.getOptionName(), "1.0.0",
         };
