@@ -102,6 +102,7 @@ public class LateDataHandler extends Configured implements Tool {
         LOG.info("MAP data: " + metrics);
 
         Path file = new Path(command.getOptionValue("out"));
+        LOG.info("Persisting late data metrics to file: " + file);
         persistMetrics(metrics, file);
 
         return 0;
