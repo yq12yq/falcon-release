@@ -253,8 +253,8 @@ public final class FeedHelper {
         String stagingDirPath = getStagingDir(clusterEntity, feed, storage, tag);
 
         String datedPartitionKey = storage.getDatedPartitionKey();
-        String datedPartitionKeySuffix = datedPartitionKey + "=${coord:dataOutPartitionValue('output',"
-                + "'" + datedPartitionKey + "')}";
+        String datedPartitionKeySuffix = datedPartitionKey
+                + "=${coord:dataOutPartitionValue('output','" + datedPartitionKey + "')}";
         return stagingDirPath + "/"
                 + datedPartitionKeySuffix + "/"
                 + suffix + "/"
@@ -266,10 +266,9 @@ public final class FeedHelper {
         String workflowName = EntityUtil.getWorkflowName(
                 tag, Arrays.asList(clusterEntity.getName()), feed).toString();
 
-        return ClusterHelper.getCompleteLocation(clusterEntity, "staging") + "/"
+        return EntityUtil.getLogPath(clusterEntity, feed) + "/"
                 + workflowName + "/"
                 + storage.getDatabase() + "/"
                 + storage.getTable();
     }
-
 }
