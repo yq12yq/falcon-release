@@ -266,7 +266,9 @@ public final class FeedHelper {
         String workflowName = EntityUtil.getWorkflowName(
                 tag, Arrays.asList(clusterEntity.getName()), feed).toString();
 
-        return EntityUtil.getLogPath(clusterEntity, feed) + "/"
+        // log path is created at scheduling wf and has 777 perms
+        return ClusterHelper.getStorageUrl(clusterEntity)
+                + EntityUtil.getLogPath(clusterEntity, feed) + "/"
                 + workflowName + "/"
                 + storage.getDatabase() + "/"
                 + storage.getTable();
