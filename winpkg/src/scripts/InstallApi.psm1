@@ -376,8 +376,6 @@ function Configure(
         ReplaceString "$ENV:FALCON_HOME\conf\runtime.properties" "prism.all.colos=local" "#prism.all.colos=local"
         ReplaceString "$ENV:FALCON_HOME\conf\runtime.properties" "prism.falcon.local.endpoint=http://localhost:16000/" "#prism.falcon.local.endpoint=http://localhost:16000/"
         ReplaceString "$ENV:FALCON_HOME\conf\runtime.properties" "falcon.current.colo=local" "#falcon.current.colo=local"
-        $url = "*.broker.url=tcp://"+$ENV:FALCON_HOST+":61616"
-        ReplaceString "$ENV:FALCON_HOME\conf\startup.properties" "*.broker.url=tcp://localhost:61616" $url
         Write-Log "Falcon configuration finished"
     }
     else
