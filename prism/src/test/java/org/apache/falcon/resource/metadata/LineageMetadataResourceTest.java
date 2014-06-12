@@ -215,6 +215,19 @@ public class LineageMetadataResourceTest {
     }
 
     @Test
+    public void testGetVerticesWithInvalidKeyValue() throws Exception {
+        LineageMetadataResource resource = new LineageMetadataResource();
+        try {
+            resource.getVertices(null, null);
+        } catch(WebApplicationException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
+            System.out.println(e.getResponse().getEntity().toString());
+            Assert.assertEquals(e.getResponse().getEntity().toString(), "Invalid argument: key or value passed is "
+                    + "null or empty.");
+        }
+    }
+
+    @Test
     public void testVertexEdgesForIdAndDirectionOut() throws Exception {
         String processInstance = PROCESS_ENTITY_NAME + "/2014-01-01T01:00Z";
         Vertex vertex = service.getGraph().getVertices(

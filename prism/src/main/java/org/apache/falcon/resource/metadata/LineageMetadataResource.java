@@ -34,6 +34,7 @@ import org.apache.falcon.metadata.RelationshipType;
 import org.apache.falcon.service.Services;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.log4j.Logger;
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -142,6 +143,7 @@ public class LineageMetadataResource {
     public Response getVertex(@PathParam("id") final String vertexId) {
         checkIfMetadataMappingServiceIsEnabled();
         LOG.info("Get vertex for vertexId= " + vertexId);
+        validateInputs("Invalid argument: vertex id passed is null or empty.", vertexId);
         try {
             Vertex vertex = findVertex(vertexId);
 
@@ -181,6 +183,7 @@ public class LineageMetadataResource {
                                         final String relationships) {
         checkIfMetadataMappingServiceIsEnabled();
         LOG.info("Get vertex for vertexId= " + vertexId);
+        validateInputs("Invalid argument: vertex id passed is null or empty.", vertexId);
         try {
             Vertex vertex = findVertex(vertexId);
 
@@ -280,6 +283,7 @@ public class LineageMetadataResource {
                                 @QueryParam("value") final String value) {
         checkIfMetadataMappingServiceIsEnabled();
         LOG.info("Get vertices for property key= " + key + ", value= " + value);
+        validateInputs("Invalid argument: key or value passed is null or empty.", key, value);
         try {
             JSONObject response = buildJSONResponse(getGraph().getVertices(key, value));
             return Response.ok(response).build();
@@ -304,6 +308,8 @@ public class LineageMetadataResource {
                                    @PathParam("direction") String direction) {
         checkIfMetadataMappingServiceIsEnabled();
         LOG.info("Get vertex edges for vertexId= " + vertexId + ", direction= " + direction);
+        // Validate vertex id. Direction is validated in VertexQueryArguments.
+        validateInputs("Invalid argument: vertex id or direction passed is null or empty.", vertexId, direction);
         try {
             Vertex vertex = findVertex(vertexId);
 
@@ -393,6 +399,7 @@ public class LineageMetadataResource {
     public Response getEdge(@PathParam("id") final String edgeId) {
         checkIfMetadataMappingServiceIsEnabled();
         LOG.info("Get vertex for edgeId= " + edgeId);
+        validateInputs("Invalid argument: edge id passed is null or empty.", edgeId);
         try {
             Edge edge = getGraph().getEdge(edgeId);
             if (edge == null) {
@@ -438,6 +445,17 @@ public class LineageMetadataResource {
         }
     }
 
+    private static void validateInputs(String errorMsg, String... inputs) {
+        for (String input : inputs) {
+            if (StringUtils.isEmpty(input)) {
+                throw new WebApplicationException(Response.status(Response.Status.BAD_REQUEST)
+                        .entity(errorMsg)
+                        .type("text/plain")
+                        .build());
+            }
+        }
+    }
+
     private enum ReturnType {VERTICES, EDGES, COUNT, VERTEX_IDS}
 
     public static final String OUT_E = "outE";
@@ -463,51 +481,51 @@ public class LineageMetadataResource {
         private final boolean countOnly;
 
         public VertexQueryArguments(String directionSegment) {
-            if (directionSegment.equals(OUT_E)) {
+            if (OUT_E.equals(directionSegment)) {
                 returnType = ReturnType.EDGES;
                 queryDirection = Direction.OUT;
                 countOnly = false;
-            } else if (directionSegment.equals(IN_E)) {
+            } else if (IN_E.equals(directionSegment)) {
                 returnType = ReturnType.EDGES;
                 queryDirection = Direction.IN;
                 countOnly = false;
-            } else if (directionSegment.equals(BOTH_E)) {
+            } else if (BOTH_E.equals(directionSegment)) {
                 returnType = ReturnType.EDGES;
                 queryDirection = Direction.BOTH;
                 countOnly = false;
-            } else if (directionSegment.equals(OUT)) {
+            } else if (OUT.equals(directionSegment)) {
                 returnType = ReturnType.VERTICES;
                 queryDirection = Direction.OUT;
                 countOnly = false;
-            } else if (directionSegment.equals(IN)) {
+            } else if (IN.equals(directionSegment)) {
                 returnType = ReturnType.VERTICES;
                 queryDirection = Direction.IN;
                 countOnly = false;
-            } else if (directionSegment.equals(BOTH)) {
+            } else if (BOTH.equals(directionSegment)) {
                 returnType = ReturnType.VERTICES;
                 queryDirection = Direction.BOTH;
                 countOnly = false;
-            } else if (directionSegment.equals(BOTH_COUNT)) {
+            } else if (BOTH_COUNT.equals(directionSegment)) {
                 returnType = ReturnType.COUNT;
                 queryDirection = Direction.BOTH;
                 countOnly = true;
-            } else if (directionSegment.equals(IN_COUNT)) {
+            } else if (IN_COUNT.equals(directionSegment)) {
                 returnType = ReturnType.COUNT;
                 queryDirection = Direction.IN;
                 countOnly = true;
-            } else if (directionSegment.equals(OUT_COUNT)) {
+            } else if (OUT_COUNT.equals(directionSegment)) {
                 returnType = ReturnType.COUNT;
                 queryDirection = Direction.OUT;
                 countOnly = true;
-            } else if (directionSegment.equals(BOTH_IDS)) {
+            } else if (BOTH_IDS.equals(directionSegment)) {
                 returnType = ReturnType.VERTEX_IDS;
                 queryDirection = Direction.BOTH;
                 countOnly = false;
-            } else if (directionSegment.equals(IN_IDS)) {
+            } else if (IN_IDS.equals(directionSegment)) {
                 returnType = ReturnType.VERTEX_IDS;
                 queryDirection = Direction.IN;
                 countOnly = false;
-            } else if (directionSegment.equals(OUT_IDS)) {
+            } else if (OUT_IDS.equals(directionSegment)) {
                 returnType = ReturnType.VERTEX_IDS;
                 queryDirection = Direction.OUT;
                 countOnly = false;
