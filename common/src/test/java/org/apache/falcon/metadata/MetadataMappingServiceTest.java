@@ -336,6 +336,37 @@ public class MetadataMappingServiceTest {
         }
     }
 
+    @Test(dependsOnMethods = "testOnProcessEntityChange")
+    public void testAreSame() throws Exception {
+
+        Inputs inputs1 = new Inputs();
+        Inputs inputs2 = new Inputs();
+        Outputs outputs1 = new Outputs();
+        Outputs outputs2 = new Outputs();
+        // return true when both are null
+        Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(inputs1, inputs2));
+        Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(outputs1, outputs2));
+
+        Input i1 = new Input();
+        i1.setName("input1");
+        Input i2 = new Input();
+        i2.setName("input2");
+        Output o1 = new Output();
+        o1.setName("output1");
+        Output o2 = new Output();
+        o2.setName("output2");
+
+        inputs1.getInputs().add(i1);
+        Assert.assertFalse(EntityRelationshipGraphBuilder.areSame(inputs1, inputs2));
+        outputs1.getOutputs().add(o1);
+        Assert.assertFalse(EntityRelationshipGraphBuilder.areSame(outputs1, outputs2));
+
+        inputs2.getInputs().add(i1);
+        Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(inputs1, inputs2));
+        outputs2.getOutputs().add(o1);
+        Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(outputs1, outputs2));
+    }
+    
     public static void debug(final Graph graph) {
         System.out.println("*****Vertices of " + graph);
         for (Vertex vertex : graph.getVertices()) {

@@ -99,6 +99,9 @@ Trunk (Unreleased)
     FALCON-123 Improve build speeds in falcon. (Srikanth Sundarrajan via Shwetha GS)
 
   BUG FIXES
+   FALCON-598 ProcessHelper throws NPE if the process has no inputs OR no
+   outputs defined (Balu Vellanki via Venkatesh Seetharam)
+
     FALCON-441 Lineage capture fails for feeds with multiple instances
     (Venkatesh Seetharam)
 
