@@ -52,8 +52,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.OozieClient;
 
@@ -325,7 +323,8 @@ public abstract class OozieWorkflowBuilder<T extends Entity> extends WorkflowBui
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
             FileSystem fs = HadoopClientFactory.get().createFileSystem(
                 outPath.toUri(), ClusterHelper.getConfiguration(cluster));
-            OutputStream out = fs.create(outPath);
+            OutputStream out = FileSystem.create(fs, outPath,
+                    HadoopClientFactory.READ_EXECUTE_PERMISSION);
             try {
                 marshaller.marshal(jaxbElement, out);
             } finally {
@@ -356,8 +355,7 @@ public abstract class OozieWorkflowBuilder<T extends Entity> extends WorkflowBui
             fs.mkdirs(logsDir);
 
             // logs are copied with in oozie as the user in Post Processing and hence 777 permissions
-            FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
-            fs.setPermission(logsDir, permission);
+            fs.setPermission(logsDir, HadoopClientFactory.ALL_PERMISSION);
         } catch (Exception e) {
             throw new FalconException("Unable to create logs dir at: " + logsDir, e);
         }
@@ -455,7 +453,8 @@ public abstract class OozieWorkflowBuilder<T extends Entity> extends WorkflowBui
                                           String prefix) throws IOException {
         OutputStream out = null;
         try {
-            out = fs.create(new Path(confPath, prefix + "hive-site.xml"));
+            out = FileSystem.create(fs, new Path(confPath, prefix + "hive-site.xml"),
+                    HadoopClientFactory.READ_EXECUTE_PERMISSION);
             hiveConf.writeXml(out);
         } finally {
             IOUtils.closeQuietly(out);

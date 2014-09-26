@@ -210,7 +210,8 @@ public class OozieProcessWorkflowBuilder extends OozieWorkflowBuilder<Process> {
 
     private void writeChecksums(FileSystem fs, Path path, Map<String, String> checksums) throws FalconException {
         try {
-            FSDataOutputStream stream = fs.create(path);
+            FSDataOutputStream stream = FileSystem.create(fs, path,
+                    HadoopClientFactory.READ_EXECUTE_PERMISSION);
             try {
                 for (Map.Entry<String, String> entry : checksums.entrySet()) {
                     stream.write((entry.getKey() + "=" + entry.getValue() + "\n").getBytes());

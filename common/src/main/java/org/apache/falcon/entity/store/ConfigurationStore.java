@@ -56,6 +56,9 @@ public final class ConfigurationStore implements FalconService {
     private static final Logger AUDIT = Logger.getLogger("AUDIT");
     private static final String UTF_8 = "UTF-8";
 
+    public static final FsPermission FS_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+
     private static final ConfigurationStore STORE = new ConfigurationStore();
 
     private Set<ConfigurationChangeListener> listeners = new LinkedHashSet<ConfigurationChangeListener>();
@@ -99,10 +102,8 @@ public final class ConfigurationStore implements FalconService {
             FileSystem fileSystem = HadoopClientFactory.get().createFileSystem(storePath.toUri());
             if (!fileSystem.exists(storePath)) {
                 LOG.info("Creating configuration store directory: " + storePath);
-                fileSystem.mkdirs(storePath);
                 // set permissions so config store dir is owned by falcon alone
-                FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
-                fileSystem.setPermission(storePath, permission);
+                FileSystem.mkdirs(fileSystem, storePath, FS_PERMISSION);
             }
 
             return fileSystem;
@@ -329,7 +330,7 @@ public final class ConfigurationStore implements FalconService {
      */
     private void archive(EntityType type, String name) throws IOException {
         Path archivePath = new Path(storePath, "archive" + Path.SEPARATOR + type);
-        fs.mkdirs(archivePath);
+        FileSystem.mkdirs(fs, archivePath, FS_PERMISSION);
         fs.rename(new Path(storePath, type + Path.SEPARATOR + URLEncoder.encode(name, UTF_8) + ".xml"),
                 new Path(archivePath, URLEncoder.encode(name, UTF_8) + "." + System.currentTimeMillis()));
         LOG.info("Archived configuration " + type + "/" + name);

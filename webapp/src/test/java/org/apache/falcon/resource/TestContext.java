@@ -333,7 +333,7 @@ public class TestContext {
     }
 
     private static void mkdir(FileSystem fs, Path path, FsPermission perm) throws Exception {
-        if (!fs.exists(path) && !fs.mkdirs(path, perm)) {
+        if (!fs.exists(path) && !FileSystem.mkdirs(fs, path, perm)) {
             throw new Exception("mkdir failed for " + path);
         }
     }

@@ -641,7 +641,8 @@ public class OozieFeedWorkflowBuilder extends OozieWorkflowBuilder<Feed> {
             OutputStream out = null;
             InputStream in = null;
             try {
-                out = fs.create(new Path(scriptPath, scriptName));
+                out = FileSystem.create(fs, new Path(scriptPath, scriptName),
+                        HadoopClientFactory.READ_EXECUTE_PERMISSION);
                 in = OozieFeedWorkflowBuilder.class.getResourceAsStream(localScriptPath + scriptName);
                 IOUtils.copy(in, out);
             } finally {

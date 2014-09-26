@@ -68,6 +68,10 @@ public class JailedFileSystem extends FileSystem {
     }
 
     private Path toLocalPath(Path f) {
+        if (!f.isAbsolute()) {
+            f = new Path(getWorkingDirectory(), f);
+        }
+
         return new Path(basePath + f.toUri().getPath());
     }
 
@@ -101,6 +105,11 @@ public class JailedFileSystem extends FileSystem {
     @Override
     public boolean delete(Path f, boolean recursive) throws IOException {
         return localFS.delete(toLocalPath(f), recursive);
+    }
+
+    @Override
+    public void setPermission(Path p, FsPermission permission) throws IOException {
+        localFS.setPermission(toLocalPath(p), permission);
     }
 
     @Override

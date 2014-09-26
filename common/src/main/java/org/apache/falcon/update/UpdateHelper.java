@@ -153,6 +153,7 @@ public final class UpdateHelper {
                 if (dest != null) {
                     Path target = new Path(dest, src.getName());
                     FileUtil.copy(fs, src, fs, target, false, conf);
+                    fs.setPermission(target, HadoopClientFactory.READ_EXECUTE_PERMISSION);
                     LOG.debug("Copied " + src + " to " + target);
                 }
             } else {

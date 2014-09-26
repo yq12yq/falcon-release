@@ -31,8 +31,6 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -132,12 +130,13 @@ public class LateDataHandler extends Configured implements Tool {
     private void persistMetrics(Map<String, Long> metrics, Path file) throws IOException, FalconException {
         OutputStream out = null;
         try {
-            FileSystem fs = HadoopClientFactory.get().createFileSystem(file.toUri(), getConf());
-            out = fs.create(file);
+            FileSystem fs = file.getFileSystem(getConf());
+            if (!fs.exists(file.getParent())) {  // create parent with 777
+                fs.mkdirs(file.getParent(), HadoopClientFactory.ALL_PERMISSION);
+            }
 
             // making sure falcon can read this file
-            FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
-            fs.setPermission(file, permission);
+            out = FileSystem.create(fs, file, HadoopClientFactory.ALL_PERMISSION);
 
             for (Map.Entry<String, Long> entry : metrics.entrySet()) {
                 out.write((entry.getKey() + "=" + entry.getValue() + "\n").getBytes());

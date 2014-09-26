@@ -25,6 +25,8 @@ import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -42,6 +44,11 @@ public final class HadoopClientFactory {
     public static final String FS_DEFAULT_NAME_KEY = "fs.default.name";
     public static final String MR_JOB_TRACKER_KEY = "mapred.job.tracker";
     public static final String YARN_RM_ADDRESS_KEY = "yarn.resourcemanager.address";
+
+    public static final FsPermission READ_EXECUTE_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE);
+    public static final FsPermission ALL_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
     private static final HadoopClientFactory INSTANCE = new HadoopClientFactory();
 
@@ -163,6 +170,10 @@ public final class HadoopClientFactory {
         }
 
         try {
+            // KLUDGE - this is to override the default umask for dirs
+            conf.set("dfs.umaskmode", "022");               // hadoop-1
+            conf.set("fs.permissions.umask-mode", "022");   // hadoop-2
+
             return ugi.doAs(new PrivilegedExceptionAction<FileSystem>() {
                 public FileSystem run() throws Exception {
                     return FileSystem.get(uri, conf);

@@ -24,6 +24,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.process.EngineType;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -91,6 +92,9 @@ public class LogMover extends Configured implements Tool {
             Path path = new Path(args.logDir + "/"
                     + String.format("%03d", Integer.parseInt(args.runId)));
             FileSystem fs = path.getFileSystem(getConf());
+            if (!fs.exists(path)) {  // create parent with 777
+                fs.mkdirs(path, HadoopClientFactory.ALL_PERMISSION);
+            }
 
             if (args.entityType.equalsIgnoreCase(EntityType.FEED.name())
                     || notUserWorkflowEngineIsOozie(args.userWorkflowEngine)) {
@@ -135,7 +139,8 @@ public class LogMover extends Configured implements Tool {
     private void copyOozieLog(OozieClient client, FileSystem fs, Path path,
                               String id) throws OozieClientException, IOException {
         InputStream in = new ByteArrayInputStream(client.getJobLog(id).getBytes());
-        OutputStream out = fs.create(new Path(path, "oozie.log"));
+        OutputStream out = FileSystem.create(fs, new Path(path, "oozie.log"),
+                HadoopClientFactory.ALL_PERMISSION);
         IOUtils.copyBytes(in, out, 4096, true);
         LOG.info("Copied oozie log to " + path);
     }
@@ -147,8 +152,9 @@ public class LogMover extends Configured implements Tool {
             LOG.info("Fetching log for action: " + action.getExternalId()
                     + " from url: " + ttLogURL);
             InputStream in = getURLinputStream(new URL(ttLogURL));
-            OutputStream out = fs.create(new Path(path, action.getName() + "_"
-                    + getMappedStatus(action.getStatus()) + ".log"));
+            OutputStream out = FileSystem.create(fs,
+                    new Path(path, action.getName() + "_" + getMappedStatus(action.getStatus()) + ".log"),
+                    HadoopClientFactory.ALL_PERMISSION);
             IOUtils.copyBytes(in, out, 4096, true);
             LOG.info("Copied log to " + path);
         }
