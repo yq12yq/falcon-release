@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.falcon.designer</groupId>
     <artifactId>designer-main</artifactId>
-    <version>0.5-incubating-SNAPSHOT</version>
+    <version>0.5.0.2.1.5.0-695</version>
     <description>Apache Falcon Pipeline Designer</description>
     <name>Apache Falcon Pipeline Designer</name>
     <packaging>pom</packaging>
@@ -369,7 +369,7 @@
             </dependency>
 
             <dependency>
-                <groupId>org.apache.hcatalog</groupId>
+                <groupId>org.apache.hive.hcatalog</groupId>
                 <artifactId>webhcat-java-client</artifactId>
                 <version>${hcatalog.version}</version>
             </dependency>
