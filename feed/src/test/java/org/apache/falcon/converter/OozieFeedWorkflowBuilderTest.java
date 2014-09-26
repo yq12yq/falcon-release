@@ -45,8 +45,13 @@ import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.OozieFeedWorkflowBuilder;
 import org.apache.falcon.workflow.OozieWorkflowBuilder;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -228,16 +233,12 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals(props.get("maxMaps"), "5");
 
         assertLibExtensions(coord, "replication");
-        WORKFLOWAPP wf = getWorkflowapp(coord);
+        WORKFLOWAPP wf = getWorkflowapp(trgMiniDFS.getFileSystem(), coord);
         assertWorkflowRetries(wf);
     }
 
     private String getWorkflowAppPath() {
         return "${nameNode}/projects/falcon/REPLICATION/" + srcCluster.getName();
-    }
-
-    private void assertWorkflowRetries(COORDINATORAPP coord) throws JAXBException, IOException {
-        assertWorkflowRetries(getWorkflowapp(coord));
     }
 
     private void assertWorkflowRetries(WORKFLOWAPP wf) throws JAXBException, IOException {
@@ -256,7 +257,7 @@ public class OozieFeedWorkflowBuilderTest {
     }
 
     private void assertLibExtensions(COORDINATORAPP coord, String lifecycle) throws Exception {
-        WORKFLOWAPP wf = getWorkflowapp(coord);
+        WORKFLOWAPP wf = getWorkflowapp(trgMiniDFS.getFileSystem(), coord);
         List<Object> actions = wf.getDecisionOrForkOrJoin();
         for (Object obj : actions) {
             if (!(obj instanceof ACTION)) {
@@ -279,11 +280,15 @@ public class OozieFeedWorkflowBuilderTest {
     }
 
     @SuppressWarnings("unchecked")
-    private WORKFLOWAPP getWorkflowapp(COORDINATORAPP coord) throws JAXBException, IOException {
+    protected WORKFLOWAPP getWorkflowapp(FileSystem fs, COORDINATORAPP coord) throws JAXBException, IOException {
         String wfPath = coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", "");
+        return getWorkflowapp(fs, new Path(wfPath, "workflow.xml"));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected WORKFLOWAPP getWorkflowapp(FileSystem fs, Path path) throws JAXBException, IOException {
         JAXBContext jaxbContext = JAXBContext.newInstance(WORKFLOWAPP.class);
-        return ((JAXBElement<WORKFLOWAPP>) jaxbContext.createUnmarshaller().unmarshal(
-                trgMiniDFS.getFileSystem().open(new Path(wfPath, "workflow.xml")))).getValue();
+        return ((JAXBElement<WORKFLOWAPP>) jaxbContext.createUnmarshaller().unmarshal(fs.open(path))).getValue();
     }
 
     @Test
@@ -332,7 +337,7 @@ public class OozieFeedWorkflowBuilderTest {
         Date endDate = feedCluster.getValidity().getEnd();
         Assert.assertEquals(coord.getEnd(), SchemaHelper.formatDateUTC(endDate));
 
-        WORKFLOWAPP workflow = getWorkflowapp(coord);
+        WORKFLOWAPP workflow = getWorkflowapp(trgMiniDFS.getFileSystem(), coord);
         assertWorkflowDefinition(fsReplFeed, workflow);
 
         List<Object> actions = workflow.getDecisionOrForkOrJoin();
@@ -478,7 +483,7 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals(props.get("feedInstancePaths"), "${coord:dataOut('output')}");
 
         Assert.assertTrue(Storage.TYPE.TABLE == FeedHelper.getStorageType(tableFeed, trgCluster));
-        assertReplicationHCatCredentials(getWorkflowapp(coord),
+        assertReplicationHCatCredentials(getWorkflowapp(trgMiniDFS.getFileSystem(), coord),
                 coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", ""));
     }
 
@@ -577,7 +582,7 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
         Assert.assertEquals(props.get("logDir"), getLogPath(srcCluster, feed));
 
-        assertWorkflowRetries(coord);
+        assertWorkflowRetries(getWorkflowapp(srcMiniDFS.getFileSystem(), coord));
     }
 
     @Test (dataProvider = "secureOptions")
@@ -623,10 +628,10 @@ public class OozieFeedWorkflowBuilderTest {
         Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
         Assert.assertEquals(props.get("logDir"), getLogPath(trgCluster, tableFeed));
 
-        assertWorkflowRetries(coord);
+        assertWorkflowRetries(getWorkflowapp(trgMiniDFS.getFileSystem(), coord));
 
         Assert.assertTrue(Storage.TYPE.TABLE == FeedHelper.getStorageType(tableFeed, trgCluster));
-        assertHCatCredentials(getWorkflowapp(coord),
+        assertHCatCredentials(getWorkflowapp(trgMiniDFS.getFileSystem(), coord),
                 coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", ""));
     }
 
@@ -661,5 +666,193 @@ public class OozieFeedWorkflowBuilderTest {
     private String getLogPath(Cluster aCluster, Feed aFeed) {
         Path logPath = EntityUtil.getLogPath(aCluster, aFeed);
         return (logPath.toUri().getScheme() == null ? "${nameNode}" : "") + logPath;
+    }
+
+    @DataProvider(name = "uMaskOptions")
+    private Object[][] createUMaskOptions() {
+        return new Object[][] {
+                {FsAction.ALL, FsAction.ALL, FsAction.ALL},
+                {FsAction.ALL, FsAction.NONE, FsAction.NONE},
+                {FsAction.ALL, FsAction.READ_EXECUTE, FsAction.NONE},
+                {FsAction.ALL, FsAction.READ_WRITE, FsAction.NONE},
+                {FsAction.ALL, FsAction.READ_WRITE, FsAction.READ_EXECUTE},
+                {FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE},
+        };
+    }
+
+    @Test(enabled = false, dataProvider = "uMaskOptions")
+    public void testRetentionCoordsUMask(FsAction user, FsAction group,
+                                         FsAction other) throws Exception {
+        FsPermission permission = new FsPermission(user, group, other);
+        final String umask = String.valueOf(permission.toShort());
+        System.out.println("***permission = " + permission + ", short = " + umask);
+
+        FileSystem fs = srcMiniDFS.getFileSystem();
+        Configuration conf = fs.getConf();
+        conf.set("fs.permissions.umask-mode", umask);
+
+        org.apache.falcon.entity.v0.feed.Cluster cluster = FeedHelper
+                .getCluster(feed, srcCluster.getName());
+        final Calendar instance = Calendar.getInstance();
+        instance.roll(Calendar.YEAR, 1);
+        cluster.getValidity().setEnd(instance.getTime());
+
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(feed);
+        List<COORDINATORAPP> coords = builder.getCoordinators(
+                srcCluster, new Path("/projects/falcon/" + umask));
+        COORDINATORAPP coord = coords.get(0);
+
+        Assert.assertEquals(coord.getAction().getWorkflow().getAppPath(),
+                "${nameNode}/projects/falcon/" + umask + "/RETENTION");
+        Assert.assertEquals(coord.getName(), "FALCON_FEED_RETENTION_" + feed.getName());
+        Assert.assertEquals(coord.getFrequency(), "${coord:hours(6)}");
+
+        HashMap<String, String> props = new HashMap<String, String>();
+        for (Property prop : coord.getAction().getWorkflow().getConfiguration().getProperty()) {
+            props.put(prop.getName(), prop.getValue());
+        }
+
+        String feedDataPath = props.get("feedDataPath");
+        String storageType = props.get("falconFeedStorageType");
+
+        // verify the param that feed evictor depends on
+        Assert.assertEquals(storageType, Storage.TYPE.FILESYSTEM.name());
+
+        final Storage storage = FeedHelper.createStorage(cluster, feed);
+        if (feedDataPath != null) {
+            Assert.assertEquals(feedDataPath, storage.getUriTemplate()
+                    .replaceAll(Storage.DOLLAR_EXPR_START_REGEX,
+                            Storage.QUESTION_EXPR_START_REGEX));
+        }
+
+        if (storageType != null) {
+            Assert.assertEquals(storageType, storage.getType().name());
+        }
+
+        // verify the post processing params
+        Assert.assertEquals(props.get("feedNames"), feed.getName());
+        Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
+        Assert.assertEquals(props.get("logDir"), getLogPath(srcCluster, feed));
+
+        assertWorkflowRetries(getWorkflowapp(srcMiniDFS.getFileSystem(), coord));
+
+        try {
+            verifyClusterLocationsUMask(srcCluster, fs);
+            verifyWorkflowUMask(fs, coord, permission, umask);
+        } finally {
+            cleanupWorkflowState(fs, coord);
+            fs.close();
+        }
+    }
+
+    @Test (enabled = false, dataProvider = "secureOptions")
+    public void testRetentionCoordsForTableUMask(String secureOption) throws Exception {
+        StartupProperties.get().setProperty(SecurityUtil.AUTHENTICATION_TYPE, secureOption);
+
+        FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+        final String umask = String.valueOf(permission.toShort());
+        System.out.println("***permission = " + permission + ", short = " + umask);
+
+        FileSystem fs = srcMiniDFS.getFileSystem();
+        Configuration conf = fs.getConf();
+        conf.set("fs.permissions.umask-mode", umask);
+
+        org.apache.falcon.entity.v0.feed.Cluster cluster = FeedHelper.getCluster(tableFeed, trgCluster.getName());
+        final Calendar instance = Calendar.getInstance();
+        instance.roll(Calendar.YEAR, 1);
+        cluster.getValidity().setEnd(instance.getTime());
+
+        OozieFeedWorkflowBuilder builder = new OozieFeedWorkflowBuilder(tableFeed);
+        List<COORDINATORAPP> coords = builder.getCoordinators(trgCluster, new Path("/projects/falcon/"));
+        COORDINATORAPP coord = coords.get(0);
+
+        Assert.assertEquals(coord.getAction().getWorkflow().getAppPath(), "${nameNode}/projects/falcon/RETENTION");
+        Assert.assertEquals(coord.getName(), "FALCON_FEED_RETENTION_" + tableFeed.getName());
+        Assert.assertEquals(coord.getFrequency(), "${coord:hours(6)}");
+
+        HashMap<String, String> props = new HashMap<String, String>();
+        for (Property prop : coord.getAction().getWorkflow().getConfiguration().getProperty()) {
+            props.put(prop.getName(), prop.getValue());
+        }
+
+        String feedDataPath = props.get("feedDataPath");
+        String storageType = props.get("falconFeedStorageType");
+
+        // verify the param that feed evictor depends on
+        Assert.assertEquals(storageType, Storage.TYPE.TABLE.name());
+
+        final Storage storage = FeedHelper.createStorage(cluster, tableFeed);
+        if (feedDataPath != null) {
+            Assert.assertEquals(feedDataPath, storage.getUriTemplate()
+                    .replaceAll(Storage.DOLLAR_EXPR_START_REGEX, Storage.QUESTION_EXPR_START_REGEX));
+        }
+
+        if (storageType != null) {
+            Assert.assertEquals(storageType, storage.getType().name());
+        }
+
+        // verify the post processing params
+        Assert.assertEquals(props.get("feedNames"), tableFeed.getName());
+        Assert.assertEquals(props.get("feedInstancePaths"), "IGNORE");
+        Assert.assertEquals(props.get("logDir"), getLogPath(trgCluster, tableFeed));
+
+        assertWorkflowRetries(getWorkflowapp(trgMiniDFS.getFileSystem(), coord));
+
+        Assert.assertTrue(Storage.TYPE.TABLE == FeedHelper.getStorageType(tableFeed, trgCluster));
+        assertHCatCredentials(getWorkflowapp(trgMiniDFS.getFileSystem(), coord),
+                coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", ""));
+
+        try {
+            verifyClusterLocationsUMask(srcCluster, fs);
+            verifyWorkflowUMask(fs, coord, permission, umask);
+        } finally {
+            cleanupWorkflowState(fs, coord);
+            fs.close();
+        }
+    }
+
+    private void verifyClusterLocationsUMask(Cluster aCluster, FileSystem fs) throws IOException {
+        String stagingLocation = ClusterHelper.getLocation(aCluster, "staging");
+        Path stagingPath = new Path(stagingLocation);
+        if (fs.exists(stagingPath)) {
+            FileStatus fileStatus = fs.getFileStatus(stagingPath);
+            Assert.assertEquals(fileStatus.getPermission().toShort(), 511);
+        }
+
+        String workingLocation = ClusterHelper.getLocation(aCluster, "working");
+        Path workingPath = new Path(workingLocation);
+        if (fs.exists(workingPath)) {
+            FileStatus fileStatus = fs.getFileStatus(workingPath);
+            Assert.assertEquals(fileStatus.getPermission().toShort(), 493);
+        }
+    }
+
+    private void verifyWorkflowUMask(FileSystem fs, COORDINATORAPP coord,
+                                     FsPermission permissionAgainst,
+                                     String defaultUMask) throws IOException {
+        // Assert.assertEquals(fs.getConf().get("dfs.umaskmode"), defaultUMask);
+        Assert.assertEquals(fs.getConf().get("fs.permissions.umask-mode"), defaultUMask);
+
+        String appPath = coord.getAction().getWorkflow().getAppPath().replace("${nameNode}", "");
+        Path wfPath = new Path(appPath);
+        FileStatus[] fileStatuses = fs.listStatus(wfPath);
+        for (FileStatus fileStatus : fileStatuses) {
+            Assert.assertEquals(fileStatus.getOwner(),
+                    UserGroupInformation.getLoginUser().getShortUserName());
+
+            final FsPermission permission = fileStatus.getPermission();
+            System.out.println("fileStatus= " + fileStatus.getPath()
+                    + ", permission= " + permission + ", short= " + permission.toShort());
+            Assert.assertTrue(permissionAgainst.getUserAction().implies(permission.getUserAction()));
+            Assert.assertTrue(permissionAgainst.getGroupAction().implies(permission.getGroupAction()));
+            Assert.assertTrue(permissionAgainst.getOtherAction().implies(permission.getOtherAction()));
+//            Assert.assertEquals(Integer.toOctalString(permission.toShort()), defaultUMask);
+        }
+    }
+
+    private void cleanupWorkflowState(FileSystem fs, COORDINATORAPP coord) throws Exception {
+        String appPath = coord.getAction().getWorkflow().getAppPath();
+        Path wfPath = new Path(appPath.replace("${nameNode}", ""));
+        fs.delete(wfPath, true);
     }
 }

@@ -15,7 +15,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-A = load '$falcon_input_database.$falcon_input_table' using org.apache.hcatalog.pig.HCatLoader();
+A = load '$falcon_input_database.$falcon_input_table' using org.apache.hive.hcatalog.pig.HCatLoader();
 B = FILTER A BY $falcon_input_filter;
 C = foreach B generate id, value;
-store C into '$falcon_output_database.$falcon_output_table' USING org.apache.hcatalog.pig.HCatStorer('$falcon_output_dataout_partitions');
+store C into '$falcon_output_database.$falcon_output_table' USING org.apache.hive.hcatalog.pig.HCatStorer('$falcon_output_dataout_partitions');

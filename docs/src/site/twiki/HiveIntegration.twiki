@@ -335,8 +335,8 @@ The cluster definition from the lifecycle example can be used.
 ---++++ Pig Script
 
 <verbatim>
-A = load '$input_database.$input_table' using org.apache.hcatalog.pig.HCatLoader();
+A = load '$input_database.$input_table' using org.apache.hive.hcatalog.pig.HCatLoader();
 B = FILTER A BY $input_filter;
 C = foreach B generate id, value;
-store C into '$output_database.$output_table' USING org.apache.hcatalog.pig.HCatStorer('$output_dataout_partitions');
+store C into '$output_database.$output_table' USING org.apache.hive.hcatalog.pig.HCatStorer('$output_dataout_partitions');
 </verbatim>
