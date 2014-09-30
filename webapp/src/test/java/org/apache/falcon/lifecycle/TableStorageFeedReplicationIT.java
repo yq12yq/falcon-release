@@ -50,7 +50,7 @@ import java.util.Map;
  * This test is disabled as it heavily depends on oozie sharelibs for
  * hcatalog being made available on HDFS. captured in FALCON-139.
  */
-@Test (enabled = false)
+@Test
 public class TableStorageFeedReplicationIT {
 
     private static final String SOURCE_DATABASE_NAME = "src_demo_db";
@@ -103,7 +103,7 @@ public class TableStorageFeedReplicationIT {
         cleanupHiveMetastore(metastoreUrl, databaseName, tableName);
 
         HiveTestUtils.createDatabase(metastoreUrl, databaseName);
-        final List<String> partitionKeys = Arrays.asList("ds");
+        final List<String> partitionKeys = Arrays.asList("ds", "region");
         HiveTestUtils.createTable(metastoreUrl, databaseName, tableName, partitionKeys);
         // todo this is a kludge to work around hive's limitations
         HiveTestUtils.alterTable(metastoreUrl, databaseName, tableName);
@@ -140,7 +140,7 @@ public class TableStorageFeedReplicationIT {
         fs.delete(new Path("/falcon/test/input"), true);
     }
 
-    @Test (enabled = false)
+    @Test
     public void testTableReplication() throws Exception {
         final String feedName = "customer-table-replicating-feed";
         final Map<String, String> overlay = sourceContext.getUniqueOverlay();
@@ -178,7 +178,7 @@ public class TableStorageFeedReplicationIT {
         TestContext.executeWithURL("entity -delete -type cluster -name bcp-cluster");
     }
 
-    @Test (enabled = false)
+    @Test
     public void testTableReplicationWithExistingTargetPartition() throws Exception {
         final String feedName = "customer-table-replicating-feed";
         final Map<String, String> overlay = sourceContext.getUniqueOverlay();

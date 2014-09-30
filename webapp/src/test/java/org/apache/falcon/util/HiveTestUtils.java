@@ -138,7 +138,8 @@ public final class HiveTestUtils {
             .append(" '").append(path).append("' ")
             .append(" into table ")
             .append(tableName)
-            .append(" partition ").append(" (ds='").append(partition).append("') ");
+            .append(" partition ")
+            .append(" (ds='").append(partition).append("'").append( ", (region='usa')");
 
         startSessionState(metaStoreUrl);
         execHiveDDL("use " + databaseName);
