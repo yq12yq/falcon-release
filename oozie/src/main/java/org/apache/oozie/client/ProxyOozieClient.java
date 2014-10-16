@@ -21,9 +21,7 @@ package org.apache.oozie.client;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.util.RuntimeProperties;
-import org.apache.hadoop.hdfs.web.KerberosUgiAuthenticator;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.authentication.client.Authenticator;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.rest.RestConstants;
 import org.json.simple.JSONObject;
@@ -50,8 +48,6 @@ public class ProxyOozieClient extends AuthOozieClient {
     private static final Logger LOG = Logger.getLogger(ProxyOozieClient.class);
     private static final Map<String, String> NONE = new HashMap<String, String>();
 
-    private final Authenticator authenticator = new KerberosUgiAuthenticator();
-
     public ProxyOozieClient(String oozieUrl) {
         super(oozieUrl, SecurityUtil.getAuthenticationType());
 
@@ -66,11 +62,6 @@ public class ProxyOozieClient extends AuthOozieClient {
 
     public Properties getProperties() throws OozieClientException {
         return (new OozieConfiguration(RestConstants.ADMIN_JAVA_SYS_PROPS_RESOURCE)).call();
-    }
-
-    @Override
-    protected Authenticator getAuthenticator() throws OozieClientException {
-        return authenticator;
     }
 
     @Override
@@ -155,8 +146,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getSystemMode();
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -169,8 +162,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.submit(conf);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -183,10 +178,11 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.dryrun(conf);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
-
     }
 
     @Override
@@ -199,8 +195,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -213,8 +211,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.run(conf);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -228,8 +228,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -243,8 +245,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -258,8 +262,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -273,8 +279,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -288,8 +296,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -302,8 +312,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobInfo(jobId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -317,8 +329,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobInfo(jobId, start, len);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -332,8 +346,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getWorkflowActionInfo(actionId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -346,8 +362,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobLog(jobId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -363,8 +381,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -377,8 +397,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobDefinition(jobId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -391,8 +413,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getBundleJobInfo(jobId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -405,8 +429,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getCoordJobInfo(jobId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -421,8 +447,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getCoordJobInfo(jobId, filter, start, len);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -435,8 +463,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getCoordActionInfo(actionId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -452,8 +482,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.reRunCoord(jobId, rerunType, scope, refresh, noCleanup);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -468,8 +500,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.reRunBundle(jobId, coordScope, dateScope, refresh, noCleanup);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -483,8 +517,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobsInfo(filter, start, len);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -497,8 +533,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobsInfo(filter);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -512,8 +550,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return null;
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -526,8 +566,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getJobId(externalId);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -541,8 +583,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getCoordJobsInfo(filter, start, len);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 
@@ -555,8 +599,10 @@ public class ProxyOozieClient extends AuthOozieClient {
                     return ProxyOozieClient.super.getBundleJobsInfo(filter, start, len);
                 }
             });
+        } catch (OozieClientException e) {
+            throw e;
         } catch (Exception e) {
-            throw new OozieClientException(OozieClientException.AUTHENTICATION, e);
+            throw new OozieClientException(e.toString(), e);
         }
     }
 }
