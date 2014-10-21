@@ -132,7 +132,7 @@ public class LateDataHandler extends Configured implements Tool {
         try {
             FileSystem fs = file.getFileSystem(getConf());
             if (!fs.exists(file.getParent())) {  // create parent with 777
-                fs.mkdirs(file.getParent(), HadoopClientFactory.ALL_PERMISSION);
+                FileSystem.mkdirs(fs, file.getParent(), HadoopClientFactory.ALL_PERMISSION);
             }
 
             // making sure falcon can read this file

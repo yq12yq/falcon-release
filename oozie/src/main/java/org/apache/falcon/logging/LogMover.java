@@ -92,8 +92,13 @@ public class LogMover extends Configured implements Tool {
             Path path = new Path(args.logDir + "/"
                     + String.format("%03d", Integer.parseInt(args.runId)));
             FileSystem fs = path.getFileSystem(getConf());
-            if (!fs.exists(path)) {  // create parent with 777
-                fs.mkdirs(path, HadoopClientFactory.ALL_PERMISSION);
+
+            Path parentPath = path.getParent();
+            if (!fs.exists(parentPath)) { // create parent with 777 explicitly
+                FileSystem.mkdirs(fs, parentPath, HadoopClientFactory.ALL_PERMISSION);
+            }
+            if (!fs.exists(path)) { // create parent with 777
+                FileSystem.mkdirs(fs, path, HadoopClientFactory.ALL_PERMISSION);
             }
 
             if (args.entityType.equalsIgnoreCase(EntityType.FEED.name())
