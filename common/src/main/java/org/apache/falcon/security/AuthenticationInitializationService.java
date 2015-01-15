@@ -116,6 +116,12 @@ public class AuthenticationInitializationService implements FalconService {
         }
     }
 
+    public void reloginUserFromKeytab() throws FalconException {
+        if (SecurityUtil.isSecurityEnabled()) {
+            initializeKerberos();
+        }
+    }
+
     @Override
     public void destroy() throws FalconException {
     }

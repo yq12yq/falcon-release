@@ -64,7 +64,7 @@ public class ProxyOozieClient extends AuthOozieClient {
         return (new OozieConfiguration(RestConstants.ADMIN_JAVA_SYS_PROPS_RESOURCE)).call();
     }
 
-    @Override
+   @Override
     protected HttpURLConnection createConnection(URL url, final String method)
         throws IOException, OozieClientException {
 

@@ -45,6 +45,7 @@ import org.apache.falcon.oozie.coordinator.ACTION;
 import org.apache.falcon.oozie.coordinator.COORDINATORAPP;
 import org.apache.falcon.oozie.coordinator.SYNCDATASET;
 import org.apache.falcon.oozie.coordinator.WORKFLOW;
+import org.apache.falcon.oozie.workflow.CONFIGURATION;
 import org.apache.falcon.oozie.workflow.WORKFLOWAPP;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.util.BuildProperties;
@@ -325,9 +326,33 @@ public class OozieFeedWorkflowBuilder extends OozieWorkflowBuilder<Feed> {
 
             if (shouldSetupHiveConfiguration(targetCluster, entity)) {
                 setupHiveCredentials(targetCluster, sourceCluster, repWFapp);
+            } else {
+                setupFilesystemReplicationCredentials(targetCluster, sourceCluster, repWFapp);
             }
 
             marshal(targetCluster, repWFapp, wfPath);
+        }
+
+        private void setupFilesystemReplicationCredentials(Cluster targetCluster, Cluster sourceCluster,
+                                                           WORKFLOWAPP workflowApp) {
+            for (Object object : workflowApp.getDecisionOrForkOrJoin()) {
+                if (!(object instanceof org.apache.falcon.oozie.workflow.ACTION)) {
+                    continue;
+                }
+
+                org.apache.falcon.oozie.workflow.ACTION action =
+                        (org.apache.falcon.oozie.workflow.ACTION) object;
+                String actionName = action.getName();
+                if ("replication".equals(actionName) && isSecurityEnabled) {
+                    // this is to ensure that the delegation tokens are checked out for both clusters
+                    CONFIGURATION.Property property = new CONFIGURATION.Property();
+                    property.setName("mapreduce.job.hdfs-servers");
+                    property.setValue(ClusterHelper.getReadOnlyStorageUrl(sourceCluster)
+                            + "," + ClusterHelper.getStorageUrl(targetCluster));
+                    action.getJava().getConfiguration().getProperty().add(property);
+                }
+            }
+
         }
 
         private void setupHiveCredentials(Cluster targetCluster, Cluster sourceCluster,
@@ -363,6 +388,15 @@ public class OozieFeedWorkflowBuilder extends OozieWorkflowBuilder<Feed> {
                 } else if ("table-import".equals(actionName)) {
                     if (isSecurityEnabled) { // add a reference to credential in the action
                         action.setCred(TARGET_HIVE_CREDENTIAL_NAME);
+                    }
+                } else if ("replication".equals(actionName)) {
+                    if (isSecurityEnabled) {
+                        // this is to ensure that the delegation tokens are checked out for both clusters
+                        CONFIGURATION.Property property = new CONFIGURATION.Property();
+                        property.setName("mapreduce.job.hdfs-servers");
+                        property.setValue(ClusterHelper.getReadOnlyStorageUrl(sourceCluster)
+                                + "," + ClusterHelper.getStorageUrl(targetCluster));
+                        action.getJava().getConfiguration().getProperty().add(property);
                     }
                 }
             }
@@ -570,7 +604,6 @@ public class OozieFeedWorkflowBuilder extends OozieWorkflowBuilder<Feed> {
 
             replicationWF.setConfiguration(getCoordConfig(props));
             replicationAction.setWorkflow(replicationWF);
-
             return replicationAction;
         }
 
