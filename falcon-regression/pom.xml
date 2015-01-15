@@ -40,8 +40,9 @@
     </modules>
 
     <properties>
-        <oozie.version>3.2.2</oozie.version>
-        <hive.version>0.13.1</hive.version>
+        <oozie.version>4.1.0</oozie.version>
+        <hive.version>0.14.0</hive.version>
+        <testng.exclude.pattern>nothing</testng.exclude.pattern>
     </properties>
 
     <profiles>
@@ -110,6 +111,19 @@
                         <artifactId>hive-hcatalog-core</artifactId>
                         <version>${hive.version}</version>
                     </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hive</groupId>
+                        <artifactId>hive-jdbc</artifactId>
+                        <version>${hive.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hive</groupId>
+                        <artifactId>hive-metastore</artifactId>
+                        <version>${hive.version}</version>
+                    </dependency>
+
                 </dependencies>
             </dependencyManagement>
         </profile>

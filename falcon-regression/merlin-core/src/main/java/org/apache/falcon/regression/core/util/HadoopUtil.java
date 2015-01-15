@@ -18,10 +18,12 @@
 
 package org.apache.falcon.regression.core.util;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.log4j.Logger;
 
 import java.io.File;
@@ -168,6 +170,32 @@ public final class HadoopUtil {
             dstHdfsDir));
         HadoopUtil.deleteDirIfExists(dstHdfsDir, fs);
         HadoopUtil.copyDataToFolder(fs, dstHdfsDir, localLocation);
+    }
+
+    /**
+     * Copies given data to hdfs location.
+     * @param fs target filesystem
+     * @param dstHdfsDir destination dir
+     * @param data source location
+     * @param overwrite do we want to overwrite the data
+     * @throws IOException
+     */
+    public static void writeDataForHive(final FileSystem fs, final String dstHdfsDir,
+        final CharSequence data, boolean overwrite) throws IOException {
+        LOGGER.info(String.format("Writing data %s to hdfs location %s", data, dstHdfsDir));
+        final File tempFile = File.createTempFile(Util.getUniqueString(), ".dat");
+        FileUtils.write(tempFile, data);
+        if (overwrite) {
+            HadoopUtil.deleteDirIfExists(dstHdfsDir, fs);
+        }
+        try {
+            fs.mkdirs(new Path(dstHdfsDir));
+        } catch (Exception e) {
+            //ignore
+        }
+        fs.setPermission(new Path(dstHdfsDir), FsPermission.getDirDefault());
+        HadoopUtil.copyDataToFolder(fs, dstHdfsDir, tempFile.getAbsolutePath());
+        tempFile.delete();
     }
 
     /**
