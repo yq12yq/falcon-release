@@ -31,7 +31,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 
+import java.io.IOException;
 import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
  * Hive DR Testing.
@@ -96,4 +98,35 @@ public class HiveDR extends BaseTestClass {
         ).assertAll();
     }
 
+    /**
+     * Test creates a table on first cluster using static partitioning. Then it creates the same
+     * table on the second cluster using dynamic partitioning. Finally it checks the equality of
+     * these tables.
+     * @throws SQLException
+     * @throws IOException
+     */
+    @Test
+    public void dynamicPartitionsTest() throws SQLException, IOException {
+        final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
+        HiveUtil.runSql(connection, "show tables");
+        HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
+        HiveUtil.runSql(connection, "create database hdr_sdb1");
+        HiveUtil.runSql(connection, "use hdr_sdb1");
+        //create table with static partitions on first cluster
+        HiveObjectCreator.createPartitionedTable(connection, false);
+
+        final Connection connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
+        HiveUtil.runSql(connection2, "show tables");
+        HiveUtil.runSql(connection2, "drop database if exists hdr_tdb1 cascade");
+        HiveUtil.runSql(connection2, "create database hdr_tdb1");
+        HiveUtil.runSql(connection2, "use hdr_tdb1");
+        //create table with dynamic partitions on second cluster
+        HiveObjectCreator.createPartitionedTable(connection2, true);
+
+        //check that both tables are equal
+        HiveAssert.assertTableEqual(
+            cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
+            cluster2, clusterHC2.getTable("hdr_tdb1", "global_store_sales"), new SoftAssert()
+        ).assertAll();
+    }
 }

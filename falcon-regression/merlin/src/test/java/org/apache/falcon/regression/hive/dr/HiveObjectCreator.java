@@ -98,4 +98,42 @@ class HiveObjectCreator {
             + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
         HiveUtil.runSql(connection, "select * from store_sales");
     }
+
+    /**
+     * Create a partitioned table with either dynamic or static partitions.
+     * @param connection jdbc connection object to use for issuing queries to hive
+     * @param dynamic should partitions be added in dynamic or static way
+     * @throws SQLException
+     */
+    static void createPartitionedTable(Connection connection,
+                                       boolean dynamic) throws SQLException {
+        String [][] partitions = {
+            {"us", "Kansas", },
+            {"us", "California", },
+            {"au", "Queensland", },
+            {"au", "Victoria", },
+        };
+        //create table
+        HiveUtil.runSql(connection, "drop table global_store_sales");
+        HiveUtil.runSql(connection, "create table global_store_sales(customer_id string,"
+            + " item_id string, quantity float, price float, time timestamp) "
+            + "partitioned by (country string, state string)");
+        //provide data
+        String query;
+        if (dynamic) {
+            //disable strict mode, thus both partitions can be used as dynamic
+            HiveUtil.runSql(connection, "set hive.exec.dynamic.partition.mode=nonstrict");
+            query = "insert into table global_store_sales partition"
+                + "(country, state) values('c%3$s', 'i%3$s', '%3$s', '%3$s', "
+                + "'2001-01-01 01:01:0%3$s', '%1$s', '%2$s')";
+        } else {
+            query = "insert into table global_store_sales partition"
+                + "(country = '%1$s', state = '%2$s') values('c%3$s', 'i%3$s', '%3$s', '%3$s', "
+                + "'2001-01-01 01:01:0%3$s')";
+        }
+        for(int i = 0 ; i < partitions.length; i++){
+            HiveUtil.runSql(connection, String.format(query, partitions[i][0], partitions[i][1], i+1));
+        }
+        HiveUtil.runSql(connection, "select * from global_store_sales");
+    }
 }
