@@ -136,4 +136,15 @@ class HiveObjectCreator {
         }
         HiveUtil.runSql(connection, "select * from global_store_sales");
     }
+
+    static void createSerDeTable(Connection connection) throws SQLException {
+        HiveUtil.runSql(connection, "create table store_json "
+            + "(customer_id string, item_id string, quantity float, price float, time timestamp) "
+            + "row format serde 'org.apache.hive.hcatalog.data.JsonSerDe' ");
+        HiveUtil.runSql(connection, "insert into table store_json values "
+            + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01'), "
+            + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
+        HiveUtil.runSql(connection, "select * from store_json");
+    }
+
 }

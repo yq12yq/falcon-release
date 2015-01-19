@@ -20,10 +20,13 @@ package org.apache.falcon.regression.hive.dr;
 
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
+import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.HiveUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.OozieClient;
@@ -56,6 +59,12 @@ public class HiveDR extends BaseTestClass {
     }
 
     @Test
+    public void serDe() throws SQLException {
+        final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
+        HiveObjectCreator.createSerDeTable(connection);
+    }
+
+    @Test
     public void dataGeneration() throws Exception {
         final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
         HiveUtil.runSql(connection, "show tables");
@@ -63,6 +72,7 @@ public class HiveDR extends BaseTestClass {
         HiveUtil.runSql(connection, "create database hdr_sdb1");
         HiveUtil.runSql(connection, "use hdr_sdb1");
         HiveObjectCreator.createVanillaTable(connection);
+        HiveObjectCreator.createSerDeTable(connection);
         HiveObjectCreator.createPartitionedTable(connection);
         HiveObjectCreator.createExternalTable(connection, clusterFS,
             baseTestHDFSDir + "click_data/");
@@ -73,6 +83,7 @@ public class HiveDR extends BaseTestClass {
         HiveUtil.runSql(connection2, "create database hdr_tdb1");
         HiveUtil.runSql(connection2, "use hdr_tdb1");
         HiveObjectCreator.createVanillaTable(connection2);
+        HiveObjectCreator.createSerDeTable(connection2);
         HiveObjectCreator.createPartitionedTable(connection2);
         HiveObjectCreator.createExternalTable(connection2, clusterFS2,
             baseTestHDFSDir + "click_data/");
