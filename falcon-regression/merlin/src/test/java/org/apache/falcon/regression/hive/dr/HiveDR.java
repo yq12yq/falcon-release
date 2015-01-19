@@ -20,13 +20,10 @@ package org.apache.falcon.regression.hive.dr;
 
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
-import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.HiveUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.OozieClient;
@@ -36,7 +33,6 @@ import org.testng.asserts.SoftAssert;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.SQLException;
 
 /**
  * Hive DR Testing.
@@ -56,12 +52,6 @@ public class HiveDR extends BaseTestClass {
     public void setUp() throws Exception {
         clusterHC = cluster.getClusterHelper().getHCatClient();
         clusterHC2 = cluster2.getClusterHelper().getHCatClient();
-    }
-
-    @Test
-    public void serDe() throws SQLException {
-        final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
-        HiveObjectCreator.createSerDeTable(connection);
     }
 
     @Test
