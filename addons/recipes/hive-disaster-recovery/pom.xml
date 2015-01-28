@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!--
   Licensed to the Apache Software Foundation (ASF) under one
   or more contributor license agreements.  See the NOTICE file
@@ -17,24 +18,15 @@
   limitations under the License.
   -->
 
-<process name="##name##" xmlns="uri:falcon:process:0.1">
-    <clusters>
-        <!--  source  -->
-        <cluster name="##cluster.name##">
-            <validity end="##cluster.validity.end##" start="##cluster.validity.start##"/>
-        </cluster>
-    </clusters>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-    <parallel>1</parallel>
-    <!-- Dir replication needs to run only once to catch up -->
-    <order>LAST_ONLY</order>
-    <frequency>##process.frequency##</frequency>
-    <timezone>UTC</timezone>
-
-    <properties>
-        <property name="oozie.wf.subworkflow.classpath.inheritance" value="true"/>
-    </properties>
-
-    <workflow name="##workflow.name##" engine="oozie" path="##workflow.path##" lib="##workflow.lib.path##"/>
-    <retry policy="##retry.policy##" delay="##retry.delay##" attempts="3"/>
-</process>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.apache.falcon.recipes</groupId>
+    <artifactId>falcon-hive-replication-recipe</artifactId>
+    <version>0.7-SNAPSHOT</version>
+    <description>Apache Falcon Hive Disaster Recovery Recipe</description>
+    <name>Apache Falcon Sample Hive Disaster Recovery Recipe</name>
+    <packaging>jar</packaging>
+</project>

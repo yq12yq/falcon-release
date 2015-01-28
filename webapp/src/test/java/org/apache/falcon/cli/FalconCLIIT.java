@@ -498,7 +498,7 @@ public class FalconCLIIT {
                 executeWithURL("instance -list -type feed -lifecycle eviction -name "
                         + overlay.get("outputFeedName")
                         + " -start "+ SchemaHelper.getDateFormat().format(new Date())
-                        +" -filterBy SOURCECLUSTER:" + overlay.get("src.cluster.name")
+                        +" -filterBy SOURCECLUSTER:" + overlay.get("cluster.name")
                         + " -orderBy startTime -offset 0 -numResults 1"));
         Assert.assertEquals(-1,
                 executeWithURL("instance -status -type feed -lifecycle eviction -name "
@@ -1030,13 +1030,13 @@ public class FalconCLIIT {
         File file = new File(resourcePath, "process.properties");
         OutputStream out = new FileOutputStream(file);
         props.setProperty("falcon.recipe.processName", context.getProcessName());
-        props.setProperty("falcon.recipe.src.cluster.name", context.getClusterName());
+        props.setProperty("falcon.recipe.cluster.name", context.getClusterName());
         props.setProperty("falcon.recipe.processEndDate", context.getProcessEndTime());
         props.setProperty("falcon.recipe.inputFeedName", context.getInputFeedName());
         props.setProperty("falcon.recipe.outputFeedName", context.getOutputFeedName());
         props.setProperty("falcon.recipe.workflow.path", TestContext.class.getResource("/fs-workflow.xml").getPath());
         props.setProperty("falcon.recipe.workflow.lib.path", new File(libPath).getParent());
-        props.setProperty("falcon.recipe.src.cluster.hdfs.writeEndPoint", "jail://global:00");
+        props.setProperty("falcon.recipe.cluster.hdfs.writeEndPoint", "jail://global:00");
 
         props.store(out, null);
         out.close();
