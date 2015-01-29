@@ -21,6 +21,7 @@ package org.apache.falcon.recipe;
 public enum HiveReplicationRecipeToolOptions {
     REPLICATION_SOURCE_CLUSTER("sourceCluster", "Replication source cluster name"),
     REPLICATION_SOURCE_METASTORE_URI("sourceMetastoreUri", "Source Hive metastore uri"),
+    REPLICATION_SOURCE_HS2_URI("sourceHiveServer2Uri", "Source HS2 uri"),
     REPLICATION_SOURCE_SERVICE_PRINCIPAL("sourceServicePrincipal", "Source principal"),
     REPLICATION_SOURCE_DATABASE("sourceDatabase", "List of databases to replicate"),
     REPLICATION_SOURCE_TABLE("sourceTable", "List of tables to replicate"),
@@ -30,6 +31,7 @@ public enum HiveReplicationRecipeToolOptions {
 
     REPLICATION_TARGET_CLUSTER("targetCluster", "Replication target cluster name"),
     REPLICATION_TARGET_METASTORE_URI("targetMetastoreUri", "Target Hive metastore uri"),
+    REPLICATION_TARGET_HS2_URI("targetHiveServer2Uri", "Target HS2 uri"),
     REPLICATION_TARGET_SERVICE_PRINCIPAL("targetServicePrincipal", "Target principal"),
     REPLICATION_TARGET_DATABASE("targetDatabase", "List of databases on target after replication"),
     REPLICATION_TARGET_TABLE("targetTable", "List of tables on target after replication"),
@@ -40,7 +42,7 @@ public enum HiveReplicationRecipeToolOptions {
     REPLICATION_MAX_EVENTS("maxEvents", "Maximum events to replicate"),
     REPLICATION_MAX_MAPS("maxMaps", "Maximum number of maps used during replication"),
     REPLICATION_MAP_BANDWIDTH_IN_MB("mapBandwidth", "Bandwidth in MB/s used by each mapper during replication"),
-    HIVE_DR_JOB_NAME("hiveDRJobName", "Unique hive DR job name", false);
+    HIVE_DR_JOB_NAME("drJobName", "Unique hive DR job name", false);
 
     private final String name;
     private final String description;

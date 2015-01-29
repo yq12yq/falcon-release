@@ -75,6 +75,9 @@ public class HiveDROptions {
     public String getSourceMetastoreUri() {
         return context.get(HiveDRArgs.SOURCE_METASTORE_URI);
     }
+    public String getSourceHS2Uri() {
+        return context.get(HiveDRArgs.SOURCE_HS2_URI);
+    }
 
     public String getSourceServicePrincipal() {
         return context.get(HiveDRArgs.SOURCE_SERVICE_PRINCIPAL);
@@ -101,6 +104,9 @@ public class HiveDROptions {
 
     public String getTargetMetastoreUri() {
         return context.get(HiveDRArgs.TARGET_METASTORE_URI);
+    }
+    public String getTargetHS2Uri() {
+        return context.get(HiveDRArgs.TARGET_HS2_URI);
     }
 
     public String getTargetServicePrincipal() {

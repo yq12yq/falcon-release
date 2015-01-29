@@ -29,6 +29,7 @@ public enum HiveDRArgs {
     // source meta store details
     SOURCE_CLUSTER("sourceCluster", "source cluster"),
     SOURCE_METASTORE_URI("sourceMetastoreUri", "source meta store uri"),
+    SOURCE_HS2_URI("sourceHiveServer2Uri", "source HS2 uri"),
     SOURCE_SERVICE_PRINCIPAL("sourceServicePrincipal", "source service principal"),
     SOURCE_DATABASE("sourceDatabase", "comma source databases"),
     SOURCE_TABLE("sourceTable", "comma source tables"),
@@ -41,6 +42,7 @@ public enum HiveDRArgs {
     TARGET_CLUSTER("targetCluster", "target cluster"),
     // target meta store details
     TARGET_METASTORE_URI("targetMetastoreUri", "source meta store uri"),
+    TARGET_HS2_URI("targetHiveServer2Uri", "source meta store uri"),
     TARGET_SERVICE_PRINCIPAL("targetServicePrincipal", "source service principal"),
     TARGET_DATABASE("targetDatabase", "comma source databases"),
     TARGET_TABLE("targetTable", "comma source tables"),
@@ -59,7 +61,7 @@ public enum HiveDRArgs {
     // Map Bandwidth
     MAP_BANDWIDTH("mapBandwidth", "map bandwidth in mb", false),
 
-    JOB_NAME("jobName", "unique job name");
+    JOB_NAME("drJobName", "unique job name");
 
     private final String name;
     private final String description;

@@ -180,7 +180,6 @@ public class HiveDRTool extends Configured implements Tool {
         }
 
         job.getConfiguration().set("inputPath", inputFile); //Todo change /tmp with getInputPath()
-        job.getConfiguration().set("userJobName", inputOptions.getJobName());
 
         return job;
     }

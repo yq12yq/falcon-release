@@ -43,10 +43,8 @@ public class HiveReplicationRecipeTool implements Recipe {
         HCatClient sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
                 (HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
 
-        String sourceDbList = recipeProperties.getProperty(recipeProperties.getProperty(HiveReplicationRecipeToolOptions
-                .REPLICATION_SOURCE_DATABASE.getName()));
-        String sourceTableList = recipeProperties.getProperty(recipeProperties.getProperty
-                (HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName()));
+        String sourceDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
+        String sourceTableList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
 
         String[] srcDbs = sourceDbList.split(",");
         for(String db : srcDbs) {
@@ -83,7 +81,7 @@ public class HiveReplicationRecipeTool implements Recipe {
         Properties additionalProperties = new Properties();
         String recipeName = recipeProperties.getProperty(RecipeToolOptions.RECIPE_NAME.getName());
         // Add recipe name as Hive DR job
-        additionalProperties.put(HiveReplicationRecipeToolOptions.HIVE_DR_JOB_NAME, recipeName);
+        additionalProperties.put(HiveReplicationRecipeToolOptions.HIVE_DR_JOB_NAME.getName(), recipeName);
         return additionalProperties;
     }
 

@@ -55,6 +55,8 @@
             <arg>${sourceCluster}</arg>
             <arg>-sourceMetastoreUri</arg>
             <arg>${sourceMetastoreUri}</arg>
+            <arg>-sourceHiveServer2Uri</arg>
+            <arg>${sourceHiveServer2Uri}</arg>
             <arg>-sourceServicePrincipal</arg>
             <arg>${sourceServicePrincipal}</arg>
             <arg>-sourceDatabase</arg>
@@ -71,6 +73,8 @@
             <arg>${targetCluster}</arg>
             <arg>-targetMetastoreUri</arg>
             <arg>${targetMetastoreUri}</arg>
+            <arg>-targetHiveServer2Uri</arg>
+            <arg>${targetHiveServer2Uri}</arg>
             <arg>-targetServicePrincipal</arg>
             <arg>${targetServicePrincipal}</arg>
             <arg>-targetDatabase</arg>
@@ -87,8 +91,8 @@
             <arg>${maxEvents}</arg>
             <arg>-mapBandwidth</arg>
             <arg>${mapBandwidth}</arg>
-            <arg>-hiveDRJobName</arg>
-            <arg>${hiveDRJobName}</arg>
+            <arg>-drJobName</arg>
+            <arg>${drJobName}</arg>
         </java>
         <ok to="end"/>
         <error to="fail"/>

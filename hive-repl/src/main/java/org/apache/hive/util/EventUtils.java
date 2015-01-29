@@ -38,15 +38,16 @@ import java.util.List;
 public class EventUtils {
     public static String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
     private static final String SASL_AUTH = ";auth=noSasl";
+    private static final String JDBC_PREFIX = "jdbc:";
     private Configuration conf = null;
-    private String sourceMetastoreUri = null;
+    private String sourceHiveServer2Uri = null;
     private String sourceServicePrincipal = null;
     private String sourceDatabase = null;
     private String sourceTable = null;
     private String sourceStagingPath = null;
     private String sourceNN = null;
     private String sourceRM = null;
-    private String targetMetastoreUri = null;
+    private String targetHiveServer2Uri = null;
     private String targetServicePrincipal = null;
     private String targetDatabase = null;;
     private String targetTable = null;
@@ -81,7 +82,7 @@ public class EventUtils {
     public EventUtils(Configuration conf) {
         this.conf = conf;
         this.fsName = conf.get("fs.default.name");
-        sourceMetastoreUri = conf.get("sourceMetastoreUri");
+        sourceHiveServer2Uri = conf.get("sourceHiveServer2Uri");
         sourceServicePrincipal = conf.get("sourceServicePrincipal");
         sourceDatabase = conf.get("sourceDatabase");
         sourceTable = conf.get("sourceTable");
@@ -89,7 +90,7 @@ public class EventUtils {
         sourceNN = conf.get("sourceNN");
         sourceRM = conf.get("sourceRM");
 
-        targetMetastoreUri = conf.get("targetMetastoreUri");
+        targetHiveServer2Uri = conf.get("targetHiveServer2Uri");
         targetServicePrincipal = conf.get("targetServicePrincipal");
         targetDatabase = conf.get("targetDatabase");
         targetTable = conf.get("targetTable");
@@ -101,9 +102,9 @@ public class EventUtils {
 
     public void setupConnection() {
         try {
-            src_con = DriverManager.getConnection(sourceMetastoreUri+"/"+sourceDatabase+SASL_AUTH,
+            src_con = DriverManager.getConnection(JDBC_PREFIX+sourceHiveServer2Uri+"/"+sourceDatabase+SASL_AUTH,
                     sourceServicePrincipal, "");
-            tgt_con = DriverManager.getConnection(targetMetastoreUri+"/"+targetDatabase+SASL_AUTH,
+            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+targetDatabase+SASL_AUTH,
                     targetServicePrincipal, "");
             src_stmt = src_con.createStatement();
             tgt_stmt = tgt_con.createStatement();
@@ -184,9 +185,9 @@ public class EventUtils {
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
             throws HiveReplicationException{
-        String userJobName = conf.get("userJobName");
-        ReplicationStatus rs = new ReplicationStatus(sourceMetastoreUri, targetMetastoreUri, userJobName, dbName,
-                tableName, status, eventId);
+        String drJobName = conf.get("drJobName");
+        ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"), drJobName,
+                dbName, tableName, status, eventId);
         listReplicationStatus.add(rs);
     }
 
