@@ -18,6 +18,7 @@
 
 package org.apache.falcon.regression.hive.dr;
 
+import org.apache.falcon.regression.Entities.RecipeMerlin;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
 import org.apache.falcon.regression.core.util.HiveAssert;
@@ -52,6 +53,13 @@ public class HiveDR extends BaseTestClass {
     public void setUp() throws Exception {
         clusterHC = cluster.getClusterHelper().getHCatClient();
         clusterHC2 = cluster2.getClusterHelper().getHCatClient();
+    }
+
+    @Test
+    public void readRecipe() throws Exception {
+        final RecipeMerlin recipeMerlin = RecipeMerlin.readFromDir("ReplicationRecipe");
+        recipeMerlin.setName("testName");
+        recipeMerlin.writeToDir("/Users/rgautam/tmp/recipe");
     }
 
     @Test
