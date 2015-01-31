@@ -25,6 +25,7 @@ import org.apache.hive.hcatalog.api.HCatTable;
 import org.apache.hive.hcatalog.api.HCatDatabase;
 import org.apache.hive.hcatalog.cli.SemanticAnalysis.HCatSemanticAnalyzer;
 import org.apache.hive.hcatalog.common.HCatException;
+import org.apache.hive.hcatalog.api.ObjectNotFoundException;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -39,45 +40,56 @@ public class HiveReplicationRecipeTool implements Recipe {
             }
         }
 
-        // Validate if DB exists - source and target
-        HCatClient sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
-                (HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
+        HCatClient sourceMetastoreClient = null;
+        HCatClient targetMetastoreClient = null;
+        try {
+            // Validate if DB exists - source and target
+            sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
+                    (HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
 
-        String sourceDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
-        String sourceTableList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
+            String sourceDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
+            String sourceTableList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
 
-        String[] srcDbs = sourceDbList.split(",");
-        if(srcDbs.length <= 0) {
-            throw new Exception("No source DB specified in property file");
-        }
-        for(String db : srcDbs) {
-            if (!dbExists(sourceMetastoreClient, db)) {
-                throw new Exception("Database " + db + " doesn't exist on source cluster");
+            String[] srcDbs = sourceDbList.split(",");
+            if (srcDbs.length <= 0) {
+                throw new Exception("No source DB specified in property file");
             }
-        }
-
-        String[] srcTables =  sourceTableList.split(",");
-        if (srcTables.length > 0) {
-            for(String table : srcTables) {
-                if (!tableExists(sourceMetastoreClient, srcDbs[0], table)) {
-                    throw new Exception("Table " + table + " doesn't exist on source cluster");
+            for (String db : srcDbs) {
+                if (!dbExists(sourceMetastoreClient, db)) {
+                    throw new Exception("Database " + db + " doesn't exist on source cluster");
                 }
             }
-        }
 
-        HCatClient targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
-                (HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
+            String[] srcTables = sourceTableList.split(",");
+            if (srcTables.length > 0) {
+                for (String table : srcTables) {
+                    if (!tableExists(sourceMetastoreClient, srcDbs[0], table)) {
+                        throw new Exception("Table " + table + " doesn't exist on source cluster");
+                    }
+                }
+            }
 
-        String trgDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_TARGET_DATABASE.getName());
+            targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
+                    (HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
 
-        String[] tgrDbs = trgDbList.split(",");
+            String trgDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_TARGET_DATABASE.getName());
 
-        if(tgrDbs.length <= 0) {
-            throw new Exception("No target DB specified in property file");
-        }
-        for(String db : tgrDbs) {
-            if (!dbExists(targetMetastoreClient, db)) {
-                throw new Exception("Database " + db + " doesn't exist on target cluster");
+            String[] tgrDbs = trgDbList.split(",");
+
+            if (tgrDbs.length <= 0) {
+                throw new Exception("No target DB specified in property file");
+            }
+            for (String db : tgrDbs) {
+                if (!dbExists(targetMetastoreClient, db)) {
+                    throw new Exception("Database " + db + " doesn't exist on target cluster");
+                }
+            }
+        } finally {
+            if (sourceMetastoreClient != null) {
+                sourceMetastoreClient.close();
+            }
+            if (targetMetastoreClient != null) {
+                targetMetastoreClient.close();
             }
         }
     }
@@ -123,6 +135,9 @@ public class HiveReplicationRecipeTool implements Recipe {
         try {
             HCatTable table = client.getTable(database, tableName);
             return table != null;
+        } catch (ObjectNotFoundException e) {
+            System.out.println(e.getMessage());
+            return false;
         } catch (HCatException e) {
             throw new Exception("Exception checking if the table exists:" + e.getMessage(), e);
         }
@@ -132,6 +147,9 @@ public class HiveReplicationRecipeTool implements Recipe {
         try {
             HCatDatabase db = client.getDatabase(database);
             return db != null;
+        } catch (ObjectNotFoundException e) {
+            System.out.println(e.getMessage());
+            return false;
         } catch (HCatException e) {
             throw new Exception("Exception checking if the db exists:" + e.getMessage(), e);
         }
