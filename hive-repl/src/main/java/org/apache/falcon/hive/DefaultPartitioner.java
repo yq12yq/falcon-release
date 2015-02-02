@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
 import com.google.common.collect.Lists;
-import org.apache.hive.util.DRStatusStore;
-import org.apache.hive.util.HiveDRUtils;
-import static org.apache.hive.util.HiveDRUtils.ReplicationType;
-import static org.apache.hive.util.HiveDRUtils.SEPARATOR;
+import org.apache.falcon.hive.util.HiveDRUtils;
+import org.apache.falcon.hive.util.ReplicationStatus;
+import org.apache.falcon.hive.util.DRStatusStore;
+
 import static org.apache.hive.hcatalog.api.HCatNotificationEvent.Scope;
 
-import org.apache.hive.util.ReplicationStatus;
 import org.apache.hive.hcatalog.api.repl.Command;
 import org.apache.hive.hcatalog.api.repl.ReplicationTask;
 import org.apache.hive.hcatalog.api.repl.StagingDirectoryProvider;
@@ -83,9 +82,9 @@ public class DefaultPartitioner implements Partitioner {
             ReplicationTask task = taskIter.next();
             if (task.needsStagingDirs()) {
                 task.withSrcStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(srcStagingDirProvider,
-                        SEPARATOR));
+                        HiveDRUtils.SEPARATOR));
                 task.withDstStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(dstStagingDirProvider,
-                        SEPARATOR));
+                        HiveDRUtils.SEPARATOR));
             }
 
             if (task.isActionable()) {
@@ -188,6 +187,6 @@ public class DefaultPartitioner implements Partitioner {
     }
 
     public boolean isPartitioningRequired(final HiveDROptions options) {
-        return (HiveDRUtils.getReplicationType(options.getSourceTables()) == ReplicationType.DB);
+        return (HiveDRUtils.getReplicationType(options.getSourceTables()) == HiveDRUtils.ReplicationType.DB);
     }
 }

@@ -16,16 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
+import org.apache.hive.hcatalog.api.repl.ReplicationTask;
+
+import java.util.Iterator;
 import java.util.List;
 
-public interface EventSourcer {
+public interface Partitioner {
     /**
-     * Source events for each table into a file
+     * Partition events
+     * @param ReplicationTask Iterator
+     * @param String dbName
      * @param HiveDROptions
-     * @return input filename to mapper
+     * @return List of ReplicationEvents
+     * destination commands for each table
      */
-    /* Source events for each <db, table> into a file */
-    List<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception;
+    List<ReplicationEvents> partition(final HiveDROptions options,
+                                      final String dbName,
+                                      final Iterator<ReplicationTask> replicationTaskIterator) throws Exception;
+
+    boolean isPartitioningRequired(final HiveDROptions options);
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;

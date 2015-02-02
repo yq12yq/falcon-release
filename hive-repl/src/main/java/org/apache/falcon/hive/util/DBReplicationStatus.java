@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.util;
 
-import org.apache.hive.exception.HiveReplicationException;
+import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
@@ -27,9 +27,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.hive.util.ReplicationStatus.Status.FAILURE;
-import static org.apache.hive.util.ReplicationStatus.Status.SUCCESS;
 
 public class DBReplicationStatus {
 
@@ -105,27 +102,27 @@ public class DBReplicationStatus {
         case 2) One or many tables failed to replicate
         Take the smallest eventId amongst the failed tables and set dbReplStatus as failed.
          */
-        dbReplicationStatus.setStatus(SUCCESS);
+        dbReplicationStatus.setStatus(ReplicationStatus.Status.SUCCESS);
         long successEventId = dbReplicationStatus.getEventId();
         long failedEventId = -1;
 
         for (Map.Entry<String, ReplicationStatus> entry : tableStatuses.entrySet()) {
             long eventId = entry.getValue().getEventId();
-            if (entry.getValue().getStatus().equals(SUCCESS)) {
+            if (entry.getValue().getStatus().equals(ReplicationStatus.Status.SUCCESS)) {
                 if (eventId > successEventId) {
                     successEventId = eventId;
                 }
-            } else if (entry.getValue().getStatus().equals(FAILURE)) {
-                dbReplicationStatus.setStatus(FAILURE);
+            } else if (entry.getValue().getStatus().equals(ReplicationStatus.Status.FAILURE)) {
+                dbReplicationStatus.setStatus(ReplicationStatus.Status.FAILURE);
                 if (eventId < failedEventId) {
                     failedEventId = eventId;
                 }
             }
         }
 
-        if (dbReplicationStatus.getStatus().equals(SUCCESS)) {
+        if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.SUCCESS)) {
             dbReplicationStatus.setEventId(successEventId);
-        } else if (dbReplicationStatus.getStatus().equals(FAILURE)) {
+        } else if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.FAILURE)) {
             dbReplicationStatus.setEventId(failedEventId);
         }
     }

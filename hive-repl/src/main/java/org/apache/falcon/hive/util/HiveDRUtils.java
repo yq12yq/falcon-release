@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.util;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import java.util.List;
 
-public class DelimiterUtils {
+public final class HiveDRUtils {
 
-    public static final String FIELD_DELIM = ",";
-    public static final String STMT_DELIM = "|";
-    public static final String RECORD_DELIM = "=====";
-
-    public static String getEscapedFieldDelim() {
-        return StringEscapeUtils.escapeJava(FIELD_DELIM);
+    public enum ReplicationType {
+        TABLE,
+        DB
     }
 
-    public static String getEscapedStmtDelim() {
-        return StringEscapeUtils.escapeJava(STMT_DELIM);
+    public static final String SEPARATOR = "/";
+
+    public static ReplicationType getReplicationType(List<String> sourceTables) {
+        return (sourceTables.isEmpty()) ? ReplicationType.DB : ReplicationType.TABLE;
     }
 
-    public static String getEscapedRecordDelim() {
-        return StringEscapeUtils.escapeJava(RECORD_DELIM);
-    }
 }

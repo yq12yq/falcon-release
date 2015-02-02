@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.hive.mapreduce.CopyMapper;
-import org.apache.hive.mapreduce.CopyReducer;
-import org.apache.hive.util.DRStatusStore;
-import org.apache.hive.util.DelimiterUtils;
+import org.apache.falcon.hive.mapreduce.CopyMapper;
+import org.apache.falcon.hive.util.DRStatusStore;
+import org.apache.falcon.hive.util.DelimiterUtils;
+import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
@@ -59,7 +59,7 @@ public class HiveDRTool extends Configured implements Tool {
     private DRStatusStore drStore;
     private boolean submitted;
 
-    private static final String DEFAULT_STORE_PATH = "/apps/falcon";
+    private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
     private static final Logger LOG = LoggerFactory.getLogger(HiveDRTool.class);
@@ -96,12 +96,23 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private void init(String[] args) throws Exception {
+        LOG.info("Enter init");
         inputOptions = parseOptions(args);
         LOG.info("Input Options: {}", inputOptions);
 
         fs = FileSystem.get(getConfiguration(inputOptions.getTargetWriteEP()));
         // init DR status store
         drStore = new DRStatusStore(fs);
+
+        // Create base dir to store events
+        Path dir = new Path(DEFAULT_EVENT_STORE_PATH);
+
+        if (!fs.exists(dir)) {
+            if(!fs.mkdirs(dir)) {
+                throw new Exception("Creating directory failed: " + dir);
+            }
+        }
+        LOG.info("Exit init");
     }
 
     private HiveDROptions parseOptions(String[] args) throws ParseException {
@@ -119,7 +130,8 @@ public class HiveDRTool extends Configured implements Tool {
         }
 
         String identifier = inputOptions.getJobName();
-        String inputFilename = persistReplicationEvents(DEFAULT_STORE_PATH, identifier, events);
+        String inputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier,
+        events);
 
         Job job = null;
         try {
@@ -185,9 +197,19 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private List<ReplicationEvents> sourceEvents() throws Exception {
-        MetaStoreEventSourcer defaultSourcer = new MetaStoreEventSourcer(inputOptions.getSourceMetastoreUri(),
-                inputOptions.getTargetMetastoreUri(), new DefaultPartitioner(drStore), drStore);
-        return defaultSourcer.sourceEvents(inputOptions);
+        MetaStoreEventSourcer defaultSourcer = null;
+        List<ReplicationEvents> replicationEvents = null;
+        try {
+            defaultSourcer = new MetaStoreEventSourcer(inputOptions.getSourceMetastoreUri(),
+                    inputOptions.getTargetMetastoreUri(), new DefaultPartitioner(drStore), drStore);
+            replicationEvents = defaultSourcer.sourceEvents(inputOptions);
+        } finally {
+            if (defaultSourcer != null) {
+                defaultSourcer.cleanUp();
+            }
+        }
+        LOG.info("Return sourceEvents");
+        return replicationEvents;
     }
 
     private void createPartitions(Job job) throws IOException {
@@ -217,9 +239,9 @@ public class HiveDRTool extends Configured implements Tool {
 
     /* TODO : MR should delete the file in case of success or failure of map job */
     private String persistReplicationEvents(String dir, String filename,
-                                                   List<ReplicationEvents> eventsList) throws Exception {
+                                            List<ReplicationEvents> eventsList) throws Exception {
         OutputStream out = null;
-        Path filePath = new Path(getFilename(dir, filename, fs));
+        Path filePath = new Path(getFilename(dir, filename));
 
         try {
             out = FileSystem.create(fs, filePath, FS_PERMISSION);
@@ -269,18 +291,9 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
-    private static String getFilename(String dir, String identifier, FileSystem fs) throws Exception {
-
-        Path inputPath = new Path(dir);
-
-        if (!fs.exists(inputPath)) {
-            if(!fs.mkdirs(inputPath)) {
-                throw new Exception("Creating directory failed: " + dir);
-            }
-        }
-
+    private static String getFilename(String dir, String identifier) throws Exception {
         String prefix = identifier + "-" + System.currentTimeMillis();
-        return inputPath.toString() + File.separator + prefix + ".txt";
+        return dir + File.separator + prefix + ".txt";
     }
 
     private static Configuration getConfiguration(final String storageEndpoint) {

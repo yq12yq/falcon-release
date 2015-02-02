@@ -16,21 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.exception;
 
-import java.util.List;
+public class HiveReplicationException extends Exception {
 
-public final class HiveDRUtils {
-
-    public enum ReplicationType {
-        TABLE,
-        DB
+    /**
+     * @param e Exception
+     */
+    public HiveReplicationException(Throwable e) {
+        super(e);
     }
 
-    public static final String SEPARATOR = "/";
-
-    public static ReplicationType getReplicationType(List<String> sourceTables) {
-        return (sourceTables.isEmpty()) ? ReplicationType.DB : ReplicationType.TABLE;
+    public HiveReplicationException(String message, Throwable e) {
+        super(message, e);
     }
+
+    /**
+     * @param message - custom exception message
+     */
+    public HiveReplicationException(String message) {
+        super(message);
+    }
+
+    /**
+     *
+     */
+    private static final long serialVersionUID = -1475818869309247014L;
 
 }

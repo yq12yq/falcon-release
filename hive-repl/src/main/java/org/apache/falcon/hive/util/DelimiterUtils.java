@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.hive.exception;
+package org.apache.falcon.hive.util;
 
-public class HiveReplicationException extends Exception {
+import org.apache.commons.lang3.StringEscapeUtils;
 
-    /**
-     * @param e Exception
-     */
-    public HiveReplicationException(Throwable e) {
-        super(e);
+public class DelimiterUtils {
+
+    public static final String FIELD_DELIM = ",";
+    public static final String STMT_DELIM = "|";
+    public static final String RECORD_DELIM = "=====";
+
+    public static String getEscapedFieldDelim() {
+        return StringEscapeUtils.escapeJava(FIELD_DELIM);
     }
 
-    public HiveReplicationException(String message, Throwable e) {
-        super(message, e);
+    public static String getEscapedStmtDelim() {
+        return StringEscapeUtils.escapeJava(STMT_DELIM);
     }
 
-    /**
-     * @param message - custom exception message
-     */
-    public HiveReplicationException(String message) {
-        super(message);
+    public static String getEscapedRecordDelim() {
+        return StringEscapeUtils.escapeJava(RECORD_DELIM);
     }
-
-    /**
-     *
-     */
-    private static final long serialVersionUID = -1475818869309247014L;
-
 }

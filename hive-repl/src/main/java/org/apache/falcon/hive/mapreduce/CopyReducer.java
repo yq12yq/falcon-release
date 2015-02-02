@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.hive.mapreduce;
+package org.apache.falcon.hive.mapreduce;
 
 
-import org.apache.hive.exception.HiveReplicationException;
-import org.apache.hive.util.DRStatusStore;
-import org.apache.hive.util.ReplicationStatus;
+import org.apache.falcon.hive.exception.HiveReplicationException;
+import org.apache.falcon.hive.util.DRStatusStore;
+import org.apache.falcon.hive.util.ReplicationStatus;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;

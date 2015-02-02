@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hive.mapreduce;
+package org.apache.falcon.hive.mapreduce;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;

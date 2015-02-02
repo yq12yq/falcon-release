@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.hive.mapreduce;
+package org.apache.falcon.hive.mapreduce;
 
-import org.apache.hive.util.EventUtils;
-import org.apache.hive.util.ReplicationStatus;
+import org.apache.falcon.hive.util.EventUtils;
+import org.apache.falcon.hive.util.ReplicationStatus;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

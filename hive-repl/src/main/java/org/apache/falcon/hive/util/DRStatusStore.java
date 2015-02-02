@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.util;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hive.exception.HiveReplicationException;
+import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -42,7 +42,8 @@ import java.util.Map;
 public class DRStatusStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(DRStatusStore.class);
-    private static final String DEFAULT_STORE_PATH = "/apps/falcon/hiveReplication/statusStore/";
+    public static final String BASE_DEFAULT_STORE_PATH = "/apps/falcon/hiveReplication";
+    private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "/statusStore/";
     private static final FsPermission DEFAULT_STORE_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE);
     private static final String LATEST_FILE = "latest.json";

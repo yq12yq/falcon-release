@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
 public class DRTest {
     public static void main(String[] args) {

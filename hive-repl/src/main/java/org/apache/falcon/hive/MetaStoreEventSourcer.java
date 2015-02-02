@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.hive;
+package org.apache.falcon.hive;
 
 
 import com.google.common.collect.Lists;
-import org.apache.hive.util.DRStatusStore;
-import org.apache.hive.util.HiveDRUtils;
+import org.apache.falcon.hive.util.DRStatusStore;
+import org.apache.falcon.hive.util.HiveDRUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.api.HCatClient;
@@ -38,9 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
-
-import static org.apache.hive.util.HiveDRUtils.ReplicationType;
-import static org.apache.hive.util.HiveDRUtils.SEPARATOR;
 
 /**
  * Sources meta store change events from Hive.
@@ -90,10 +87,12 @@ public class MetaStoreEventSourcer implements EventSourcer {
     }
 
     public List<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception {
+        LOG.info("Enter sourceEvents");
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();
 
-        ReplicationType replicationType = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
-        if (replicationType == ReplicationType.DB) {
+        HiveDRUtils.ReplicationType replicationType = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
+        LOG.info("replicationType : {}", replicationType);
+        if (replicationType == HiveDRUtils.ReplicationType.DB) {
             List<String> dbNames = inputOptions.getSourceDatabases();
             for(String db : dbNames) {
                 List<ReplicationEvents> events = sourceEventsForDb(inputOptions, db);
@@ -120,7 +119,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
     }
 
     private List<ReplicationEvents> sourceEventsForDb(HiveDROptions inputOptions, String dbName) throws Exception {
-        ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
+        HiveDRUtils.ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
         String jobName = inputOptions.getJobName();
         String source = inputOptions.getSourceCluster();
         String target = inputOptions.getTargetCluster();
@@ -134,7 +133,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
     }
 
     private List<ReplicationEvents> sourceEventsForTable(HiveDROptions inputOptions, String dbName, String tableName) throws Exception {
-        ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
+        HiveDRUtils.ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
         String jobName = inputOptions.getJobName();
         String source = inputOptions.getSourceCluster();
         String target = inputOptions.getTargetCluster();
@@ -149,6 +148,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
 
     private List<ReplicationEvents> processEvents(String dbName, String tableName, HiveDROptions inputOptions,
                                Iterator<ReplicationTask> replicationTaskIter) throws Exception {
+        LOG.info("In processEvents");
         List<ReplicationEvents> replicationEvents;
 
         if (partitioner.isPartitioningRequired(inputOptions)) {
@@ -165,25 +165,26 @@ public class MetaStoreEventSourcer implements EventSourcer {
         return replicationEvents;
     }
 
-    private long getLastSavedEventId(final ReplicationType replicationType, final String source, final String target,
+    private long getLastSavedEventId(final HiveDRUtils.ReplicationType replicationType, final String source, final String target,
                                      final String jobName, final String dbName,
                                      final String tableName) throws Exception {
         long eventId = 0;
-        if (ReplicationType.DB == replicationType) {
+        if (HiveDRUtils.ReplicationType.DB == replicationType) {
             eventId = drStore.getReplicationStatus(source, target, jobName, dbName).getEventId();
-        } else if (ReplicationType.TABLE == replicationType) {
+        } else if (HiveDRUtils.ReplicationType.TABLE == replicationType) {
             eventId = drStore.getReplicationStatus(source, target, jobName, dbName, tableName).getEventId();
         }
 
         if (eventId == -1) {
-            if (ReplicationType.DB == replicationType) {
+            if (HiveDRUtils.ReplicationType.DB == replicationType) {
                 HCatDatabase database = targetMetastoreClient.getDatabase(dbName);
                 eventId = ReplicationUtils.getLastReplicationId(database);
-            } else if (ReplicationType.TABLE == replicationType) {
+            } else if (HiveDRUtils.ReplicationType.TABLE == replicationType) {
                 HCatTable table = targetMetastoreClient.getTable(dbName, tableName);
                 eventId = ReplicationUtils.getLastReplicationId(table);
             }
         }
+        LOG.info("getLastSavedEventId eventId : {}", eventId);
         return eventId;
     }
 
@@ -207,9 +208,9 @@ public class MetaStoreEventSourcer implements EventSourcer {
             ReplicationTask task = taskIter.next();
             if (task.needsStagingDirs()) {
                 task.withSrcStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(srcStagingDirProvider,
-                        SEPARATOR));
+                        HiveDRUtils.SEPARATOR));
                 task.withDstStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(dstStagingDirProvider,
-                        SEPARATOR));
+                        HiveDRUtils.SEPARATOR));
             }
 
             if (task.isActionable()) {
@@ -238,5 +239,15 @@ public class MetaStoreEventSourcer implements EventSourcer {
         }
 
         return replicationEvents;
+    }
+
+    public void cleanUp() throws Exception {
+        if (sourceMetastoreClient != null) {
+            sourceMetastoreClient.close();
+        }
+
+        if (targetMetastoreClient != null) {
+            targetMetastoreClient.close();
+        }
     }
 }

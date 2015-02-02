@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.util;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.hive.exception.HiveReplicationException;
+import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 

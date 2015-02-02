@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.hive.util;
+package org.apache.falcon.hive.util;
 
-import org.apache.hive.exception.HiveReplicationException;
+import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
