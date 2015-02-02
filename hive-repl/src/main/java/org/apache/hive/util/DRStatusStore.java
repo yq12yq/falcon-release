@@ -161,9 +161,9 @@ public class DRStatusStore {
         String statusDir = getStatusDirPath(dbReplicationStatus).toString();
         try {
             Path latestFile = new Path(statusDir + "/" + LATEST_FILE);
-            Path renamedFile = new Path(statusDir + "/"
-                    + String.valueOf(fileSystem.getFileStatus(latestFile).getModificationTime()) + ".json");
             if (fileSystem.exists(latestFile)) {
+                Path renamedFile = new Path(statusDir + "/"
+                    + String.valueOf(fileSystem.getFileStatus(latestFile).getModificationTime()) + ".json");
                 fileSystem.rename(latestFile, renamedFile);
             }
 
