@@ -130,7 +130,7 @@ public class EventUtils {
     }
 
     public void initializeHiveDRStore() throws IOException {
-        hiveStore = new DRStatusStore(fs);
+        hiveStore = new HiveDRStatusStore(fs);
     }
 
     public List<ReplicationStatus> processEvents(String event) throws Exception {

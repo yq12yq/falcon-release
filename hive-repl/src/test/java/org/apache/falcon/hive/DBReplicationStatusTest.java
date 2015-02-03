@@ -42,9 +42,12 @@ public class DBReplicationStatusTest {
     public void prepare() throws Exception {
         dbReplicationStatus = new ReplicationStatus("source", "target", "jobname",
                 "default1", null, ReplicationStatus.Status.SUCCESS, 0L);
-        ReplicationStatus tableStatus = new ReplicationStatus("source", "target", "jobname",
+        ReplicationStatus tableStatus1 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table1", ReplicationStatus.Status.SUCCESS, 0L);
-        tableStatuses.put("table1", tableStatus);
+        ReplicationStatus tableStatus2 = new ReplicationStatus("source", "target", "jobname",
+                "default1", "table2", ReplicationStatus.Status.SUCCESS, 0L);
+        tableStatuses.put("table1", tableStatus1);
+        tableStatuses.put("table2", tableStatus2);
     }
 
     public void DBReplicationStatusSerDeTest() throws Exception {

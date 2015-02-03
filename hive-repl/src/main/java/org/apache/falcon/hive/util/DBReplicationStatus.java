@@ -42,6 +42,7 @@ public class DBReplicationStatus {
 
     public DBReplicationStatus() {}
 
+    // de-serialize
     public DBReplicationStatus(String jsonString) throws HiveReplicationException {
         try {
             JSONObject object = new JSONObject(jsonString);
@@ -82,6 +83,7 @@ public class DBReplicationStatus {
         this.dbReplicationStatus = dbReplicationStatus;
     }
 
+    // Serialize
     public String toJsonString() throws HiveReplicationException {
         JSONObject retObject = new JSONObject();
         JSONObject tableStatus = new JSONObject();
@@ -98,13 +100,17 @@ public class DBReplicationStatus {
         }
     }
 
+   /**
+     * Update DB status.
+            case 1) All tables replicated successfully.
+                Take the largest successful eventId and set dbReplStatus as success
+            case 2) One or many tables failed to replicate
+                Take the smallest eventId amongst the failed tables and set dbReplStatus as failed.
+     * @return
+     * destination commands for each table
+     */
     public void updateDbStatusFromTableStatuses() throws HiveReplicationException {
-        /* Update DB status.
-        case 1) All tables replicated successfully.
-        Take the largest successful eventId and set dbReplStatus as success
-        case 2) One or many tables failed to replicate
-        Take the smallest eventId amongst the failed tables and set dbReplStatus as failed.
-         */
+
         dbReplicationStatus.setStatus(ReplicationStatus.Status.SUCCESS);
         long successEventId = dbReplicationStatus.getEventId();
         long failedEventId = -1;

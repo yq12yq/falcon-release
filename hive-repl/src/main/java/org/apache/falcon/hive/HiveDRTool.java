@@ -22,9 +22,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.mapreduce.CopyMapper;
+import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.DelimiterUtils;
-import org.apache.falcon.hive.mapreduce.CopyReducer;
+import org.apache.falcon.hive.util.HiveDRStatusStore;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
@@ -102,7 +103,7 @@ public class HiveDRTool extends Configured implements Tool {
 
         fs = FileSystem.get(getConfiguration(inputOptions.getTargetWriteEP()));
         // init DR status store
-        drStore = new DRStatusStore(fs);
+        drStore = new HiveDRStatusStore(fs);
 
         // Create base dir to store events
         Path dir = new Path(DEFAULT_EVENT_STORE_PATH);

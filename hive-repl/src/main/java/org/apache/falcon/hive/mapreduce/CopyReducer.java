@@ -21,6 +21,7 @@ package org.apache.falcon.hive.mapreduce;
 
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.falcon.hive.util.DRStatusStore;
+import org.apache.falcon.hive.util.HiveDRStatusStore;
 import org.apache.falcon.hive.util.ReplicationStatus;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,7 +43,7 @@ public class CopyReducer extends Reducer<Text, Text, Text, Text> {
         replicationStatusList = new ArrayList<ReplicationStatus>();
         conf = context.getConfiguration();
         fs = FileSystem.get(conf);
-        hiveDRStore = new DRStatusStore(fs);
+        hiveDRStore = new HiveDRStatusStore(fs);
     }
 
     @Override

@@ -57,13 +57,6 @@ public class ReplicationStatus {
         init(sourceUri, targetUri, jobName, database, table, status, eventId, null);
     }
 
-    public ReplicationStatus(String sourceUri, String targetUri, String jobName,
-                             String database, String table,
-                             ReplicationStatus.Status status,
-                             long eventId, String log)  throws HiveReplicationException {
-        init(sourceUri, targetUri, jobName, database, table, status, eventId, log);
-    }
-
     private void init (String sourceUri, String targetUri, String jobName,
                        String database, String table,
                        ReplicationStatus.Status status,
@@ -78,6 +71,7 @@ public class ReplicationStatus {
         setLog(log);
     }
 
+    // deserialize
     public ReplicationStatus(String jsonString) throws HiveReplicationException {
         try {
             JSONObject object = new JSONObject(jsonString);
@@ -90,8 +84,9 @@ public class ReplicationStatus {
             throw new HiveReplicationException("Unable to deserialize jsonString to ReplicationStatus ", e);
         }
 
-    } // deserialize
+    }
 
+    // serialize
     public String toJsonString() throws HiveReplicationException {
         try {
             return toJsonObject().toString(INDENT_FACTOR);
