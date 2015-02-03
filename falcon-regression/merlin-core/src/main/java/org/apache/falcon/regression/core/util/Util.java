@@ -541,6 +541,21 @@ public final class Util {
                     .add(getFalconClusterPropertyObject("hive.metastore.uris", hcatEndpoint));
             }
         }
+        // TODO: clean this up, this is a quick hack for HiveDR testing
+        final List<org.apache.falcon.entity.v0.cluster.Property> clusterProperties =
+            clusterObject.getProperties().getProperties();
+        // Only set the metastore uri if its not empty or null.
+        if (null != hcatEndpoint && !hcatEndpoint.isEmpty()) {
+            //hive.metastore.uris
+            clusterProperties.add(
+                getFalconClusterPropertyObject("hive.metastore.uris", hcatEndpoint));
+        }
+        String hiveServerUri = Config.getProperty(prefix + "hive.server2.uri");
+        // Only set the hiveserver2 uri if its not empty or null.
+        if (null != hiveServerUri && !hiveServerUri.isEmpty()) {
+            clusterProperties.add(
+                getFalconClusterPropertyObject("hive.server2.uri", hiveServerUri));
+        }
         return clusterObject.toString();
     }
 

@@ -18,22 +18,32 @@
 
 package org.apache.falcon.regression.hive.dr;
 
+import org.apache.falcon.cli.FalconCLI;
+import org.apache.falcon.entity.v0.EntityType;
+import org.apache.falcon.regression.Entities.ClusterMerlin;
 import org.apache.falcon.regression.Entities.RecipeMerlin;
+import org.apache.falcon.regression.core.bundle.Bundle;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
+import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.HiveUtil;
+import org.apache.falcon.regression.core.util.InstanceUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
+import org.apache.oozie.client.CoordinatorAction;
 import org.apache.oozie.client.OozieClient;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
 
 /**
  * Hive DR Testing.
@@ -44,29 +54,68 @@ public class HiveDR extends BaseTestClass {
     private final ColoHelper cluster2 = servers.get(1);
     private final FileSystem clusterFS = serverFS.get(0);
     private final FileSystem clusterFS2 = serverFS.get(1);
-    private final OozieClient clusterOC = serverOC.get(0);
+    private final OozieClient clusterOC2 = serverOC.get(1);
     private final String baseTestHDFSDir = baseHDFSDir + "/HiveDR/";
     private HCatClient clusterHC;
     private HCatClient clusterHC2;
+    RecipeMerlin recipeMerlin;
+    Connection connection;
+    Connection connection2;
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         clusterHC = cluster.getClusterHelper().getHCatClient();
         clusterHC2 = cluster2.getClusterHelper().getHCatClient();
+        bundles[0] = BundleUtil.readHCatBundle();
+        bundles[0] = new Bundle(bundles[0], cluster);
+        bundles[1] = new Bundle(bundles[0], cluster2);
+        bundles[0].generateUniqueBundle();
+        bundles[1].generateUniqueBundle();
+        final ClusterMerlin srcCluster = bundles[0].getClusterElement();
+        final ClusterMerlin tgtCluster = bundles[1].getClusterElement();
+        Bundle.submitCluster(bundles[1]);
+
+        recipeMerlin = RecipeMerlin.readFromDir("HiveDrRecipe",
+            FalconCLI.RecipeOperation.HIVE_DISASTER_RECOVERY);
+        recipeMerlin.setRecipeCluster(tgtCluster);
+        recipeMerlin.setSourceCluster(srcCluster);
+        recipeMerlin.setTargetCluster(tgtCluster);
+        recipeMerlin.setUniqueName(this.getClass().getSimpleName());
+
+        connection = cluster.getClusterHelper().getHiveJdbcConnection();
+        HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
+        connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
+        HiveUtil.runSql(connection2, "drop database if exists hdr_tdb1 cascade");
     }
 
     @Test
-    public void readRecipe() throws Exception {
-        final RecipeMerlin recipeMerlin = RecipeMerlin.readFromDir("ReplicationRecipe");
-        recipeMerlin.setName("testName");
-        recipeMerlin.writeToDir("/Users/rgautam/tmp/recipe");
+    public void recipeSubmission() throws Exception {
+        recipeMerlin.setSourceDb("hdr_sdb1");
+        recipeMerlin.setSourceTable("store_sales");
+        recipeMerlin.setTargetDb("hdr_tdb1");
+        recipeMerlin.setTargetTable("store_sales");
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        HiveUtil.runSql(connection, "create database hdr_sdb1");
+        HiveUtil.runSql(connection, "use hdr_sdb1");
+        HiveObjectCreator.createVanillaTable(connection);
+
+        HiveUtil.runSql(connection2, "create database hdr_tdb1");
+        HiveUtil.runSql(connection2, "use hdr_tdb1");
+        HiveUtil.runSql(connection2, "create table store_sales "
+            + "(customer_id string, item_id string, quantity float, price float, time timestamp)");
+
+        Bundle.runFalconCLI(command);
+        InstanceUtil.waitTillInstanceReachState(clusterOC2, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "store_sales"),
+            cluster2, clusterHC2.getTable("hdr_tdb1", "store_sales"), new NotifyingAssert(true)
+        ).assertAll();
     }
 
     @Test
     public void dataGeneration() throws Exception {
-        final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection, "show tables");
-        HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
         HiveUtil.runSql(connection, "create database hdr_sdb1");
         HiveUtil.runSql(connection, "use hdr_sdb1");
         HiveObjectCreator.createVanillaTable(connection);
@@ -75,9 +124,6 @@ public class HiveDR extends BaseTestClass {
         HiveObjectCreator.createExternalTable(connection, clusterFS,
             baseTestHDFSDir + "click_data/");
 
-        final Connection connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection2, "show tables");
-        HiveUtil.runSql(connection2, "drop database if exists hdr_tdb1 cascade");
         HiveUtil.runSql(connection2, "create database hdr_tdb1");
         HiveUtil.runSql(connection2, "use hdr_tdb1");
         HiveObjectCreator.createVanillaTable(connection2);
@@ -116,17 +162,11 @@ public class HiveDR extends BaseTestClass {
      */
     @Test
     public void dynamicPartitionsTest() throws SQLException, IOException {
-        final Connection connection = cluster.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection, "show tables");
-        HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
         HiveUtil.runSql(connection, "create database hdr_sdb1");
         HiveUtil.runSql(connection, "use hdr_sdb1");
         //create table with static partitions on first cluster
         HiveObjectCreator.createPartitionedTable(connection, false);
 
-        final Connection connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection2, "show tables");
-        HiveUtil.runSql(connection2, "drop database if exists hdr_tdb1 cascade");
         HiveUtil.runSql(connection2, "create database hdr_tdb1");
         HiveUtil.runSql(connection2, "use hdr_tdb1");
         //create table with dynamic partitions on second cluster
@@ -138,4 +178,17 @@ public class HiveDR extends BaseTestClass {
             cluster2, clusterHC2.getTable("hdr_tdb1", "global_store_sales"), new SoftAssert()
         ).assertAll();
     }
+
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() throws IOException {
+        try {
+            prism.getProcessHelper().deleteByName(recipeMerlin.getName(), null);
+        } catch (Exception e) {
+            LOGGER.info("Deletion of process: " + recipeMerlin.getName() + " failed with " +
+                "exception: " +e);
+        }
+        removeBundles();
+        cleanTestDirs();
+    }
+
 }

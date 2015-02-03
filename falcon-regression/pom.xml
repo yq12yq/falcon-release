@@ -350,6 +350,8 @@
                         </additionalClasspathElement>
                         <additionalClasspathElement>src/test/resources/hadoop-conf
                         </additionalClasspathElement>
+                        <additionalClasspathElement>src/test/resources/falcon-conf
+                        </additionalClasspathElement>
                     </additionalClasspathElements>
                     <properties>
                         <property>
