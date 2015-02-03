@@ -25,7 +25,7 @@ import org.codehaus.jettison.json.JSONObject;
 
 public class ReplicationStatus {
 
-    private static final int INDENT_FACTOR = 4;
+    public static final int INDENT_FACTOR = 4;
     private static final String SOURCE = "sourceUri";
     private static final String TARGET = "targetUri";
     private static final String JOB_NAME = "jobName";
@@ -50,8 +50,6 @@ public class ReplicationStatus {
     private Status status = Status.SUCCESS;
     private long eventId = -1;
     private String log;
-
-    public ReplicationStatus() {}
 
     public ReplicationStatus(String sourceUri, String targetUri, String jobName,
                              String database, String table,
@@ -85,15 +83,24 @@ public class ReplicationStatus {
             JSONObject object = new JSONObject(jsonString);
             Status status = ReplicationStatus.Status.valueOf(object.getString(STATUS_KEY).toUpperCase());
             init(object.getString(SOURCE), object.getString(TARGET), object.getString(JOB_NAME),
-                    object.getString(DATABASE), object.getString(TABLE), status,
-                    object.getLong(EVENT_ID), object.getString(STATUS_LOG));
+                    object.getString(DATABASE), object.has(TABLE) ? object.getString(TABLE) : null,
+                    status, object.getLong(EVENT_ID),
+                    object.has(STATUS_LOG) ? object.getString(STATUS_LOG) : null);
         } catch (JSONException e) {
             throw new HiveReplicationException("Unable to deserialize jsonString to ReplicationStatus ", e);
         }
 
     } // deserialize
 
-    public String getJsonStatus() throws HiveReplicationException {
+    public String toJsonString() throws HiveReplicationException {
+        try {
+            return toJsonObject().toString(INDENT_FACTOR);
+        } catch (JSONException e) {
+            throw new HiveReplicationException("Unable to serialize ReplicationStatus ", e);
+        }
+    }
+
+    public JSONObject toJsonObject() throws HiveReplicationException {
         JSONObject jsonObject = new JSONObject();
         try {
             jsonObject.put(SOURCE, this.sourceUri);
@@ -110,7 +117,7 @@ public class ReplicationStatus {
             if (StringUtils.isNotEmpty(this.log)) {
                 jsonObject.put(STATUS_LOG, this.log);
             }
-            return jsonObject.toString(INDENT_FACTOR);
+            return jsonObject;
         } catch (JSONException e) {
             throw new HiveReplicationException("Unable to serialize ReplicationStatus ", e);
         }

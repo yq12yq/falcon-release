@@ -21,6 +21,8 @@ package org.apache.falcon.hive.util;
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +32,7 @@ import java.util.Map;
 
 public class DBReplicationStatus {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DBReplicationStatus.class);
     private static final String DB_STATUS = "db_status";
     private static final String DB_NAME = "db_name";
     private static final String TABLE_STATUS = "table_status";
@@ -84,12 +87,12 @@ public class DBReplicationStatus {
         JSONObject tableStatus = new JSONObject();
         try {
             for (Map.Entry<String, ReplicationStatus> status : tableStatuses.entrySet()) {
-                tableStatus.put(status.getKey(), status.getValue().getJsonStatus());
+                tableStatus.put(status.getKey(), status.getValue().toJsonObject());
             }
             retObject.put(DB_NAME, dbReplicationStatus.getDatabase());
-            retObject.put(DB_STATUS, dbReplicationStatus.getJsonStatus());
+            retObject.put(DB_STATUS, dbReplicationStatus.toJsonObject());
             retObject.put(TABLE_STATUS, tableStatus);
-            return retObject.toString();
+            return retObject.toString(ReplicationStatus.INDENT_FACTOR);
         } catch (JSONException e) {
             throw new HiveReplicationException("Unable to serialize Database Replication Status", e);
         }
@@ -120,10 +123,15 @@ public class DBReplicationStatus {
             }
         }
 
+        String info = "Updating DB Status based on table replication status. Status : "
+                + dbReplicationStatus.getStatus().toString() + ", eventId : ";
         if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.SUCCESS)) {
             dbReplicationStatus.setEventId(successEventId);
+            LOG.info(info + String.valueOf(successEventId));
         } else if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.FAILURE)) {
             dbReplicationStatus.setEventId(failedEventId);
+            LOG.info(info + String.valueOf(failedEventId));
         }
+
     }
 }

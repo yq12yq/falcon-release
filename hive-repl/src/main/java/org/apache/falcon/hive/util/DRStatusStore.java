@@ -45,7 +45,9 @@ public class DRStatusStore {
     public static final String BASE_DEFAULT_STORE_PATH = "/apps/falcon/hiveReplication";
     private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "/statusStore/";
     private static final FsPermission DEFAULT_STORE_PERMISSION =
-            new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE);
+            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+    private static final FsPermission DEFAULT_STATUS_FILE_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.READ, FsAction.READ);
     private static final String LATEST_FILE = "latest.json";
     private static final int FILE_ROTATION_LIMIT = 10;
     private static final int FILE_ROTATION_TIME = 86400; // 1 day
@@ -55,14 +57,18 @@ public class DRStatusStore {
     public DRStatusStore(FileSystem targetFileSystem) throws IOException {
         this.fileSystem = targetFileSystem;
         Path storePath = new Path(DEFAULT_STORE_PATH);
-        if (!fileSystem.exists(storePath)) {
-            if (! FileSystem.mkdirs(fileSystem, storePath, DEFAULT_STORE_PERMISSION)) {
-                throw new IOException("mkdir failed for " + DEFAULT_STORE_PATH);
+        try {
+            if (!fileSystem.exists(storePath)) {
+                FileSystem.mkdirs(fileSystem, storePath, DEFAULT_STORE_PERMISSION);
             }
+        } catch (IOException e) {
+            LOG.error("mkdir failed for " + DEFAULT_STORE_PATH);
+            throw e;
         }
     }
 
-    public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList) throws HiveReplicationException {
+    public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
+            throws HiveReplicationException {
 
         /*
         get all DB updated by the job. get all current table statuses for the DB
@@ -74,6 +80,12 @@ public class DRStatusStore {
         Map<String, DBReplicationStatus> dbStatusMap = new HashMap<String, DBReplicationStatus>();
 
         for (ReplicationStatus status : statusList) {
+            if (!status.getJobName().equals(jobName)) {
+                String error = "JobName for status does not match current job \"" + jobName
+                        + "\". Status is " + status.toJsonString();
+                LOG.error(error);
+                throw new HiveReplicationException(error);
+            }
             if (! dbStatusMap.containsKey(status.getDatabase())) {
                 dbStatusMap.put(status.getDatabase(),
                         getDbReplicationStatus(status.getSourceUri(), status.getTargetUri(),
@@ -104,8 +116,8 @@ public class DRStatusStore {
 
 
     public ReplicationStatus getReplicationStatus(String source, String target,
-                                                  String jobName, String database, String table)
-            throws HiveReplicationException {
+                                                  String jobName, String database,
+                                                  String table) throws HiveReplicationException {
         if (StringUtils.isEmpty(table)) {
             return getReplicationStatus(source, target, jobName, database);
         } else {
@@ -127,25 +139,31 @@ public class DRStatusStore {
 
     private DBReplicationStatus getDbReplicationStatus(String source, String target, String jobName,
                                                        String database) throws HiveReplicationException{
-        DBReplicationStatus dbReplicationStatus;
+        DBReplicationStatus dbReplicationStatus = null;
         Path statusDirPath = getStatusDirPath(database, jobName);
         // todo check if database name or jobName can contain chars not allowed by hdfs dir/file naming.
-        // if yes, use md5 of the same for dir names. prefer using actual db names for readability.
+        // if yes, use md5 of the same for dir names. prefer to use actual db names for readability.
 
         try {
-            dbReplicationStatus = readStatusFile(statusDirPath);
+            if (fileSystem.exists(statusDirPath)) {
+                dbReplicationStatus = readStatusFile(statusDirPath);
+            }
             if(null == dbReplicationStatus) {
                 dbReplicationStatus = new DBReplicationStatus();
                 dbReplicationStatus.setDbReplicationStatus(new ReplicationStatus(source, target, jobName,
                         database, null, ReplicationStatus.Status.INIT, -1));
-                if (! FileSystem.mkdirs(fileSystem, statusDirPath, DEFAULT_STORE_PERMISSION)) {
-                    throw new IOException("mkdir failed for " + statusDirPath.toString());
+                if (!FileSystem.mkdirs(fileSystem, statusDirPath, DEFAULT_STORE_PERMISSION)) {
+                    String error = "mkdir failed for " + statusDirPath.toString();
+                    LOG.error(error);
+                    throw new HiveReplicationException(error);
                 }
                 writeStatusFile(dbReplicationStatus);
             }
             return dbReplicationStatus;
         } catch (IOException e) {
-            throw new HiveReplicationException("Failed to get ReplicationStatus for job " + jobName, e);
+            String error = "Failed to get ReplicationStatus for job " + jobName;
+            LOG.error(error);
+            throw new HiveReplicationException(error);
         }
     }
 
@@ -168,13 +186,14 @@ public class DRStatusStore {
                 fileSystem.rename(latestFile, renamedFile);
             }
 
-            FSDataOutputStream stream = FileSystem.create(fileSystem, latestFile, DEFAULT_STORE_PERMISSION);
+            FSDataOutputStream stream = FileSystem.create(fileSystem, latestFile, DEFAULT_STATUS_FILE_PERMISSION);
             stream.write(dbReplicationStatus.toJsonString().getBytes());
             stream.close();
 
         } catch (IOException e) {
-            throw new HiveReplicationException("Failed to write latest Replication status into dir "
-                    + statusDir, e);
+            String error = "Failed to write latest Replication status into dir " + statusDir;
+            LOG.error(error);
+            throw new HiveReplicationException(error);
         }
 
         rotateStatusFiles(new Path(statusDir));
@@ -203,21 +222,24 @@ public class DRStatusStore {
                 }
             }
         } catch (IOException e) {
-            throw new HiveReplicationException("Failed to rotate status files in dir "
-                    + statusDir.toString(), e);        }
+            String error = "Failed to rotate status files in dir " + statusDir.toString();
+            LOG.error(error);
+            throw new HiveReplicationException(error);
+        }
     }
 
     private DBReplicationStatus readStatusFile(Path statusDirPath) throws HiveReplicationException {
         try {
-            if (! fileSystem.exists(statusDirPath)) {
+            Path statusFile = new Path(statusDirPath.toString() + "/" + LATEST_FILE);
+            if ((!fileSystem.exists(statusDirPath)) || (!fileSystem.exists(statusFile))) {
                 return null;
             } else {
-                Path statusFile = new Path(statusDirPath.toString() + "/" + LATEST_FILE);
                 return new DBReplicationStatus(IOUtils.toString(fileSystem.open(statusFile)));
             }
         } catch (IOException e) {
-            throw new HiveReplicationException("Failed to read latest Replication status from dir "
-                    + statusDirPath.toString(), e);
+            String error = "Failed to read latest Replication status from dir " + statusDirPath.toString();
+            LOG.error(error);
+            throw new HiveReplicationException(error);
         }
     }
 
