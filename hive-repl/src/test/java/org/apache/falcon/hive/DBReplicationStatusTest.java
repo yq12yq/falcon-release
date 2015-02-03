@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hive;
+package org.apache.falcon.hive;
 
-import org.apache.hive.util.DBReplicationStatus;
-import org.apache.hive.util.ReplicationStatus;
+import org.apache.falcon.hive.util.DBReplicationStatus;
+import org.apache.falcon.hive.util.ReplicationStatus;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;

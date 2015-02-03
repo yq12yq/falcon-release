@@ -42,8 +42,9 @@ import java.util.Map;
 public class DRStatusStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(DRStatusStore.class);
-    public static final String BASE_DEFAULT_STORE_PATH = "/apps/falcon/hiveReplication";
-    private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "/statusStore/";
+
+    public static final String BASE_DEFAULT_STORE_PATH = "/apps/hive-dr/hiveReplication/";
+    private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "statusStore/";
     private static final FsPermission DEFAULT_STORE_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
     private static final FsPermission DEFAULT_STATUS_FILE_PERMISSION =
