@@ -279,8 +279,9 @@ public class HiveDRTool extends Configured implements Tool {
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
         StringBuilder eventStr = new StringBuilder();
-        while (cmds.hasNext()) {
-            eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
+
+        while (cmds.hasPrevious()) {
+            eventStr.append(ReplicationUtils.serializeCommand(cmds.previous()));
             eventStr.append(DelimiterUtils.getEscapedStmtDelim());
         }
         if (eventStr.length() > 0) {
