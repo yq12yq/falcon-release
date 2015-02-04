@@ -20,16 +20,17 @@ package org.apache.falcon.hive;
 
 import org.apache.hive.hcatalog.api.repl.Command;
 
+import java.util.List;
 import java.util.ListIterator;
 
 public class ReplicationEvents {
     private String dbName;
     private String tableName;
-    private ListIterator<Command> exportCommands = null;
-    private ListIterator<Command> importCommands = null;
+    private List<Command> exportCommands = null;
+    private List<Command> importCommands = null;
 
-    public ReplicationEvents(String dbName, String tableName, ListIterator<Command> exportCommands,
-                             ListIterator<Command> importCommands) {
+    public ReplicationEvents(String dbName, String tableName, List<Command> exportCommands,
+                             List<Command> importCommands) {
         this.dbName = dbName;
         this.tableName = tableName;
         this.exportCommands = exportCommands;
@@ -45,11 +46,11 @@ public class ReplicationEvents {
     }
 
     public ListIterator<Command> getExportCommands() {
-        return exportCommands;
+        return exportCommands.listIterator();
     }
 
     public ListIterator<Command> getImportCommands() {
-        return importCommands;
+        return importCommands.listIterator();
     }
 
 }

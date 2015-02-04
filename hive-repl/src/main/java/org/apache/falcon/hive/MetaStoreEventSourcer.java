@@ -86,7 +86,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
         return hcatConf;
     }
 
-    public List<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception {
+    public ListIterator<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception {
         LOG.info("Enter sourceEvents");
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();
 
@@ -115,7 +115,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
             LOG.info("No events for tables for the request db: {} , Tables : {}", inputOptions.getSourceDatabases(),
                     inputOptions.getSourceTables());
         }
-        return replicationEvents;
+        return replicationEvents.listIterator();
     }
 
     private List<ReplicationEvents> sourceEventsForDb(HiveDROptions inputOptions, String dbName) throws Exception {
@@ -201,12 +201,11 @@ public class MetaStoreEventSourcer implements EventSourcer {
     private List<ReplicationEvents> processTableReplicationEvents(Iterator<ReplicationTask> taskIter, String dbName,
                                                                   String tableName, String srcStagingDirProvider,
                                                                   String dstStagingDirProvider) throws Exception {
-        ListIterator<Command> srcReplicationEventList = Lists.<Command>newArrayList().listIterator();
-        ListIterator<Command> trgReplicationEventList = Lists.<Command>newArrayList().listIterator();
+        List<Command> srcReplicationEventList = Lists.newArrayList();
+        List<Command> trgReplicationEventList = Lists.newArrayList();
 
         while (taskIter.hasNext()) {
             ReplicationTask task = taskIter.next();
-            LOG.debug("task: {}", task.getEvent().getMessage());
             if (task.needsStagingDirs()) {
                 task.withSrcStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(srcStagingDirProvider,
                         HiveDRUtils.SEPARATOR));
@@ -232,7 +231,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();
         ReplicationEvents events = null;
 
-        if (srcReplicationEventList.hasPrevious() || trgReplicationEventList.hasPrevious()) {
+        if (!srcReplicationEventList.isEmpty() || !trgReplicationEventList.isEmpty()) {
             LOG.info("processTableReplicationEvents add src and dst events");
             events = new ReplicationEvents(dbName, tableName, srcReplicationEventList,
                     trgReplicationEventList);

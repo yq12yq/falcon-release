@@ -18,7 +18,7 @@
 
 package org.apache.falcon.hive;
 
-import java.util.List;
+import java.util.ListIterator;
 
 public interface EventSourcer {
     /**
@@ -27,5 +27,5 @@ public interface EventSourcer {
      * @return input filename to mapper
      */
     /* Source events for each <db, table> into a file */
-    List<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception;
+    ListIterator<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception;
 }

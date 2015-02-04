@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
 /* Partitioner for partitioning events for a given DB */
@@ -70,13 +69,13 @@ public class DefaultPartitioner implements Partitioner {
         String srcStagingDirProvider = drOptions.getSourceStagingPath();
         String dstStagingDirProvider = drOptions.getTargetStagingPath();
 
-        ListIterator<Command> dbSrcEventList = Lists.<Command>newArrayList().listIterator();
-        ListIterator<Command> dbTrgEventList = Lists.<Command>newArrayList().listIterator();
+        List<Command> dbSrcEventList = Lists.newArrayList();
+        List<Command> dbTrgEventList = Lists.newArrayList();
 
-        Map<String, ListIterator<Command>> srcReplicationEventMap =
-                new HashMap<String, ListIterator<Command>>();
-        Map<String, ListIterator<Command>> trgReplicationEventMap =
-                new HashMap<String, ListIterator<Command>>();
+        Map<String, List<Command>> srcReplicationEventMap =
+                new HashMap<String, List<Command>>();
+        Map<String, List<Command>> trgReplicationEventMap =
+                new HashMap<String, List<Command>>();
 
         while (taskIter.hasNext()) {
             ReplicationTask task = taskIter.next();
@@ -108,12 +107,12 @@ public class DefaultPartitioner implements Partitioner {
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();
 
         /* Loop through src events as there can't be import if there is no export */
-        for (Map.Entry<String, ListIterator<Command>> entry : srcReplicationEventMap.entrySet()) {
+        for (Map.Entry<String, List<Command>> entry : srcReplicationEventMap.entrySet()) {
             String tableName = entry.getKey();
-            ListIterator<Command> srcReplicationEventList = entry.getValue();
-            ListIterator<Command> trgReplicationEventList = trgReplicationEventMap.get(tableName);
+            List<Command> srcReplicationEventList = entry.getValue();
+            List<Command> trgReplicationEventList = trgReplicationEventMap.get(tableName);
             ReplicationEvents events = null;
-            if (srcReplicationEventList.hasPrevious() || trgReplicationEventList.hasPrevious()) {
+            if (!srcReplicationEventList.isEmpty() || !trgReplicationEventList.isEmpty()) {
                 events = new ReplicationEvents(dbName, tableName, srcReplicationEventList,
                         trgReplicationEventList);
             }
@@ -125,7 +124,7 @@ public class DefaultPartitioner implements Partitioner {
         // Only DB events
         if (replicationEvents.isEmpty()) {
             ReplicationEvents events = null;
-            if (dbSrcEventList.hasPrevious() || dbTrgEventList.hasPrevious()) {
+            if (!dbSrcEventList.isEmpty() || !dbTrgEventList.isEmpty()) {
                 events = new ReplicationEvents(dbName, null, dbSrcEventList, dbTrgEventList);
             }
             if (events != null) {
@@ -137,8 +136,8 @@ public class DefaultPartitioner implements Partitioner {
     }
 
     private void addEvent(final Scope eventScope, final String tableName, final Command cmd,
-                          final ListIterator<Command> dbEventList,
-                          final Map<String, ListIterator<Command>> replicationEventMap) throws Exception {
+                          final List<Command> dbEventList,
+                          final Map<String, List<Command>> replicationEventMap) throws Exception {
         /* TODO : How to handle only DB events */
         if (eventScope == Scope.DB) {
             dbEventList.add(cmd);
@@ -147,9 +146,9 @@ public class DefaultPartitioner implements Partitioner {
                 addDbEventToAllTablesEventList(cmd, replicationEventMap);
             }
         } else if (eventScope == Scope.TABLE) {
-            ListIterator<Command> tableEventList = replicationEventMap.get(tableName);
+            List<Command> tableEventList = replicationEventMap.get(tableName);
             if(tableEventList == null) {
-                tableEventList = Lists.<Command>newArrayList().listIterator();
+                tableEventList = Lists.newArrayList();
                 replicationEventMap.put(tableName, tableEventList);
                 // Before adding this event, add all the DB events
                 addDbEventsToTableEventList(tableName, dbEventList, tableEventList);
@@ -161,23 +160,22 @@ public class DefaultPartitioner implements Partitioner {
     }
 
     private void addDbEventToAllTablesEventList(final Command cmd,
-                                                final Map<String, ListIterator<Command>> tableEventMap) {
-        for (Map.Entry<String, ListIterator<Command>> entry : tableEventMap.entrySet()) {
+                                                final Map<String, List<Command>> tableEventMap) {
+        for (Map.Entry<String, List<Command>> entry : tableEventMap.entrySet()) {
             String tableName = entry.getKey();
-            ListIterator<Command> tableEventList = entry.getValue();
+            List<Command> tableEventList = entry.getValue();
             addTableEvent(tableName, cmd, tableEventList);
         }
     }
 
-    private void addDbEventsToTableEventList(final String tableName, final ListIterator<Command> dbEventList,
-                                             final ListIterator<Command> tableEventList) {
-        while(dbEventList.hasNext()) {
-            Command cmd = dbEventList.next();
+    private void addDbEventsToTableEventList(final String tableName, final List<Command> dbEventList,
+                                             final List<Command> tableEventList) {
+        for (Command cmd : dbEventList) {
             addTableEvent(tableName, cmd, tableEventList);
         }
     }
 
-    private void addTableEvent(final String tableName, final Command cmd, final ListIterator<Command> tableEventList) {
+    private void addTableEvent(final String tableName, final Command cmd, final List<Command> tableEventList) {
         Long eventId = eventFilter.eventFilterMap.get(tableName);
         /* If not already processed, add it */
         if(eventId == null || cmd.getEventId() > eventId) {

@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 import java.util.ListIterator;
 
 /**
@@ -124,8 +123,8 @@ public class HiveDRTool extends Configured implements Tool {
         assert inputOptions != null;
         assert getConf() != null;
 
-        List<ReplicationEvents> events = sourceEvents();
-        if(events == null || events.isEmpty()) {
+        ListIterator<ReplicationEvents> events = sourceEvents();
+        if(events == null || !events.hasNext()) {
             LOG.info("No events to process");
             return null;
         }
@@ -197,20 +196,20 @@ public class HiveDRTool extends Configured implements Tool {
         return job;
     }
 
-    private List<ReplicationEvents> sourceEvents() throws Exception {
+    private ListIterator<ReplicationEvents> sourceEvents() throws Exception {
         MetaStoreEventSourcer defaultSourcer = null;
-        List<ReplicationEvents> replicationEvents = null;
+        ListIterator<ReplicationEvents> replicationEventsIter = null;
         try {
             defaultSourcer = new MetaStoreEventSourcer(inputOptions.getSourceMetastoreUri(),
                     inputOptions.getTargetMetastoreUri(), new DefaultPartitioner(drStore), drStore);
-            replicationEvents = defaultSourcer.sourceEvents(inputOptions);
+            replicationEventsIter = defaultSourcer.sourceEvents(inputOptions);
         } finally {
             if (defaultSourcer != null) {
                 defaultSourcer.cleanUp();
             }
         }
         LOG.info("Return sourceEvents");
-        return replicationEvents;
+        return replicationEventsIter;
     }
 
     private void createPartitions(Job job) throws IOException {
@@ -240,13 +239,14 @@ public class HiveDRTool extends Configured implements Tool {
 
     /* TODO : MR should delete the file in case of success or failure of map job */
     private String persistReplicationEvents(String dir, String filename,
-                                            List<ReplicationEvents> eventsList) throws Exception {
+                                            ListIterator<ReplicationEvents> eventsList) throws Exception {
         OutputStream out = null;
         Path filePath = new Path(getFilename(dir, filename));
 
         try {
             out = FileSystem.create(fs, filePath, FS_PERMISSION);
-            for (ReplicationEvents events : eventsList) {
+            while (eventsList.hasNext()) {
+                ReplicationEvents events = eventsList.next();
                 String dbName = events.getDbName();
                 String tableName = events.getTableName();
                 ListIterator<Command> exportCmds = events.getExportCommands();
@@ -280,8 +280,8 @@ public class HiveDRTool extends Configured implements Tool {
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
         StringBuilder eventStr = new StringBuilder();
 
-        while (cmds.hasPrevious()) {
-            eventStr.append(ReplicationUtils.serializeCommand(cmds.previous()));
+        while (cmds.hasNext()) {
+            eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
             eventStr.append(DelimiterUtils.getEscapedStmtDelim());
         }
         if (eventStr.length() > 0) {
