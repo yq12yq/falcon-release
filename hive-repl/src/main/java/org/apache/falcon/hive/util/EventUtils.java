@@ -133,24 +133,25 @@ public class EventUtils {
         hiveStore = new HiveDRStatusStore(fs);
     }
 
-    public List<ReplicationStatus> processEvents(String event) throws Exception {
+    public void processEvents(String event) throws Exception {
         ReplicationStatus.Status status = null;
         listReplicationStatus = new ArrayList<ReplicationStatus>() ;
         String dbName = event.split(DelimiterUtils.getEscapedFieldDelim())[0];
         String tableName = event.split(DelimiterUtils.getEscapedFieldDelim())[1];
         String exportEventStr = event.split(DelimiterUtils.getEscapedFieldDelim())[2];
         String importEventStr = event.split(DelimiterUtils.getEscapedFieldDelim())[3];
-
         if (exportEventStr != "" || exportEventStr != null) {
             processCommands(exportEventStr, dbName, tableName, src_stmt);
             //Todo: Check srcStagingDirectory is not empty
-            invokeCopy();
+            //invokeCopy();
         }
 
         if(importEventStr != "" || importEventStr != null ) {
             processCommands(importEventStr, dbName, tableName, tgt_stmt);
         }
+    }
 
+    public List<ReplicationStatus> getListReplicationStatus() {
         return listReplicationStatus;
     }
 
@@ -225,6 +226,5 @@ public class EventUtils {
     public void closeConnection() throws SQLException,IOException {
         src_con.close();
         tgt_con.close();
-        fs.close();
     }
 }

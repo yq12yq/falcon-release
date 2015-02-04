@@ -19,7 +19,7 @@
 package org.apache.falcon.hive.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -88,7 +88,7 @@ public class HiveDRStatusStore extends DRStatusStore {
     @Override
     public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
             throws HiveReplicationException {
-
+        System.out.println("Inside updateReplicationStatus for jobname:"+jobName);
         Map<String, DBReplicationStatus> dbStatusMap = new HashMap<String, DBReplicationStatus>();
         for (ReplicationStatus status : statusList) {
             if (!status.getJobName().equals(jobName)) {

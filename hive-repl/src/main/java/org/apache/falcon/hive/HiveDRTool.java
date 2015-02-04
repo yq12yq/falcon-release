@@ -20,7 +20,6 @@ package org.apache.falcon.hive;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.mapreduce.CopyMapper;
 import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.falcon.hive.util.DRStatusStore;
@@ -36,7 +35,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.api.repl.Command;
@@ -130,8 +130,7 @@ public class HiveDRTool extends Configured implements Tool {
         }
 
         String identifier = inputOptions.getJobName();
-        String inputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier,
-        events);
+        String inputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier, events);
 
         Job job = null;
         try {
@@ -171,10 +170,9 @@ public class HiveDRTool extends Configured implements Tool {
         job.setMapperClass(CopyMapper.class);
         job.setReducerClass(CopyReducer.class);
 
-        job.setNumReduceTasks(0);
-
         job.setInputFormatClass(org.apache.hadoop.mapreduce.lib.input.NLineInputFormat.class);
-        job.setOutputFormatClass(NullOutputFormat.class);
+
+        job.setOutputFormatClass(TextOutputFormat.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Text.class);
 
@@ -214,6 +212,7 @@ public class HiveDRTool extends Configured implements Tool {
 
     private void createPartitions(Job job) throws IOException {
         job.getConfiguration().set(FileInputFormat.INPUT_DIR, job.getConfiguration().get("inputPath"));
+        job.getConfiguration().set(FileOutputFormat.OUTDIR,"/apps/dr/dummy");
     }
 
     public static void main(String args[]) {
@@ -269,7 +268,6 @@ public class HiveDRTool extends Configured implements Tool {
                 if ((importEventStr = getCmdAsString(importCmds)) != null) {
                     out.write(importEventStr.getBytes());
                 }
-                out.write(DelimiterUtils.getEscapedRecordDelim().getBytes());
             }
         } finally {
             IOUtils.closeQuietly(out);
@@ -286,7 +284,7 @@ public class HiveDRTool extends Configured implements Tool {
         }
         if (eventStr.length() > 0) {
             String s = eventStr.toString();
-            StringUtils.removeEnd(s, DelimiterUtils.STMT_DELIM);
+            s = s.substring(0, s.length() - DelimiterUtils.STMT_DELIM.length());
             return s;
         } else {
             return null;

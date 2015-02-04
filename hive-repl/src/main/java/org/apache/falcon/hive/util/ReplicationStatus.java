@@ -209,4 +209,9 @@ public class ReplicationStatus {
         }
     }
 
+    public String toString() {
+        return sourceUri + "\t" + targetUri + "\t" + jobName + "\t" +
+                database + "\t"+ table + "\t" + status + "\t"+ eventId;
+    }
+
 }

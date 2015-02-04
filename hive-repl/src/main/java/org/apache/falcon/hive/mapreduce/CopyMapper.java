@@ -47,11 +47,11 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
     @Override
     protected void map(LongWritable key, Text value,
                        Context context) throws IOException, InterruptedException {
-        System.out.println("key = " + key);
         List<ReplicationStatus> replicationStatusList = null;
         try {
-            System.out.println("Processing Event");
-            replicationStatusList = eventUtils.processEvents(value.toString());
+            System.out.println("Processing Event value:"+value.toString());
+            eventUtils.processEvents(value.toString());
+            replicationStatusList = eventUtils.getListReplicationStatus();
         } catch (Exception e) {
             e.printStackTrace();
         }

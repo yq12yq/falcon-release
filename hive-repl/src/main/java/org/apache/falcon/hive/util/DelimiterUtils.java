@@ -18,13 +18,12 @@
 
 package org.apache.falcon.hive.util;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang.StringEscapeUtils;
 
 public class DelimiterUtils {
 
     public static final String FIELD_DELIM = ",";
-    public static final String STMT_DELIM = "|";
-    public static final String RECORD_DELIM = "=====";
+    public static final String STMT_DELIM = ";";
 
     public static String getEscapedFieldDelim() {
         return StringEscapeUtils.escapeJava(FIELD_DELIM);
@@ -32,9 +31,5 @@ public class DelimiterUtils {
 
     public static String getEscapedStmtDelim() {
         return StringEscapeUtils.escapeJava(STMT_DELIM);
-    }
-
-    public static String getEscapedRecordDelim() {
-        return StringEscapeUtils.escapeJava(RECORD_DELIM);
     }
 }
