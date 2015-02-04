@@ -124,6 +124,12 @@
 
         <dependency>
             <groupId>org.apache.falcon</groupId>
+            <artifactId>hive-repl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.falcon</groupId>
             <artifactId>falcon-test-util</artifactId>
             <scope>test</scope>
             <exclusions>

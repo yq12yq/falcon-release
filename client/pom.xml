@@ -111,12 +111,6 @@
             <artifactId>hive-webhcat-java-client</artifactId>
             <version>${hive.version}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.apache.falcon</groupId>
-            <artifactId>hive-repl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

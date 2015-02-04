@@ -54,7 +54,21 @@ public class DBReplicationStatus {
         setTableStatuses(tableStatuses);
     }
 
-
+    // Serialize
+    public String toJsonString() throws HiveReplicationException {
+        JSONObject retObject = new JSONObject();
+        JSONObject tableStatus = new JSONObject();
+        try {
+            for (Map.Entry<String, ReplicationStatus> status : tableStatuses.entrySet()) {
+                tableStatus.put(status.getKey(), status.getValue().toJsonObject());
+            }
+            retObject.put(DB_STATUS, dbReplicationStatus.toJsonObject());
+            retObject.put(TABLE_STATUS, tableStatus);
+            return retObject.toString(ReplicationStatus.INDENT_FACTOR);
+        } catch (JSONException e) {
+            throw new HiveReplicationException("Unable to serialize Database Replication Status", e);
+        }
+    }
 
     // de-serialize
     public DBReplicationStatus(String jsonString) throws HiveReplicationException {
@@ -80,7 +94,6 @@ public class DBReplicationStatus {
             throw new HiveReplicationException("Unable to create DBReplicationStatus from JsonString", e);
         }
     }
-
 
     public Map<String, ReplicationStatus> getTableStatuses() {
         return tableStatuses;
@@ -113,23 +126,7 @@ public class DBReplicationStatus {
         this.dbReplicationStatus = dbReplicationStatus;
     }
 
-    // Serialize
-    public String toJsonString() throws HiveReplicationException {
-        JSONObject retObject = new JSONObject();
-        JSONObject tableStatus = new JSONObject();
-        try {
-            for (Map.Entry<String, ReplicationStatus> status : tableStatuses.entrySet()) {
-                tableStatus.put(status.getKey(), status.getValue().toJsonObject());
-            }
-            retObject.put(DB_STATUS, dbReplicationStatus.toJsonObject());
-            retObject.put(TABLE_STATUS, tableStatus);
-            return retObject.toString(ReplicationStatus.INDENT_FACTOR);
-        } catch (JSONException e) {
-            throw new HiveReplicationException("Unable to serialize Database Replication Status", e);
-        }
-    }
-
-   /**
+    /**
      * Update DB status.
             case 1) All tables replicated successfully.
                 Take the largest successful eventId and set dbReplStatus as success
@@ -139,7 +136,6 @@ public class DBReplicationStatus {
      * destination commands for each table
      */
     public void updateDbStatusFromTableStatuses() throws HiveReplicationException {
-
         dbReplicationStatus.setStatus(ReplicationStatus.Status.SUCCESS);
         long successEventId = dbReplicationStatus.getEventId();
         long failedEventId = -1;
@@ -196,6 +192,5 @@ public class DBReplicationStatus {
                     + status.getDatabase() + " does not match current DB "
                     +  this.dbReplicationStatus.getDatabase());
         }
-
     }
 }

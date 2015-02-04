@@ -54,7 +54,7 @@ public class DBReplicationStatusTest {
 
 
 
-    public void DBReplicationStatusSerializeTest() throws Exception {
+    public void dBReplicationStatusSerializeTest() throws Exception {
         DBReplicationStatus replicationStatus = new DBReplicationStatus(dbReplicationStatus, tableStatuses);
 
         String expected = "{\n" + "    \"db_status\": {\n"
@@ -69,7 +69,7 @@ public class DBReplicationStatusTest {
         Assert.assertEquals(actual, expected);
     }
 
-    public void DBReplicationStatusDeserializeTest() throws Exception {
+    public void dBReplicationStatusDeserializeTest() throws Exception {
 
         String jsonString = "{\"db_status\":{\"sourceUri\":\"source\","
                 + "\"targetUri\":\"target\",\"jobName\":\"jobname\",\"database\":\"default1\",\"status\":\"SUCCESS\","
@@ -95,7 +95,7 @@ public class DBReplicationStatusTest {
 
     }
 
-    public void WrongDBForTableTest() throws Exception {
+    public void wrongDBForTableTest() throws Exception {
 
         ReplicationStatus newDbStatus = new ReplicationStatus("source", "target", "jobname",
                 "wrongDb", null, ReplicationStatus.Status.FAILURE, 20L);

@@ -52,7 +52,7 @@ public class HiveDRStatusStore extends DRStatusStore {
 
     private static final String LATEST_FILE = "latest.json";
     private static final int FILE_ROTATION_LIMIT = 10;
-    private static final int FILE_ROTATION_TIME = 86400; // 1 day
+    private static final int FILE_ROTATION_TIME = 86400000; // 1 day
 
 
     public HiveDRStatusStore(FileSystem targetFileSystem) throws IOException {
@@ -181,7 +181,7 @@ public class HiveDRStatusStore extends DRStatusStore {
         return getStatusDirPath(status.getDatabase(), status.getJobName());
     }
 
-    private Path getStatusDirPath(String database, String jobName) {
+    public Path getStatusDirPath(String database, String jobName) {
         return new Path(DEFAULT_STORE_PATH + "/" + database + "/" + jobName);
     }
 
@@ -206,25 +206,25 @@ public class HiveDRStatusStore extends DRStatusStore {
             throw new HiveReplicationException(error);
         }
 
-        rotateStatusFiles(new Path(statusDir));
+        rotateStatusFiles(new Path(statusDir), FILE_ROTATION_LIMIT, FILE_ROTATION_TIME);
     }
 
-    private void rotateStatusFiles(Path statusDir) throws HiveReplicationException {
+    public void rotateStatusFiles(Path statusDir, int numFiles, int maxFileAge) throws HiveReplicationException {
 
         List<String> fileList = new ArrayList<String>();
         long now = System.currentTimeMillis();
         try {
             RemoteIterator<LocatedFileStatus> fileIterator = fileSystem.listFiles(statusDir, false);
             while (fileIterator.hasNext()) {
-                fileList.add(String.valueOf(fileIterator.next().getModificationTime()));
+                fileList.add(fileIterator.next().getPath().toString());
             }
-            if (fileList.size() > FILE_ROTATION_LIMIT) {
+            if (fileList.size() > (numFiles+1)) {
                 // delete some files, as long as they are older than the time.
                 Collections.sort(fileList);
-                for (String file : fileList.subList(0, fileList.size() - FILE_ROTATION_LIMIT)) {
-                    long modTime = Long.getLong(file);
-                    if ((now - modTime) > FILE_ROTATION_TIME) {
-                        Path deleteFilePath = new Path(statusDir.toString() + "/" + file + ".json");
+                for (String file : fileList.subList(0, (fileList.size() - numFiles + 1))) {
+                    long modTime = fileSystem.getFileStatus(new Path(file)).getModificationTime();
+                    if ((now - modTime) > maxFileAge) {
+                        Path deleteFilePath = new Path(file);
                         if (fileSystem.exists(deleteFilePath)) {
                             fileSystem.delete(deleteFilePath, false);
                         }

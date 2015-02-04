@@ -42,7 +42,7 @@ public class ReplicationStatusTest {
                 "testDb", "table1", ReplicationStatus.Status.SUCCESS, 0L);
     }
 
-    public void ReplicationStatusSerializeTest() throws Exception {
+    public void replicationStatusSerializeTest() throws Exception {
         String expected = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"jobname\",\n"
                 + "    \"database\": \"testDb\",\n    \"table\": \"table1\",\n"
@@ -57,7 +57,7 @@ public class ReplicationStatusTest {
         Assert.assertEquals(actual, expected);
     }
 
-    public void ReplicationStatusDeserializeTest() throws Exception {
+    public void replicationStatusDeserializeTest() throws Exception {
         String tableInput = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"testJob\",\n"
                 + "    \"database\": \"test1\",\n    \"table\": \"table1\",\n"
@@ -94,7 +94,7 @@ public class ReplicationStatusTest {
 
     }
 
-    public void InvalidEventIdTest() throws Exception {
+    public void invalidEventIdTest() throws Exception {
         String tableInput = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"testJob\",\n"
                 + "    \"database\": \"test1\",\n    \"table\": \"table1\",\n"
@@ -117,7 +117,7 @@ public class ReplicationStatusTest {
         Assert.assertEquals(newTableStatus.getEventId(), 50);
     }
 
-    public void InvalidStatusTest() throws Exception {
+    public void invalidStatusTest() throws Exception {
 
         String dbInput = "{ \"sourceUri\": \"source\", \"targetUri\": \"target\",\"jobName\": \"jobname\",\n"
                 + "    \"database\": \"default1\", \"status\": \"BLAH\","
