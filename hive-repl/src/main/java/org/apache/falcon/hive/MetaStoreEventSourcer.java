@@ -206,6 +206,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
 
         while (taskIter.hasNext()) {
             ReplicationTask task = taskIter.next();
+            LOG.debug("task: {}", task.getEvent().getMessage());
             if (task.needsStagingDirs()) {
                 task.withSrcStagingDirProvider(new StagingDirectoryProvider.TrivialImpl(srcStagingDirProvider,
                         HiveDRUtils.SEPARATOR));
@@ -230,7 +231,9 @@ public class MetaStoreEventSourcer implements EventSourcer {
 
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();
         ReplicationEvents events = null;
-        if (srcReplicationEventList.hasNext() || trgReplicationEventList.hasNext()) {
+
+        if (srcReplicationEventList.hasPrevious() || trgReplicationEventList.hasPrevious()) {
+            LOG.info("processTableReplicationEvents add src and dst events");
             events = new ReplicationEvents(dbName, tableName, srcReplicationEventList,
                     trgReplicationEventList);
         }

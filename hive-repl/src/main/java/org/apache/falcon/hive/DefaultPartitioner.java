@@ -113,7 +113,7 @@ public class DefaultPartitioner implements Partitioner {
             ListIterator<Command> srcReplicationEventList = entry.getValue();
             ListIterator<Command> trgReplicationEventList = trgReplicationEventMap.get(tableName);
             ReplicationEvents events = null;
-            if (srcReplicationEventList.hasNext() || trgReplicationEventList.hasNext()) {
+            if (srcReplicationEventList.hasPrevious() || trgReplicationEventList.hasPrevious()) {
                 events = new ReplicationEvents(dbName, tableName, srcReplicationEventList,
                         trgReplicationEventList);
             }
@@ -125,9 +125,8 @@ public class DefaultPartitioner implements Partitioner {
         // Only DB events
         if (replicationEvents.isEmpty()) {
             ReplicationEvents events = null;
-            if (dbSrcEventList.hasNext() || dbTrgEventList.hasNext()) {
-                events = new ReplicationEvents(dbName, null, dbSrcEventList,
-                        dbTrgEventList);
+            if (dbSrcEventList.hasPrevious() || dbTrgEventList.hasPrevious()) {
+                events = new ReplicationEvents(dbName, null, dbSrcEventList, dbTrgEventList);
             }
             if (events != null) {
                 replicationEvents.add(events);
