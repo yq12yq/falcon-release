@@ -42,16 +42,18 @@ import java.util.Map;
 public class HiveDRStatusStore extends DRStatusStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(DRStatusStore.class);
+    private FileSystem fileSystem;
+
     private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "hiveReplicationStatusStore/";
     private static final FsPermission DEFAULT_STORE_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
     private static final FsPermission DEFAULT_STATUS_DIR_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE);
+
     private static final String LATEST_FILE = "latest.json";
     private static final int FILE_ROTATION_LIMIT = 10;
     private static final int FILE_ROTATION_TIME = 86400; // 1 day
 
-    private FileSystem fileSystem;
 
     public HiveDRStatusStore(FileSystem targetFileSystem) throws IOException {
         this.fileSystem = targetFileSystem;
@@ -78,19 +80,16 @@ public class HiveDRStatusStore extends DRStatusStore {
         }
     }
 
+     /**
+        get all DB updated by the job. get all current table statuses for the DB merge the latest repl
+        status with prev table repl statuses. If all are success, store the status as success with largest
+        eventId for the DB else store status as failure for the DB and lowest eventId
+     */
     @Override
     public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
             throws HiveReplicationException {
 
-        /*
-        get all DB updated by the job. get all current table statuses for the DB
-        merge the latest repl status with prev table repl statuses.
-        if all are success, store the status as success with largest eventId for the DB
-        else store status as failure for the DB and lowest eventId
-         */
-
         Map<String, DBReplicationStatus> dbStatusMap = new HashMap<String, DBReplicationStatus>();
-
         for (ReplicationStatus status : statusList) {
             if (!status.getJobName().equals(jobName)) {
                 String error = "JobName for status does not match current job \"" + jobName
@@ -98,27 +97,25 @@ public class HiveDRStatusStore extends DRStatusStore {
                 LOG.error(error);
                 throw new HiveReplicationException(error);
             }
+
+            // init dbStatusMap and tableStatusMap from existing statuses.
             if (! dbStatusMap.containsKey(status.getDatabase())) {
-                dbStatusMap.put(status.getDatabase(),
-                        getDbReplicationStatus(status.getSourceUri(), status.getTargetUri(),
-                                status.getJobName(), status.getDatabase()));
+                DBReplicationStatus dbStatus = getDbReplicationStatus(status.getSourceUri(), status.getTargetUri(),
+                        status.getJobName(), status.getDatabase());
+                dbStatusMap.put(status.getDatabase(), dbStatus);
             }
 
-            if (StringUtils.isEmpty(status.getTable())) {
-                // db level replication status.
-                dbStatusMap.get(status.getDatabase()).setDbReplicationStatus(status);
-            } else {
-                // table level replication status
-                dbStatusMap.get(status.getDatabase()).getTableStatuses().put(status.getTable(), status);
+            // update existing statuses with new status for db/tables
+            if (StringUtils.isEmpty(status.getTable())) { // db level replication status.
+                dbStatusMap.get(status.getDatabase()).updateDbStatus(status);
+            } else { // table level replication status
+                dbStatusMap.get(status.getDatabase()).updateTableStatus(status);
             }
         }
-
-        for (Map.Entry<String, DBReplicationStatus> dbStatus : dbStatusMap.entrySet()) {
-            DBReplicationStatus dbReplicationStatus = dbStatus.getValue();
-            dbReplicationStatus.updateDbStatusFromTableStatuses();
-            writeStatusFile(dbReplicationStatus);
+        // write to disk
+        for (Map.Entry<String, DBReplicationStatus> entry : dbStatusMap.entrySet()) {
+            writeStatusFile(entry.getValue());
         }
-
     }
 
     @Override
@@ -162,8 +159,7 @@ public class HiveDRStatusStore extends DRStatusStore {
                 dbReplicationStatus = readStatusFile(statusDirPath);
             }
             if(null == dbReplicationStatus) {
-                dbReplicationStatus = new DBReplicationStatus();
-                dbReplicationStatus.setDbReplicationStatus(new ReplicationStatus(source, target, jobName,
+                dbReplicationStatus = new DBReplicationStatus(new ReplicationStatus(source, target, jobName,
                         database, null, ReplicationStatus.Status.INIT, -1));
                 if (!FileSystem.mkdirs(fileSystem, statusDirPath, DEFAULT_STATUS_DIR_PERMISSION)) {
                     String error = "mkdir failed for " + statusDirPath.toString();
@@ -190,6 +186,7 @@ public class HiveDRStatusStore extends DRStatusStore {
     }
 
     private void writeStatusFile(DBReplicationStatus dbReplicationStatus) throws HiveReplicationException {
+        dbReplicationStatus.updateDbStatusFromTableStatuses();
         String statusDir = getStatusDirPath(dbReplicationStatus).toString();
         try {
             Path latestFile = new Path(statusDir + "/" + LATEST_FILE);

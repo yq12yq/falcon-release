@@ -75,10 +75,17 @@ public class ReplicationStatus {
     public ReplicationStatus(String jsonString) throws HiveReplicationException {
         try {
             JSONObject object = new JSONObject(jsonString);
-            Status status = ReplicationStatus.Status.valueOf(object.getString(STATUS_KEY).toUpperCase());
+            Status objectStatus;
+            try {
+                objectStatus = ReplicationStatus.Status.valueOf(object.getString(STATUS_KEY).toUpperCase());
+            } catch (IllegalArgumentException e1) {
+                throw new HiveReplicationException("Unable to deserialize jsonString to ReplicationStatus."
+                        + " Invalid status " + object.getString(STATUS_KEY), e1);
+            }
+
             init(object.getString(SOURCE), object.getString(TARGET), object.getString(JOB_NAME),
                     object.getString(DATABASE), object.has(TABLE) ? object.getString(TABLE) : null,
-                    status, object.getLong(EVENT_ID),
+                    objectStatus, object.has(EVENT_ID) ? object.getLong(EVENT_ID) : -1,
                     object.has(STATUS_LOG) ? object.getString(STATUS_LOG) : null);
         } catch (JSONException e) {
             throw new HiveReplicationException("Unable to deserialize jsonString to ReplicationStatus ", e);
@@ -108,6 +115,8 @@ public class ReplicationStatus {
             jsonObject.put(STATUS_KEY, this.status.name());
             if (this.eventId > -1) {
                 jsonObject.put(EVENT_ID, this.eventId);
+            } else {
+                jsonObject.put(EVENT_ID, -1);
             }
             if (StringUtils.isNotEmpty(this.log)) {
                 jsonObject.put(STATUS_LOG, this.log);
