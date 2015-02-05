@@ -77,15 +77,11 @@ public abstract class DRStatusStore {
 
 
     /**
-     * Verify if another job is replicating to this db/table
-     * @param source Replication source uri.
-     * @param target Replication target uri.
+     * Delete a replication job
      * @param jobName Name of the replication job.
      * @param database Name of the target database.
-     * @param table Name of the target table.
      * @return
      * destination commands for each table
      */
-    public abstract void checkForReplicationConflict(String source, String target, String jobName,
-                                               String database, String table) throws HiveReplicationException;
+    public abstract void deleteReplicationStatus(String jobName, String database) throws HiveReplicationException;
 }

@@ -22,6 +22,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
@@ -147,11 +148,25 @@ public class HiveDRStatusStore extends DRStatusStore {
         return dbReplicationStatus.getTableStatusIterator();
     }
 
+    @Override
+    public void deleteReplicationStatus(String jobName, String database) throws HiveReplicationException {
+        Path deletePath = getStatusDirPath(database, jobName);
+        try {
+            if (fileSystem.exists(deletePath)) {
+                fileSystem.delete(deletePath, true);
+            }
+        } catch (IOException e) {
+            throw new HiveReplicationException("Failed to delete status for Job "
+                    + jobName + " and DB "+ database, e);
+        }
+
+    }
+
     private DBReplicationStatus getDbReplicationStatus(String source, String target, String jobName,
                                                        String database) throws HiveReplicationException{
         DBReplicationStatus dbReplicationStatus = null;
         Path statusDirPath = getStatusDirPath(database, jobName);
-        // todo check if database name or jobName can contain chars not allowed by hdfs dir/file naming.
+        // check if database name or jobName can contain chars not allowed by hdfs dir/file naming.
         // if yes, use md5 of the same for dir names. prefer to use actual db names for readability.
 
         try {
@@ -253,10 +268,49 @@ public class HiveDRStatusStore extends DRStatusStore {
         }
     }
 
-    @Override
-    public void checkForReplicationConflict(String source, String target, String jobName,
-                                            String database, String table) throws HiveReplicationException {
-        // todo
+    public void checkForReplicationConflict(String newSource, String jobName,
+                                             String database, String table) throws HiveReplicationException {
+        try {
+            Path globPath = new Path(DEFAULT_STORE_PATH + "/" + database + "/*/latest.json");
+            FileStatus[] files = fileSystem.globStatus(globPath);
+            for(FileStatus file : files) {
+                DBReplicationStatus dbFileStatus = new DBReplicationStatus(IOUtils.toString(
+                        fileSystem.open(file.getPath())));
+                ReplicationStatus existingJob = dbFileStatus.getDbReplicationStatus();
+
+                if (!(newSource.equals(existingJob.getSourceUri()))) {
+                    throw new HiveReplicationException("Two different sources are attempting to replicate to same db "
+                            + database + ". New Source = " + newSource
+                            + ", Existing Source = " + existingJob.getSourceUri());
+                } // two different sources replicating to same DB. Conflict
+                if (jobName.equals(existingJob.getJobName())) {
+                    continue;
+                } // same job, no conflict.
+
+                if (StringUtils.isEmpty(table)) {
+                    // When it is DB level replication, two different jobs cannot replicate to same DB
+                    throw new HiveReplicationException("Two different jobs are attempting to replicate to same db "
+                            + database + ". New Job = " + jobName
+                            + ", Existing Job = " + existingJob.getJobName());
+                }
+
+                /*
+                At this point, it is different table level jobs replicating from same newSource to same target. This is
+                allowed as long as the target tables are different. For example, job1 can replicate db1.table1 and
+                job2 can replicate db1.table2.  Both jobs cannot replicate to same table.
+                 */
+                for(Map.Entry<String, ReplicationStatus> entry : dbFileStatus.getTableStatuses().entrySet()) {
+                    if (table.equals(entry.getKey())) {
+                        throw new HiveReplicationException("Two different jobs are trying to replicate to same table "
+                                + entry.getKey() + ". New job = " + jobName
+                                + ", Existing job = " + existingJob.getJobName());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new HiveReplicationException("Failed to read status files for DB "
+                    + database, e);
+        }
     }
 
 }

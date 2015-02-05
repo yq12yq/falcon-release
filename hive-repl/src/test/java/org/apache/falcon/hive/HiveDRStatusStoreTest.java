@@ -153,6 +153,77 @@ public class HiveDRStatusStoreTest {
         Assert.assertEquals(status.getSourceUri(), "source");
     }
 
+    public void checkReplicationConflictTest() throws HiveReplicationException {
+
+        try {
+            //same source, same job, same DB, null table : pass
+            drStatusStore.checkForReplicationConflict("source", "jobname", "default1", null);
+
+            //same source, same job, same DB, same table : pass
+            drStatusStore.checkForReplicationConflict("source", "jobname", "default1", "table1");
+
+            //same source, same job, different DB, null table : pass
+            drStatusStore.checkForReplicationConflict("source", "jobname", "diffDB", null);
+
+            //same source, same job, different DB, different table : pass
+            drStatusStore.checkForReplicationConflict("source", "jobname", "diffDB", "diffTable");
+
+            // same source, different job, same DB, diff table : pass
+            drStatusStore.checkForReplicationConflict("source", "diffJob", "default1", "diffTable");
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+
+        try {
+            // different source, same job, same DB, null table : fail
+            drStatusStore.checkForReplicationConflict("diffSource", "jobname", "default1", null);
+            Assert.fail();
+        } catch (HiveReplicationException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Two different sources are attempting to replicate to same db default1."
+                            + " New Source = diffSource, Existing Source = source");
+        }
+
+        try {
+            // same source, different job, same DB, null table : fail
+            drStatusStore.checkForReplicationConflict("source", "diffJob", "default1", null);
+            Assert.fail();
+        } catch (HiveReplicationException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Two different jobs are attempting to replicate to same db default1."
+                            + " New Job = diffJob, Existing Job = jobname");
+        }
+
+        try {
+            // same source, different job, same DB, same table : fail
+            drStatusStore.checkForReplicationConflict("source", "diffJob", "default1", "table1");
+            Assert.fail();
+        } catch (HiveReplicationException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Two different jobs are trying to replicate to same table table1."
+                            + " New job = diffJob, Existing job = jobname");
+        }
+
+
+    }
+
+    public void DeleteReplicationStatusTest() throws Exception {
+        ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "deleteJob",
+                "deleteDB", null, ReplicationStatus.Status.SUCCESS, 20L);
+        ReplicationStatus table1 = new ReplicationStatus("source", "target", "deleteJob",
+                "deleteDB", "table1", ReplicationStatus.Status.SUCCESS, 20L);
+        ArrayList<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
+        replicationStatusList.add(table1);
+        replicationStatusList.add(dbStatus);
+        drStatusStore.updateReplicationStatus("deleteJob", replicationStatusList);
+
+        ReplicationStatus status = drStatusStore.getReplicationStatus("source", "target", "deleteJob", "deleteDB");
+        Path statusPath = drStatusStore.getStatusDirPath(status.getDatabase(), status.getJobName());
+        Assert.assertEquals(fileSystem.exists(statusPath), true);
+
+        drStatusStore.deleteReplicationStatus("deleteJob", "deleteDB");
+        Assert.assertEquals(fileSystem.exists(statusPath), false);
+    }
 
     public void  getReplicationStatusTableTest() throws HiveReplicationException {
         ReplicationStatus status = drStatusStore.getReplicationStatus("source", "target",
