@@ -26,6 +26,8 @@ import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpOptions;
 import org.apache.hive.hcatalog.api.repl.Command;
 import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -59,6 +61,7 @@ public class EventUtils {
     private String targetStagingUri = null;
     private String jobName = null;
     private int maxEvents;
+    private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
     FileSystem fs = null;
     static Connection src_con = null;
@@ -109,7 +112,7 @@ public class EventUtils {
             src_stmt = src_con.createStatement();
             tgt_stmt = tgt_con.createStatement();
         } catch (SQLException e) {
-            System.out.println("Exception while establishing connection");
+            LOG.info("Exception while establishing connection");
             e.printStackTrace();
         }
     }
@@ -118,12 +121,12 @@ public class EventUtils {
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
 
-        System.out.println("Initializing staging directory");
-        System.out.println("sourceStatingDirPath:"+sourceStagingUri);
-        System.out.println("targetStatingDirPath:"+targetStagingUri);
+        LOG.info("Initializing staging directory");
+        LOG.info("sourceStatingDirPath:"+sourceStagingUri);
+        LOG.info("targetStatingDirPath:"+targetStagingUri);
 
         try {
-            fs = FileSystem.get(conf);
+            fs = FileSystem.get(getConfiguration(targetNN));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -180,7 +183,7 @@ public class EventUtils {
     }
 
     private void undoCommands(Command event) {
-        System.out.println("Undo command:" +event.toString());
+        LOG.info("Undo command:" +event.toString());
         return ;
     }
 
@@ -195,9 +198,9 @@ public class EventUtils {
     public void invokeCopy() throws Exception {
         DistCpOptions options = getDistCpOptions();
         DistCp distCp = new DistCp(conf, options);
-        System.out.println("Started DistCp");
+        LOG.info("Started DistCp");
         distCp.execute();
-        System.out.println("Completed DistCp");
+        LOG.info("Completed DistCp");
 
         return ;
     }
@@ -224,7 +227,17 @@ public class EventUtils {
     }
 
     public void closeConnection() throws SQLException,IOException {
-        src_con.close();
-        tgt_con.close();
+        if (src_con != null) {
+            src_con.close();
+        }
+        if (tgt_con != null) {
+            tgt_con.close();
+        }
+    }
+
+    private static Configuration getConfiguration(final String storageEndpoint) {
+        Configuration conf = new Configuration();
+        conf.set("fs.defaultFS", storageEndpoint);
+        return conf;
     }
 }

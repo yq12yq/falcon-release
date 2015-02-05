@@ -24,6 +24,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -33,6 +35,7 @@ import java.util.List;
 public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
 
     private Configuration conf;
+    private static final Logger LOG = LoggerFactory.getLogger(CopyMapper.class);
     public EventUtils eventUtils;
 
     @Override
@@ -49,15 +52,17 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
                        Context context) throws IOException, InterruptedException {
         List<ReplicationStatus> replicationStatusList = null;
         try {
-            System.out.println("Processing Event value:"+value.toString());
+            LOG.info("Processing Event value:"+value.toString());
             eventUtils.processEvents(value.toString());
             replicationStatusList = eventUtils.getListReplicationStatus();
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        for(ReplicationStatus rs : replicationStatusList) {
-            context.write(new Text(rs.getJobName()), new Text(rs.toString()));
+        if(replicationStatusList != null && !replicationStatusList.isEmpty()) {
+            for (ReplicationStatus rs : replicationStatusList) {
+                context.write(new Text(rs.getJobName()), new Text(rs.toString()));
+            }
         }
     }
 
