@@ -142,7 +142,7 @@ public class HiveDRTool extends Configured implements Tool {
         } finally {
             if (!submitted) {
                 cleanup();
-            }
+        }
         }
 
         String jobID = job.getJobID().toString();
@@ -234,7 +234,7 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private void cleanup() {
-    }
+        }
 
     /* TODO : MR should delete the file in case of success or failure of map job */
     private String persistReplicationEvents(String dir, String filename,
@@ -272,7 +272,7 @@ public class HiveDRTool extends Configured implements Tool {
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return filePath.toString();
+        return fs.getFileStatus(filePath).getPath().toString();
     }
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
