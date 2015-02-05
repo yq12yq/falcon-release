@@ -61,9 +61,7 @@ public enum HiveDRArgs {
     // Map Bandwidth
     MAP_BANDWIDTH("mapBandwidth", "map bandwidth in mb", false),
 
-    JOB_NAME("drJobName", "unique job name"),
-
-    FALCON_LIBPATH("falconLibPath","Falcon Lib Path for Jar files", false);
+    JOB_NAME("drJobName", "unique job name");
 
     private final String name;
     private final String description;
