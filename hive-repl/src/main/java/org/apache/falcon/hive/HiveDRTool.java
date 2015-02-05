@@ -27,6 +27,7 @@ import org.apache.falcon.hive.util.DelimiterUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -62,6 +63,7 @@ public class HiveDRTool extends Configured implements Tool {
     private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+    private static final String HIVE_JARFILE_PREFIX = "hive-";
     private static final Logger LOG = LoggerFactory.getLogger(HiveDRTool.class);
 
     public HiveDRTool() {
@@ -189,9 +191,25 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
+        String falconLibPath = job.getConfiguration().get("falconLibPath");
+        String jarsFilePath = getHiveJars(falconLibPath);
+        job.getConfiguration().set("tmpjars", jarsFilePath);
         job.getConfiguration().set("inputPath", inputFile); //Todo change /tmp with getInputPath()
 
         return job;
+    }
+
+    private String getHiveJars(String falconLibPath) throws IOException {
+        String hiveJarsFile = new String();
+        FileStatus[] jarsFile = fs.listStatus(new Path(falconLibPath));
+        for (FileStatus file : jarsFile) {
+            String fileName = file.getPath().getName();
+            if (file.isFile() && fileName.startsWith(HIVE_JARFILE_PREFIX) && fileName.endsWith(".jar")) {
+                hiveJarsFile += file.getPath().toString()+",";
+            }
+        }
+
+        return hiveJarsFile.substring(0, hiveJarsFile.length()-1);
     }
 
     private ListIterator<ReplicationEvents> sourceEvents() throws Exception {

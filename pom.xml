@@ -286,13 +286,6 @@
                         <version>${hadoop.version}</version>
                         <scope>provided</scope>
                     </dependency>
-
-                    <dependency>
-                        <groupId>org.apache.hadoop</groupId>
-                        <artifactId>hadoop-mapreduce-client-core</artifactId>
-                        <version>${hadoop.version}</version>
-                        <scope>provided</scope>
-                    </dependency>
                 </dependencies>
             </dependencyManagement>
         </profile>
@@ -976,6 +969,18 @@
                     <exclusion>
                         <groupId>org.apache.hbase</groupId>
                         <artifactId>hbase-client</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.hive</groupId>
+                <artifactId>hive-jdbc</artifactId>
+                <version>${hive.version}</version>
+                <exclusions>
+                    <exclusion> <!-- conflict with hadoop-auth -->
+                        <groupId>org.apache.httpcomponents</groupId>
+                        <artifactId>httpclient</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>
