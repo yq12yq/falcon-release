@@ -71,15 +71,8 @@ public class HiveReplicationRecipeTool implements Recipe {
 
             targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
                     (HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
-
-            String trgDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_TARGET_DATABASE.getName());
-
-            String[] tgrDbs = trgDbList.split(",");
-
-            if (tgrDbs.length <= 0) {
-                throw new Exception("No target DB specified in property file");
-            }
-            for (String db : tgrDbs) {
+            // Verify db exists on target
+            for (String db : srcDbs) {
                 if (!dbExists(targetMetastoreClient, db)) {
                     throw new Exception("Database " + db + " doesn't exist on target cluster");
                 }

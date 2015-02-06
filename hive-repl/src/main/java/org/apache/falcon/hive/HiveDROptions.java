@@ -113,14 +113,6 @@ public class HiveDROptions {
         return context.get(HiveDRArgs.TARGET_SERVICE_PRINCIPAL);
     }
 
-    public String getTargetDatabase() {
-        return context.get(HiveDRArgs.TARGET_DATABASE);
-    }
-
-    public String getTargetTable() {
-        return context.get(HiveDRArgs.TARGET_TABLE);
-    }
-
     public String getTargetStagingPath() {
         return context.get(HiveDRArgs.TARGET_STAGING_PATH);
     }

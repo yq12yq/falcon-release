@@ -33,8 +33,6 @@ public enum HiveReplicationRecipeToolOptions {
     REPLICATION_TARGET_METASTORE_URI("targetMetastoreUri", "Target Hive metastore uri"),
     REPLICATION_TARGET_HS2_URI("targetHiveServer2Uri", "Target HS2 uri"),
     REPLICATION_TARGET_SERVICE_PRINCIPAL("targetServicePrincipal", "Target principal"),
-    REPLICATION_TARGET_DATABASE("targetDatabase", "List of databases on target after replication"),
-    REPLICATION_TARGET_TABLE("targetTable", "List of tables on target after replication"),
     REPLICATION_TARGET_STAGING_PATH("targetStagingPath", "Location of target staging path"),
     REPLICATION_TARGET_NN("targetNN", "Target name node"),
     REPLICATION_TARGET_RM("targetRM", "Target resource manager"),

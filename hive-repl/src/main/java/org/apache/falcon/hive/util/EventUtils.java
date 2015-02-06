@@ -51,8 +51,6 @@ public class EventUtils {
     private String sourceRM = null;
     private String targetHiveServer2Uri = null;
     private String targetServicePrincipal = null;
-    private String targetDatabase = null;;
-    private String targetTable = null;
     private String targetStagingPath = null;
     private String targetNN = null;
     private String targetRM = null;
@@ -95,8 +93,6 @@ public class EventUtils {
 
         targetHiveServer2Uri = conf.get("targetHiveServer2Uri");
         targetServicePrincipal = conf.get("targetServicePrincipal");
-        targetDatabase = conf.get("targetDatabase");
-        targetTable = conf.get("targetTable");
         targetStagingPath = conf.get("targetStagingPath");
         targetNN = conf.get("targetNN");
         targetRM = conf.get("targetRM");
@@ -107,7 +103,7 @@ public class EventUtils {
         try {
             src_con = DriverManager.getConnection(JDBC_PREFIX+sourceHiveServer2Uri+"/"+sourceDatabase+SASL_AUTH,
                     sourceServicePrincipal, "");
-            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+targetDatabase+SASL_AUTH,
+            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+sourceDatabase+SASL_AUTH,
                     targetServicePrincipal, "");
             src_stmt = src_con.createStatement();
             tgt_stmt = tgt_con.createStatement();

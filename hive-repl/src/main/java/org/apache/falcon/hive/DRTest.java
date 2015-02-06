@@ -31,8 +31,6 @@ public class DRTest {
 
             "-targetMetastoreUri", "thrift://localhost:9083",
             "-targetServicePrincipal", "org/apache/falcon/hive",
-            "-targetDatabase", "default",
-            "-targetTable", "test",
             "-targetStagingPath", "/apps/hive/tools/dr",
             "-targetNN", "hdfs://localhost:8020",
             "-targetRM", "local",

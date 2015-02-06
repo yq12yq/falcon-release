@@ -44,8 +44,6 @@ public enum HiveDRArgs {
     TARGET_METASTORE_URI("targetMetastoreUri", "source meta store uri"),
     TARGET_HS2_URI("targetHiveServer2Uri", "source meta store uri"),
     TARGET_SERVICE_PRINCIPAL("targetServicePrincipal", "source service principal"),
-    TARGET_DATABASE("targetDatabase", "comma source databases"),
-    TARGET_TABLE("targetTable", "comma source tables"),
     TARGET_STAGING_PATH("targetStagingPath", "source staging path for data"),
 
     // target hadoop endpoints
