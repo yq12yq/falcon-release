@@ -20,9 +20,14 @@ package org.apache.falcon.regression.hive.dr;
 
 import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.falcon.regression.core.util.HiveUtil;
+import org.apache.falcon.regression.testHelper.BaseTestClass;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.tools.DistCp;
+import org.apache.hadoop.tools.DistCpOptions;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -33,8 +38,29 @@ import java.sql.SQLException;
  * HiveDR tests.
  */
 class HiveObjectCreator {
+    private static final Logger LOGGER = Logger.getLogger(HiveObjectCreator.class);
+    private static final String HDFS_TMP_DIR = "/tmp/hive_objects/";
+
     private HiveObjectCreator() {
         throw new AssertionError("Instantiating utility class...");
+    }
+
+    static void bootstrapCopy(Connection srcConnection, FileSystem srcFs, String srcTable,
+        Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
+        final String srcPath = HDFS_TMP_DIR + srcTable + "/";
+        final String dstPath = HDFS_TMP_DIR + dstTable + "/";
+        HadoopUtil.deleteDirIfExists(srcPath, srcFs);
+        HadoopUtil.deleteDirIfExists(dstPath, dstFs);
+        HiveUtil.runSql(srcConnection, "export table " + srcTable + " to '" + srcPath + "'");
+        LOGGER.info("Initiating distcp from " + srcFs.getUri() + srcPath
+            + " to " + dstFs.getUri() + dstPath);
+        DistCpOptions distCpOptions = new DistCpOptions(new Path(srcFs.getUri() + "/" + srcPath),
+            new Path(dstFs.getUri() + "/" + dstPath));
+        distCpOptions.setBlocking(true);
+        new DistCp(new Configuration(), distCpOptions).execute();
+        HiveUtil.runSql(dstConnection, "import table " + dstTable + " from '" + dstPath + "'");
+        HadoopUtil.deleteDirIfExists(srcPath, srcFs);
+        HadoopUtil.deleteDirIfExists(dstPath, dstFs);
     }
 
     /**

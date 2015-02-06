@@ -19,6 +19,7 @@
 package org.apache.falcon.regression.core.util;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hive.jdbc.HiveConnection;
 import org.apache.log4j.Logger;
 
 import java.sql.Connection;

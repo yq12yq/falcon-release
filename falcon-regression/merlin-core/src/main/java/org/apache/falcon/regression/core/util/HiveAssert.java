@@ -79,11 +79,15 @@ public class HiveAssert {
         List<HCatPartition> table2Partitions, SoftAssert softAssert) {
         softAssert.assertEquals(table1Partitions.size(), table2Partitions.size(),
             "Number of partitions are not same");
-        for (int i = 0; i < table1Partitions.size(); i++) {
-            final HCatPartition table1Partition = table1Partitions.get(i);
-            final HCatPartition table2Partition = table2Partitions.get(i);
-            softAssert.assertEquals(table1Partition.getValues(), table2Partition.getValues(),
-                "Partitions don't have same values");
+        try {
+            for (int i = 0; i < table1Partitions.size(); i++) {
+                final HCatPartition table1Partition = table1Partitions.get(i);
+                final HCatPartition table2Partition = table2Partitions.get(i);
+                softAssert.assertEquals(table1Partition.getValues(), table2Partition.getValues(),
+                    "Partitions don't have same values");
+            }
+        } catch (Exception e) {
+            softAssert.fail("Couldn't do partition equality.", e);
         }
         return softAssert;
     }

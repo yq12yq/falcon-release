@@ -35,6 +35,7 @@ import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.CoordinatorAction;
 import org.apache.oozie.client.OozieClient;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -85,32 +86,43 @@ public class HiveDR extends BaseTestClass {
         connection = cluster.getClusterHelper().getHiveJdbcConnection();
         HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
         connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection2, "drop database if exists hdr_tdb1 cascade");
+        HiveUtil.runSql(connection2, "drop database if exists hdr_sdb1 cascade");
     }
 
     @Test
     public void recipeSubmission() throws Exception {
         recipeMerlin.setSourceDb("hdr_sdb1");
-        recipeMerlin.setSourceTable("store_sales");
-        recipeMerlin.setTargetDb("hdr_tdb1");
-        recipeMerlin.setTargetTable("store_sales");
+        recipeMerlin.setSourceTable("global_store_sales");
+        recipeMerlin.setTargetDb("hdr_sdb1");
+        recipeMerlin.setTargetTable("global_store_sales");
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         HiveUtil.runSql(connection, "create database hdr_sdb1");
         HiveUtil.runSql(connection, "use hdr_sdb1");
-        HiveObjectCreator.createVanillaTable(connection);
+        HiveUtil.runSql(connection, "create table global_store_sales "
+            + "(customer_id string, item_id string, quantity float, price float, time timestamp) "
+            + "partitioned by (country string)");
 
-        HiveUtil.runSql(connection2, "create database hdr_tdb1");
-        HiveUtil.runSql(connection2, "use hdr_tdb1");
-        HiveUtil.runSql(connection2, "create table store_sales "
-            + "(customer_id string, item_id string, quantity float, price float, time timestamp)");
+        HiveUtil.runSql(connection2, "create database hdr_sdb1");
+        HiveUtil.runSql(connection2, "use hdr_sdb1");
+        HiveObjectCreator.bootstrapCopy(connection, clusterFS, "global_store_sales",
+            connection2, clusterFS2, "global_store_sales");
 
-        Bundle.runFalconCLI(command);
+        HiveUtil.runSql(connection,
+            "insert into table global_store_sales partition (country = 'us') values"
+                + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01')");
+        HiveUtil.runSql(connection,
+            "insert into table global_store_sales partition (country = 'uk') values"
+                + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
+        HiveUtil.runSql(connection, "select * from global_store_sales");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
         InstanceUtil.waitTillInstanceReachState(clusterOC2, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "store_sales"),
-            cluster2, clusterHC2.getTable("hdr_tdb1", "store_sales"), new NotifyingAssert(true)
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
+            cluster2, clusterHC2.getTable("hdr_sdb1", "global_store_sales"), new NotifyingAssert(true)
         ).assertAll();
     }
 
@@ -124,8 +136,8 @@ public class HiveDR extends BaseTestClass {
         HiveObjectCreator.createExternalTable(connection, clusterFS,
             baseTestHDFSDir + "click_data/");
 
-        HiveUtil.runSql(connection2, "create database hdr_tdb1");
-        HiveUtil.runSql(connection2, "use hdr_tdb1");
+        HiveUtil.runSql(connection2, "create database hdr_sdb1");
+        HiveUtil.runSql(connection2, "use hdr_sdb1");
         HiveObjectCreator.createVanillaTable(connection2);
         HiveObjectCreator.createSerDeTable(connection2);
         HiveObjectCreator.createPartitionedTable(connection2);
@@ -133,11 +145,11 @@ public class HiveDR extends BaseTestClass {
             baseTestHDFSDir + "click_data/");
 
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase("hdr_sdb1"),
-            cluster2, clusterHC2.getDatabase("hdr_tdb1"), new NotifyingAssert(true)
+            cluster2, clusterHC2.getDatabase("hdr_sdb1"), new NotifyingAssert(true)
         ).assertAll();
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "click_data"),
-            cluster2, clusterHC2.getTable("hdr_tdb1", "click_data"), new NotifyingAssert(true)
+            cluster2, clusterHC2.getTable("hdr_sdb1", "click_data"), new NotifyingAssert(true)
         ).assertAll();
 
     }
@@ -167,15 +179,15 @@ public class HiveDR extends BaseTestClass {
         //create table with static partitions on first cluster
         HiveObjectCreator.createPartitionedTable(connection, false);
 
-        HiveUtil.runSql(connection2, "create database hdr_tdb1");
-        HiveUtil.runSql(connection2, "use hdr_tdb1");
+        HiveUtil.runSql(connection2, "create database hdr_sdb1");
+        HiveUtil.runSql(connection2, "use hdr_sdb1");
         //create table with dynamic partitions on second cluster
         HiveObjectCreator.createPartitionedTable(connection2, true);
 
         //check that both tables are equal
         HiveAssert.assertTableEqual(
             cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
-            cluster2, clusterHC2.getTable("hdr_tdb1", "global_store_sales"), new SoftAssert()
+            cluster2, clusterHC2.getTable("hdr_sdb1", "global_store_sales"), new SoftAssert()
         ).assertAll();
     }
 
