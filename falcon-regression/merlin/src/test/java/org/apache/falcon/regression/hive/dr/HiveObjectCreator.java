@@ -32,6 +32,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 
 /**
  * Create Hive tables for testing Hive DR. Note that this is not expected to be used out of
@@ -48,19 +49,20 @@ class HiveObjectCreator {
     static void bootstrapCopy(Connection srcConnection, FileSystem srcFs, String srcTable,
         Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
         final String srcPath = HDFS_TMP_DIR + srcTable + "/";
-        final String dstPath = HDFS_TMP_DIR + dstTable + "/";
-        HadoopUtil.deleteDirIfExists(srcPath, srcFs);
-        HadoopUtil.deleteDirIfExists(dstPath, dstFs);
+        deleteDirUsingJdbc(srcConnection, srcPath);
         HiveUtil.runSql(srcConnection, "export table " + srcTable + " to '" + srcPath + "'");
-        LOGGER.info("Initiating distcp from " + srcFs.getUri() + srcPath
-            + " to " + dstFs.getUri() + dstPath);
-        DistCpOptions distCpOptions = new DistCpOptions(new Path(srcFs.getUri() + "/" + srcPath),
-            new Path(dstFs.getUri() + "/" + dstPath));
-        distCpOptions.setBlocking(true);
-        new DistCp(new Configuration(), distCpOptions).execute();
-        HiveUtil.runSql(dstConnection, "import table " + dstTable + " from '" + dstPath + "'");
-        HadoopUtil.deleteDirIfExists(srcPath, srcFs);
-        HadoopUtil.deleteDirIfExists(dstPath, dstFs);
+        HiveUtil.runSql(dstConnection, "import table " + dstTable + " from '"
+            + srcFs.getUri() + "/" + srcPath + "'");
+        deleteDirUsingJdbc(srcConnection, srcPath);
+    }
+
+    /* We need to delete it using hive query as the created directory is owned by hive.*/
+    private static void deleteDirUsingJdbc(Connection srcConnection, String srcPath) {
+        try {
+            HiveUtil.runSql(srcConnection, "dfs -rmr " + srcPath);
+        } catch (SQLException e) {
+            //ignore the exception as it is expected for non-existing paths
+        }
     }
 
     /**
