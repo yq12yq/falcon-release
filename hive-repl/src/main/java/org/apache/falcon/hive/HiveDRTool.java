@@ -25,8 +25,10 @@ import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.DelimiterUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
+import org.apache.falcon.hive.util.ReplicationCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -40,13 +42,13 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.api.repl.Command;
-import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.ListIterator;
 
 /**
@@ -62,6 +64,7 @@ public class HiveDRTool extends Configured implements Tool {
     private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+    private static final String HIVE_JARFILE_PREFIX = "hive-";
     private static final Logger LOG = LoggerFactory.getLogger(HiveDRTool.class);
 
     public HiveDRTool() {
@@ -131,7 +134,6 @@ public class HiveDRTool extends Configured implements Tool {
 
         String identifier = inputOptions.getJobName();
         String inputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier, events);
-
         Job job = null;
         try {
             job = createJob(inputFilename);
@@ -142,7 +144,7 @@ public class HiveDRTool extends Configured implements Tool {
         } finally {
             if (!submitted) {
                 cleanup();
-        }
+            }
         }
 
         String jobID = job.getJobID().toString();
@@ -189,9 +191,25 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
+        String falconLibPath = job.getConfiguration().get("falconLibPath");
+        String jarsFilePath = getHiveJars(falconLibPath);
+        job.getConfiguration().set("tmpjars", jarsFilePath);
         job.getConfiguration().set("inputPath", inputFile); //Todo change /tmp with getInputPath()
 
         return job;
+    }
+
+    private String getHiveJars(String falconLibPath) throws IOException {
+        String hiveJarsFile = new String();
+        FileStatus[] jarsFile = fs.listStatus(new Path(falconLibPath));
+        for (FileStatus file : jarsFile) {
+            String fileName = file.getPath().getName();
+            if (file.isFile() && fileName.startsWith(HIVE_JARFILE_PREFIX) && fileName.endsWith(".jar")) {
+                hiveJarsFile += file.getPath().toString()+",";
+            }
+        }
+
+        return hiveJarsFile.substring(0, hiveJarsFile.length()-1);
     }
 
     private ListIterator<ReplicationEvents> sourceEvents() throws Exception {
@@ -212,7 +230,7 @@ public class HiveDRTool extends Configured implements Tool {
 
     private void createPartitions(Job job) throws IOException {
         job.getConfiguration().set(FileInputFormat.INPUT_DIR, job.getConfiguration().get("inputPath"));
-        job.getConfiguration().set(FileOutputFormat.OUTDIR,"/apps/dr/dummy");
+        job.getConfiguration().set(FileOutputFormat.OUTDIR,"/apps/dr/dummy"); //TODO : will do cleanup
     }
 
     public static void main(String args[]) {
@@ -234,7 +252,8 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private void cleanup() {
-        }
+        //fs.deleteOnExit("/apps/dr/dummy");
+    }
 
     /* TODO : MR should delete the file in case of success or failure of map job */
     private String persistReplicationEvents(String dir, String filename,
@@ -254,20 +273,21 @@ public class HiveDRTool extends Configured implements Tool {
                 if (dbName != null) {
                     out.write(dbName.getBytes());
                 }
-                out.write(DelimiterUtils.getEscapedFieldDelim().getBytes());
+                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
                 if (tableName != null) {
                     out.write(tableName.getBytes());
                 }
-                out.write(DelimiterUtils.getEscapedFieldDelim().getBytes());
+                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
                 String exportEventStr;
                 if ((exportEventStr = getCmdAsString(exportCmds)) != null) {
                     out.write(exportEventStr.getBytes());
                 }
-                out.write(DelimiterUtils.getEscapedFieldDelim().getBytes());
+                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
                 String importEventStr;
                 if ((importEventStr = getCmdAsString(importCmds)) != null) {
                     out.write(importEventStr.getBytes());
                 }
+                out.write(DelimiterUtils.getRecordNewLineDelim().getBytes());
             }
         } finally {
             IOUtils.closeQuietly(out);
@@ -277,10 +297,14 @@ public class HiveDRTool extends Configured implements Tool {
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
         StringBuilder eventStr = new StringBuilder();
-
         while (cmds.hasNext()) {
-            eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
-            eventStr.append(DelimiterUtils.getEscapedStmtDelim());
+            Command cmd = cmds.next();
+            //eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
+            ReplicationCommand rc = new ReplicationCommand(cmd.get(), cmd.isRetriable(), cmd.isUndoable(),
+                    (cmd.isUndoable() ? cmd.getUndo() : new ArrayList<String>()) ,
+                    cmd.cleanupLocationsPerRetry(), cmd.cleanupLocationsAfterEvent(), cmd.getEventId());
+            eventStr.append(rc.toString());
+            eventStr.append(DelimiterUtils.getEventStmtDelim());
         }
         if (eventStr.length() > 0) {
             String s = eventStr.toString();

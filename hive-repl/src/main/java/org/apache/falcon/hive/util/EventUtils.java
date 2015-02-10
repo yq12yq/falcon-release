@@ -22,10 +22,9 @@ import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpOptions;
-import org.apache.hive.hcatalog.api.repl.Command;
-import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,12 +113,9 @@ public class EventUtils {
     }
 
     public void initializeFS() {
+        LOG.info("Initializing staging directory");
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
-
-        LOG.info("Initializing staging directory");
-        LOG.info("sourceStatingDirPath:"+sourceStagingUri);
-        LOG.info("targetStatingDirPath:"+targetStagingUri);
 
         try {
             fs = FileSystem.get(getConfiguration(targetNN));
@@ -132,13 +128,14 @@ public class EventUtils {
         hiveStore = new HiveDRStatusStore(fs);
     }
 
-    public void processEvents(String event) throws Exception {
-        ReplicationStatus.Status status = null;
+    public void processEvents(String event) throws SQLException, HiveReplicationException{
+        System.out.println("EventUtils processEvents event to process:"+event);
         listReplicationStatus = new ArrayList<ReplicationStatus>() ;
-        String dbName = event.split(DelimiterUtils.getEscapedFieldDelim())[0];
-        String tableName = event.split(DelimiterUtils.getEscapedFieldDelim())[1];
-        String exportEventStr = event.split(DelimiterUtils.getEscapedFieldDelim())[2];
-        String importEventStr = event.split(DelimiterUtils.getEscapedFieldDelim())[3];
+        String eventSplit[] = event.split(DelimiterUtils.getRecordFieldDelim());
+        String dbName = eventSplit[0];
+        String tableName = eventSplit[1];
+        String exportEventStr = eventSplit[2];
+        String importEventStr = eventSplit[3];
         if (exportEventStr != "" || exportEventStr != null) {
             processCommands(exportEventStr, dbName, tableName, src_stmt);
             //Todo: Check srcStagingDirectory is not empty
@@ -155,12 +152,12 @@ public class EventUtils {
     }
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sql_stmt)
-            throws Exception {
+            throws SQLException, HiveReplicationException {
         long eventId = 0;
         ReplicationStatus.Status status = null;
-        String commandList[] = eventStr.split(DelimiterUtils.getEscapedStmtDelim());
+        String commandList[] = eventStr.split(DelimiterUtils.getEventStmtDelim());
         for (String command : commandList) {
-            Command cmd = ReplicationUtils.deserializeCommand(command);
+            ReplicationCommand cmd = ReplicationCommand.parseCommandString(command);
             eventId = cmd.getEventId();
             try {
                 for (String stmt : cmd.get()) {
@@ -168,19 +165,33 @@ public class EventUtils {
                 }
                 status = ReplicationStatus.Status.SUCCESS;
                 addReplicationStatus(status, dbName, tableName, eventId);
-            } catch (Exception e) {
+            } catch (SQLException e) {
                 if(cmd.isUndoable()) {
-                    undoCommands(cmd);
+                    undoCommands(cmd.getUndo(),sql_stmt);
                 }
                 status = ReplicationStatus.Status.FAILURE;
                 addReplicationStatus(status, dbName, tableName, eventId);
+            } catch (HiveReplicationException hre) {
+                throw new HiveReplicationException("Could not update replication status store for "
+                        + "EventId:" + eventId
+                        + "DB Name:" + dbName
+                        + "Table Name:" + tableName
+                        + hre.toString());
             }
         }
     }
 
-    private void undoCommands(Command event) {
-        LOG.info("Undo command:" +event.toString());
-        return ;
+    private void undoCommands(List<String> undo, Statement sql_stmt) throws HiveReplicationException {
+        LOG.info("Undo command:" + undo.toString());
+        try {
+            if (undo.size() != 0) {
+                for (String undoStmt : undo) {
+                    sql_stmt.execute(undoStmt);
+                }
+            }
+        } catch(SQLException se) {
+            throw new HiveReplicationException("Could not undo Hive statement:"+se.toString());
+        }
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
@@ -194,11 +205,11 @@ public class EventUtils {
     public void invokeCopy() throws Exception {
         DistCpOptions options = getDistCpOptions();
         DistCp distCp = new DistCp(conf, options);
-        LOG.info("Started DistCp");
-        distCp.execute();
+        LOG.info("Started DistCp with source Path:"+options.getSourcePaths().toString()
+                +"\ttarget path:"+options.getTargetPath());
+        Job distcpJob = distCp.execute();
+        LOG.info("Distp Hadoop job:"+distcpJob.getJobID().toString());
         LOG.info("Completed DistCp");
-
-        return ;
     }
 
     public DistCpOptions getDistCpOptions() {
@@ -222,7 +233,7 @@ public class EventUtils {
         return listPaths;
     }
 
-    public void closeConnection() throws SQLException,IOException {
+    public void closeConnection() throws SQLException {
         if (src_con != null) {
             src_con.close();
         }
