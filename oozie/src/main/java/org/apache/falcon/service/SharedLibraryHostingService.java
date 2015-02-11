@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -45,11 +46,17 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
     private static final Logger LOG = LoggerFactory.getLogger(SharedLibraryHostingService.class);
 
     private static final String[] LIBS = StartupProperties.get().getProperty("shared.libs").split(",");
+    private static final String[] HIVE_LIBS = StartupProperties.get().getProperty("hive.shared.libs").split(",");
 
-    private static final FalconPathFilter NON_FALCON_JAR_FILTER = new FalconPathFilter() {
+    private static class FalconLibPath implements  FalconPathFilter {
+        String SHARE_LIBS[];
+        FalconLibPath(String[] LibList) {
+            this.SHARE_LIBS = Arrays.copyOf(LibList, LibList.length);
+        }
+
         @Override
         public boolean accept(Path path) {
-            for (String jarName : LIBS) {
+            for (String jarName : SHARE_LIBS) {
                 if (path.getName().startsWith(jarName)) {
                     return true;
                 }
@@ -59,7 +66,7 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
 
         @Override
         public String getJarName(Path path) {
-            for (String jarName : LIBS) {
+            for (String jarName : SHARE_LIBS) {
                 if (path.getName().startsWith(jarName)) {
                     return jarName;
                 }
@@ -70,7 +77,10 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
 
     private void addLibsTo(Cluster cluster) throws FalconException {
         Path lib = new Path(ClusterHelper.getLocation(cluster, "working"), "lib");
+        Path hiveLib = new Path(ClusterHelper.getLocation(cluster, "working"), "lib/hive");
         Path libext = new Path(ClusterHelper.getLocation(cluster, "working"), "libext");
+        FalconPathFilter NON_FALCON_JAR_FILTER = new FalconLibPath(LIBS);
+        FalconPathFilter HIVE_JAR_FILTER = new FalconLibPath(HIVE_LIBS);
         try {
             FileSystem fs = HadoopClientFactory.get().createFalconFileSystem(
                     ClusterHelper.getConfiguration(cluster));
@@ -78,6 +88,8 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
             Properties properties = StartupProperties.get();
             pushLibsToHDFS(fs, properties.getProperty("system.lib.location"), lib,
                     NON_FALCON_JAR_FILTER);
+            pushLibsToHDFS(fs, properties.getProperty("system.lib.location"), hiveLib,
+                    HIVE_JAR_FILTER);
             pushLibsToHDFS(fs, properties.getProperty("libext.paths"), libext, null);
             pushLibsToHDFS(fs, properties.getProperty("libext.feed.paths"),
                     new Path(libext, EntityType.FEED.name()) , null);
@@ -98,7 +110,6 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
         if (StringUtils.isEmpty(src)) {
             return;
         }
-
         LOG.debug("Copying libs from {}", src);
         createTargetPath(fs, target);
 

@@ -64,7 +64,7 @@ public class HiveDRTool extends Configured implements Tool {
     private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
-    private static final String HIVE_JARFILE_PREFIX = "hive-";
+    private static final String HIVE_JARFILE_PREFIX = "hive";
     private static final Logger LOG = LoggerFactory.getLogger(HiveDRTool.class);
 
     public HiveDRTool() {
@@ -191,7 +191,8 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
-        String falconLibPath = job.getConfiguration().get("falconLibPath");
+        String falconLibPath = job.getConfiguration().get("falconLibPath") + File.separator
+                + HIVE_JARFILE_PREFIX;
         String jarsFilePath = getHiveJars(falconLibPath);
         job.getConfiguration().set("tmpjars", jarsFilePath);
         job.getConfiguration().set("inputPath", inputFile); //Todo change /tmp with getInputPath()
