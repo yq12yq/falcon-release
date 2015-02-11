@@ -37,8 +37,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.api.repl.Command;
@@ -174,7 +173,7 @@ public class HiveDRTool extends Configured implements Tool {
 
         job.setInputFormatClass(org.apache.hadoop.mapreduce.lib.input.NLineInputFormat.class);
 
-        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setOutputFormatClass(NullOutputFormat.class);
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(Text.class);
 
@@ -195,7 +194,7 @@ public class HiveDRTool extends Configured implements Tool {
                 + HIVE_JARFILE_PREFIX;
         String jarsFilePath = getHiveJars(falconLibPath);
         job.getConfiguration().set("tmpjars", jarsFilePath);
-        job.getConfiguration().set("inputPath", inputFile); //Todo change /tmp with getInputPath()
+        job.getConfiguration().set("inputPath", inputFile); //Todo: change with getInputPath()
 
         return job;
     }
@@ -231,7 +230,6 @@ public class HiveDRTool extends Configured implements Tool {
 
     private void createPartitions(Job job) throws IOException {
         job.getConfiguration().set(FileInputFormat.INPUT_DIR, job.getConfiguration().get("inputPath"));
-        job.getConfiguration().set(FileOutputFormat.OUTDIR,"/apps/dr/dummy"); //TODO : will do cleanup
     }
 
     public static void main(String args[]) {
