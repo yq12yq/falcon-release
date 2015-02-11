@@ -22,11 +22,15 @@ package org.apache.falcon.hive.util;
 
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hive.hcatalog.api.repl.Command;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class ReplicationCommand {
+public class ReplicationCommand implements Command {
     private List<String> events;
     private boolean isRetriable;
     private boolean isUndoable;
@@ -86,6 +90,13 @@ public class ReplicationCommand {
         return eventId;
     }
 
+    public void write(DataOutput out) throws IOException {
+        //TODO: Nothing to do
+    }
+
+    public void readFields(DataInput in) throws IOException {
+        //TODO: Nothing to do
+    }
 
     public String toString() {
         return StringUtils.join(events.toArray(), DelimiterUtils.getCommandEventDelim())
