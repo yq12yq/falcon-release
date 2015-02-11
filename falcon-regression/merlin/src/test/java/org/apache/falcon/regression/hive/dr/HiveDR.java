@@ -20,6 +20,7 @@ package org.apache.falcon.regression.hive.dr;
 
 import org.apache.falcon.cli.FalconCLI;
 import org.apache.falcon.entity.v0.EntityType;
+import org.apache.falcon.entity.v0.Frequency;
 import org.apache.falcon.regression.Entities.ClusterMerlin;
 import org.apache.falcon.regression.Entities.RecipeMerlin;
 import org.apache.falcon.regression.core.bundle.Bundle;
@@ -29,6 +30,7 @@ import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.HiveUtil;
 import org.apache.falcon.regression.core.util.InstanceUtil;
+import org.apache.falcon.regression.core.util.TimeUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hive.hcatalog.api.HCatClient;
@@ -77,10 +79,12 @@ public class HiveDR extends BaseTestClass {
         Bundle.submitCluster(bundles[1]);
 
         recipeMerlin = RecipeMerlin.readFromDir("HiveDrRecipe",
-            FalconCLI.RecipeOperation.HIVE_DISASTER_RECOVERY);
-        recipeMerlin.setRecipeCluster(tgtCluster);
-        recipeMerlin.setSourceCluster(srcCluster);
-        recipeMerlin.setTargetCluster(tgtCluster);
+            FalconCLI.RecipeOperation.HIVE_DISASTER_RECOVERY)
+            .withRecipeCluster(tgtCluster);
+        recipeMerlin.withSourceCluster(srcCluster)
+            .withTargetCluster(tgtCluster)
+            .withFrequency(new Frequency("5", Frequency.TimeUnit.minutes))
+            .withValidity(TimeUtil.getTimeWrtSystemTime(-5), TimeUtil.getTimeWrtSystemTime(5));
         recipeMerlin.setUniqueName(this.getClass().getSimpleName());
 
         connection = cluster.getClusterHelper().getHiveJdbcConnection();
@@ -91,10 +95,8 @@ public class HiveDR extends BaseTestClass {
 
     @Test
     public void recipeSubmission() throws Exception {
-        recipeMerlin.setSourceDb("hdr_sdb1");
-        recipeMerlin.setSourceTable("global_store_sales");
-        recipeMerlin.setTargetDb("hdr_sdb1");
-        recipeMerlin.setTargetTable("global_store_sales");
+        recipeMerlin.withSourceDb("hdr_sdb1").withSourceTable("global_store_sales")
+            .withTargetDb("hdr_sdb1").withTargetTable("global_store_sales");
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         HiveUtil.runSql(connection, "create database hdr_sdb1");

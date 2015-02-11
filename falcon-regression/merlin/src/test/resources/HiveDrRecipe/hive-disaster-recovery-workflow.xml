@@ -77,10 +77,6 @@
             <arg>${targetHiveServer2Uri}</arg>
             <arg>-targetServicePrincipal</arg>
             <arg>${targetServicePrincipal}</arg>
-            <arg>-targetDatabase</arg>
-            <arg>${targetDatabase}</arg>
-            <arg>-targetTable</arg>
-            <arg>${targetTable}</arg>
             <arg>-targetStagingPath</arg>
             <arg>${targetStagingPath}</arg>
             <arg>-targetNN</arg>
