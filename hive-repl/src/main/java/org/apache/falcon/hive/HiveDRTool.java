@@ -20,6 +20,7 @@ package org.apache.falcon.hive;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.mapreduce.CopyMapper;
 import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.falcon.hive.util.DRStatusStore;
@@ -65,6 +66,7 @@ public class HiveDRTool extends Configured implements Tool {
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
     private static final String HIVE_JARFILE_PREFIX = "hive";
     private static final Logger LOG = LoggerFactory.getLogger(HiveDRTool.class);
+    private static final String COMMA_DELIMITER = ",";
 
     public HiveDRTool() {
     }
@@ -158,7 +160,7 @@ public class HiveDRTool extends Configured implements Tool {
         return job;
     }
 
-    private Job createJob(String inputFile) throws IOException {
+    private Job createJob(String inputFile) throws Exception {
         String jobName = "hive-dr";
         String userChosenName = getConf().get(JobContext.JOB_NAME);
         if (userChosenName != null) {
@@ -190,26 +192,34 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
-        String falconLibPath = job.getConfiguration().get("falconLibPath") + File.separator
-                + HIVE_JARFILE_PREFIX;
-        String jarsFilePath = getHiveJars(falconLibPath);
+        String falconLibPath = inputOptions.getFalconLibPath();
+        if (StringUtils.isEmpty(falconLibPath)) {
+            throw new Exception("falconLibPath argument is null");
+        }
+
+        String jarsFilePath = getHiveJars(falconLibPath + File.separator + HIVE_JARFILE_PREFIX);
         job.getConfiguration().set("tmpjars", jarsFilePath);
         job.getConfiguration().set("inputPath", inputFile); //Todo: change with getInputPath()
 
         return job;
     }
 
-    private String getHiveJars(String falconLibPath) throws IOException {
-        String hiveJarsFile = new String();
+    private String getHiveJars(String falconLibPath) throws Exception {
+        StringBuilder hiveJarsFile = new StringBuilder();
         FileStatus[] jarsFile = fs.listStatus(new Path(falconLibPath));
         for (FileStatus file : jarsFile) {
             String fileName = file.getPath().getName();
             if (file.isFile() && fileName.startsWith(HIVE_JARFILE_PREFIX) && fileName.endsWith(".jar")) {
-                hiveJarsFile += file.getPath().toString()+",";
+                hiveJarsFile.append(file.getPath().toString()).append(COMMA_DELIMITER);
             }
         }
 
-        return hiveJarsFile.substring(0, hiveJarsFile.length()-1);
+        if (hiveJarsFile.length() > 0) {
+            //remove the last delimiter
+            return hiveJarsFile.substring(0, hiveJarsFile.length() - 1);
+        } else {
+            throw new Exception("No hive jars found in the falconLibPath: " + falconLibPath);
+        }
     }
 
     private ListIterator<ReplicationEvents> sourceEvents() throws Exception {
