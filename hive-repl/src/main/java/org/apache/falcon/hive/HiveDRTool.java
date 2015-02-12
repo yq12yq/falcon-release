@@ -261,7 +261,6 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private void cleanup() {
-        //fs.deleteOnExit("/apps/dr/dummy");
     }
 
     /* TODO : MR should delete the file in case of success or failure of map job */

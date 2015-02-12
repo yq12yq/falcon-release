@@ -94,6 +94,7 @@ public class HiveDROptions {
     public String getSourceStagingPath() {
         return context.get(HiveDRArgs.SOURCE_STAGING_PATH);
     }
+    public String getSourceWriteEP() { return context.get(HiveDRArgs.SOURCE_NN); }
 
     public String getTargetCluster() {
         return context.get(HiveDRArgs.TARGET_CLUSTER);

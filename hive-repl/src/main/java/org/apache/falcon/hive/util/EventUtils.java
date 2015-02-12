@@ -138,7 +138,7 @@ public class EventUtils {
         if (exportEventStr != "" || exportEventStr != null) {
             processCommands(exportEventStr, dbName, tableName, src_stmt);
             //Todo: Check srcStagingDirectory is not empty
-            //invokeCopy();
+            invokeCopy();
         }
 
         if(importEventStr != "" || importEventStr != null ) {
@@ -165,6 +165,7 @@ public class EventUtils {
                 status = ReplicationStatus.Status.SUCCESS;
                 addReplicationStatus(status, dbName, tableName, eventId);
             } catch (SQLException e) {
+                LOG.info("SQL Exception :"+e.toString());
                 if(cmd.isUndoable()) {
                     undoCommands(cmd.getUndo(),sql_stmt);
                 }
@@ -201,14 +202,18 @@ public class EventUtils {
         listReplicationStatus.add(rs);
     }
 
-    public void invokeCopy() throws Exception {
-        DistCpOptions options = getDistCpOptions();
-        DistCp distCp = new DistCp(conf, options);
-        LOG.info("Started DistCp with source Path:"+options.getSourcePaths().toString()
-                +"\ttarget path:"+options.getTargetPath());
-        Job distcpJob = distCp.execute();
-        LOG.info("Distp Hadoop job:"+distcpJob.getJobID().toString());
-        LOG.info("Completed DistCp");
+    public void invokeCopy() throws HiveReplicationException{
+        try {
+            DistCpOptions options = getDistCpOptions();
+            DistCp distCp = new DistCp(conf, options);
+            LOG.info("Started DistCp with source Path:" + options.getSourcePaths().toString()
+                    + "\ttarget path:" + options.getTargetPath());
+            Job distcpJob = distCp.execute();
+            LOG.info("Distp Hadoop job:" + distcpJob.getJobID().toString());
+            LOG.info("Completed DistCp");
+        } catch(Exception e) {
+            throw new HiveReplicationException("Hive Data replication failed:"+e.toString());
+        }
     }
 
     public DistCpOptions getDistCpOptions() {

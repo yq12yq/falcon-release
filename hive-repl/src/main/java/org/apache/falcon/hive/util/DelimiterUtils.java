@@ -24,7 +24,7 @@ public class DelimiterUtils {
     public static final String RECORD_FIELD_DELIM = "\t";
     public static final String STMT_DELIM = ";";
     public static final String NEWLINE_DELIM = "\n";
-    public static final String COMMAND_FIELD_DELIM = ":";
+    public static final String COMMAND_FIELD_DELIM = "\u0001";
 
     public static String getEventStmtDelim() {
         return STMT_DELIM;
