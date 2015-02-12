@@ -18,6 +18,7 @@
 
 package org.apache.falcon.hive.util;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -127,7 +128,7 @@ public class EventUtils {
         hiveStore = new HiveDRStatusStore(fs);
     }
 
-    public void processEvents(String event) throws SQLException, HiveReplicationException{
+    public void processEvents(String event) throws Exception{
         System.out.println("EventUtils processEvents event to process:"+event);
         listReplicationStatus = new ArrayList<ReplicationStatus>() ;
         String eventSplit[] = event.split(DelimiterUtils.getRecordFieldDelim());
@@ -135,13 +136,13 @@ public class EventUtils {
         String tableName = eventSplit[1];
         String exportEventStr = eventSplit[2];
         String importEventStr = eventSplit[3];
-        if (exportEventStr != "" || exportEventStr != null) {
+        if (StringUtils.isNotEmpty(exportEventStr)) {
             processCommands(exportEventStr, dbName, tableName, src_stmt);
             //Todo: Check srcStagingDirectory is not empty
-            //invokeCopy();
+            invokeCopy();
         }
 
-        if(importEventStr != "" || importEventStr != null ) {
+        if(StringUtils.isNotEmpty(importEventStr)) {
             processCommands(importEventStr, dbName, tableName, tgt_stmt);
         }
     }
