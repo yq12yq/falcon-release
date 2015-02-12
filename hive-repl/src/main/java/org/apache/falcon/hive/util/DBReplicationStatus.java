@@ -132,8 +132,6 @@ public class DBReplicationStatus {
                 Take the largest successful eventId and set dbReplStatus as success
             case 2) One or many tables failed to replicate
                 Take the smallest eventId amongst the failed tables and set dbReplStatus as failed.
-     * @return
-     * destination commands for each table
      */
     public void updateDbStatusFromTableStatuses() throws HiveReplicationException {
         dbReplicationStatus.setStatus(ReplicationStatus.Status.SUCCESS);

@@ -27,12 +27,12 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-@Test(groups = {"exhaustive"})
+@Test
 public class DBReplicationStatusTest {
 
     private Map<String, ReplicationStatus> tableStatuses = new HashMap<String, ReplicationStatus>();
     private ReplicationStatus dbReplicationStatus;
-    private ReplicationStatus tableStatus1, tableStatus2, tableStatus3;
+    private ReplicationStatus tableStatus1;
 
     public DBReplicationStatusTest() {
     }
@@ -44,10 +44,6 @@ public class DBReplicationStatusTest {
                 "default1", null, ReplicationStatus.Status.FAILURE, 20L);
         tableStatus1 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table1", ReplicationStatus.Status.SUCCESS, 20L);
-        tableStatus2 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table2", ReplicationStatus.Status.INIT, -1L);
-        tableStatus3 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table3", ReplicationStatus.Status.FAILURE, 15L);
         tableStatuses.put("table1", tableStatus1);
 
     }

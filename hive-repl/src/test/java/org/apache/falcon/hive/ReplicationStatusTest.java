@@ -23,10 +23,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * Created by bvellanki on 2/3/15.
- */
-@Test(groups = {"exhaustive"})
+@Test
 public class ReplicationStatusTest {
 
     ReplicationStatus dbStatus, tableStatus;

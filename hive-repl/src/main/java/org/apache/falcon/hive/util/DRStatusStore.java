@@ -31,7 +31,6 @@ public abstract class DRStatusStore {
      * Update replication status of a table(s)/db after replication job jobName completes.
      * @param jobName Name of the replication job.
      * @param statusList List of replication statuses of db/tables replicated by jobName.
-     * @return void
      */
     public abstract void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
             throws HiveReplicationException;
@@ -80,7 +79,6 @@ public abstract class DRStatusStore {
      * Delete a replication job
      * @param jobName Name of the replication job.
      * @param database Name of the target database.
-     * @return
      * destination commands for each table
      */
     public abstract void deleteReplicationStatus(String jobName, String database) throws HiveReplicationException;
