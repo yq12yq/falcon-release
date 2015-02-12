@@ -26,7 +26,7 @@ import java.util.HashMap;
  */
 public enum RecipeToolOptions {
     RECIPE_NAME("falcon.recipe.name", "Recipe name", false),
-    CLUSTER_NAME("falcon.recipe.cluster.name", "Cluster name where replicaiton job should run", false),
+    CLUSTER_NAME("falcon.recipe.cluster.name", "Cluster name where replication job should run", false),
     CLUSTER_HDFS_WRITE_ENDPOINT(
             "falcon.recipe.cluster.hdfs.writeEndPoint", "Cluster HDFS write endpoint"),
     CLUSTER_VALIDITY_START("falcon.recipe.cluster.validity.start", "Source cluster validity start", false),

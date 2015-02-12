@@ -18,6 +18,7 @@
 
 package org.apache.falcon.hive.util;
 
+import java.io.File;
 import java.util.List;
 
 public final class HiveDRUtils {
@@ -27,7 +28,7 @@ public final class HiveDRUtils {
         DB
     }
 
-    public static final String SEPARATOR = "/";
+    public static final String SEPARATOR = File.separator;
 
     public static ReplicationType getReplicationType(List<String> sourceTables) {
         return (sourceTables.isEmpty()) ? ReplicationType.DB : ReplicationType.TABLE;

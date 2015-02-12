@@ -46,8 +46,6 @@ public class HiveDRStatusStore extends DRStatusStore {
     private FileSystem fileSystem;
 
     private static final String DEFAULT_STORE_PATH = BASE_DEFAULT_STORE_PATH + "hiveReplicationStatusStore/";
-    private static final FsPermission DEFAULT_STORE_PERMISSION =
-            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
     private static final FsPermission DEFAULT_STATUS_DIR_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.READ_EXECUTE);
 
@@ -59,14 +57,7 @@ public class HiveDRStatusStore extends DRStatusStore {
     public HiveDRStatusStore(FileSystem targetFileSystem) throws IOException {
         this.fileSystem = targetFileSystem;
         Path basePath = new Path(BASE_DEFAULT_STORE_PATH);
-        if (fileSystem.exists(basePath)) {
-            if (!fileSystem.getFileStatus(basePath).getPermission().equals(DEFAULT_STORE_PERMISSION)) {
-                throw new IOException("Base dir " + BASE_DEFAULT_STORE_PATH + "does not have correct permissions. "
-                        + "Please set to 777");
-            }
-        } else {
-            throw new IOException("Please create base dir " + BASE_DEFAULT_STORE_PATH + " with permission 777.");
-        }
+        FileUtils.validatePath(fileSystem, basePath);
 
         Path storePath = new Path(DEFAULT_STORE_PATH);
         if (!fileSystem.exists(storePath)) {

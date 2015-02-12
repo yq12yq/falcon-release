@@ -87,6 +87,10 @@
             <arg>${maxEvents}</arg>
             <arg>-mapBandwidth</arg>
             <arg>${mapBandwidth}</arg>
+            <arg>-clusterForJobRun</arg>
+            <arg>${clusterForJobRun}</arg>
+            <arg>-clusterForJobRunWriteEP</arg>
+            <arg>${clusterForJobRunWriteEP}</arg>
             <arg>-drJobName</arg>
             <arg>${drJobName}</arg>
         </java>

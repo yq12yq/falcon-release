@@ -19,6 +19,8 @@
 package org.apache.falcon.hive.util;
 
 import org.apache.falcon.hive.exception.HiveReplicationException;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import java.util.Iterator;
 import java.util.List;
@@ -26,6 +28,8 @@ import java.util.List;
 public abstract class DRStatusStore {
 
     public static final String BASE_DEFAULT_STORE_PATH = "/apps/dr/";
+    public static final FsPermission DEFAULT_STORE_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
     /**
      * Update replication status of a table(s)/db after replication job jobName completes.

@@ -40,6 +40,8 @@ public enum HiveReplicationRecipeToolOptions {
     REPLICATION_MAX_EVENTS("maxEvents", "Maximum events to replicate"),
     REPLICATION_MAX_MAPS("maxMaps", "Maximum number of maps used during replication"),
     REPLICATION_MAP_BANDWIDTH_IN_MB("mapBandwidth", "Bandwidth in MB/s used by each mapper during replication"),
+    CLUSTER_FOR_JOB_RUN("clusterForJobRun", "Cluster on which replication job runs", false),
+    CLUSTER_FOR_JOB_RUN_WRITE_EP("clusterForJobRunWriteEP", "Write EP of cluster on which replication job runs", false),
     HIVE_DR_JOB_NAME("drJobName", "Unique hive DR job name", false);
 
     private final String name;

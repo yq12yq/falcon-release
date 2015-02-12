@@ -25,6 +25,7 @@ import org.apache.falcon.hive.mapreduce.CopyMapper;
 import org.apache.falcon.hive.mapreduce.CopyReducer;
 import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.DelimiterUtils;
+import org.apache.falcon.hive.util.FileUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
 import org.apache.falcon.hive.util.ReplicationCommand;
 import org.apache.hadoop.conf.Configuration;
@@ -55,7 +56,7 @@ import java.util.ListIterator;
  * DR Tool Driver.
  */
 public class HiveDRTool extends Configured implements Tool {
-    private FileSystem fs;
+    private FileSystem jobClusterFs;
 
     private HiveDROptions inputOptions;
     private DRStatusStore drStore;
@@ -104,15 +105,19 @@ public class HiveDRTool extends Configured implements Tool {
         inputOptions = parseOptions(args);
         LOG.info("Input Options: {}", inputOptions);
 
-        fs = FileSystem.get(getConfiguration(inputOptions.getTargetWriteEP()));
+        FileSystem targetClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getTargetWriteEP()));
+        jobClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getJobClusterWriteEP()));
+
         // init DR status store
-        drStore = new HiveDRStatusStore(fs);
+        drStore = new HiveDRStatusStore(targetClusterFs);
 
-        // Create base dir to store events
+        // Create base dir to store events on cluster where job is running
         Path dir = new Path(DEFAULT_EVENT_STORE_PATH);
+        // Validate base path
+        FileUtils.validatePath(jobClusterFs, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH));
 
-        if (!fs.exists(dir)) {
-            if(!fs.mkdirs(dir)) {
+        if (!jobClusterFs.exists(dir)) {
+            if(!jobClusterFs.mkdirs(dir)) {
                 throw new Exception("Creating directory failed: " + dir);
             }
         }
@@ -206,7 +211,7 @@ public class HiveDRTool extends Configured implements Tool {
 
     private String getHiveJars(String falconLibPath) throws Exception {
         StringBuilder hiveJarsFile = new StringBuilder();
-        FileStatus[] jarsFile = fs.listStatus(new Path(falconLibPath));
+        FileStatus[] jarsFile = jobClusterFs.listStatus(new Path(falconLibPath));
         for (FileStatus file : jarsFile) {
             String fileName = file.getPath().getName();
             if (file.isFile() && fileName.startsWith(HIVE_JARFILE_PREFIX) && fileName.endsWith(".jar")) {
@@ -270,7 +275,7 @@ public class HiveDRTool extends Configured implements Tool {
         Path filePath = new Path(getFilename(dir, filename));
 
         try {
-            out = FileSystem.create(fs, filePath, FS_PERMISSION);
+            out = FileSystem.create(jobClusterFs, filePath, FS_PERMISSION);
             while (eventsList.hasNext()) {
                 ReplicationEvents events = eventsList.next();
                 String dbName = events.getDbName();
@@ -300,7 +305,7 @@ public class HiveDRTool extends Configured implements Tool {
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return fs.getFileStatus(filePath).getPath().toString();
+        return jobClusterFs.getFileStatus(filePath).getPath().toString();
     }
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
@@ -326,12 +331,6 @@ public class HiveDRTool extends Configured implements Tool {
     private static String getFilename(String dir, String identifier) throws Exception {
         String prefix = identifier + "-" + System.currentTimeMillis();
         return dir + File.separator + prefix + ".txt";
-    }
-
-    private static Configuration getConfiguration(final String storageEndpoint) {
-        Configuration conf = new Configuration();
-        conf.set("fs.defaultFS", storageEndpoint);
-        return conf;
     }
 
 /*

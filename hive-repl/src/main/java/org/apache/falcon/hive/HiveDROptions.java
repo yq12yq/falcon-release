@@ -136,6 +136,8 @@ public class HiveDROptions {
 
     public String getFalconLibPath() { return context.get(HiveDRArgs.FALCON_LIBPATH); }
 
+    public String getJobClusterWriteEP() { return context.get(HiveDRArgs.CLUSTER_FOR_JOB_RUN_WRITE_EP); }
+
     public boolean shouldBlock() {
         return true;
     }

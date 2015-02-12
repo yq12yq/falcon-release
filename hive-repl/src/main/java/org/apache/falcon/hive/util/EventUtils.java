@@ -118,7 +118,7 @@ public class EventUtils {
         targetStagingUri = targetNN + targetStagingPath;
 
         try {
-            fs = FileSystem.get(getConfiguration(targetNN));
+            fs = FileSystem.get(FileUtils.getConfiguration(targetNN));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -247,9 +247,4 @@ public class EventUtils {
         }
     }
 
-    private static Configuration getConfiguration(final String storageEndpoint) {
-        Configuration conf = new Configuration();
-        conf.set("fs.defaultFS", storageEndpoint);
-        return conf;
-    }
 }

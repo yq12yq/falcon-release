@@ -93,6 +93,10 @@ public class HiveReplicationRecipeTool implements Recipe {
         String recipeName = recipeProperties.getProperty(RecipeToolOptions.RECIPE_NAME.getName());
         // Add recipe name as Hive DR job
         additionalProperties.put(HiveReplicationRecipeToolOptions.HIVE_DR_JOB_NAME.getName(), recipeName);
+        additionalProperties.put(HiveReplicationRecipeToolOptions.CLUSTER_FOR_JOB_RUN.getName(),
+                recipeProperties.getProperty(RecipeToolOptions.CLUSTER_NAME.getName()));
+        additionalProperties.put(HiveReplicationRecipeToolOptions.CLUSTER_FOR_JOB_RUN_WRITE_EP.getName(),
+                recipeProperties.getProperty(RecipeToolOptions.CLUSTER_HDFS_WRITE_ENDPOINT.getName()));
         return additionalProperties;
     }
 
