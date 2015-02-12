@@ -38,7 +38,7 @@ import java.util.List;
 
 public class EventUtils {
     public static String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
-    private static final String SASL_AUTH = ";auth=noSasl";
+    private static final int TIMEOUT_IN_SECS = 300;
     private static final String JDBC_PREFIX = "jdbc:";
     private Configuration conf = null;
     private String sourceHiveServer2Uri = null;
@@ -100,10 +100,9 @@ public class EventUtils {
 
     public void setupConnection() {
         try {
-            src_con = DriverManager.getConnection(JDBC_PREFIX+sourceHiveServer2Uri+"/"+sourceDatabase+SASL_AUTH,
-                    sourceServicePrincipal, "");
-            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+sourceDatabase+SASL_AUTH,
-                    targetServicePrincipal, "");
+            DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
+            src_con = DriverManager.getConnection(JDBC_PREFIX+sourceHiveServer2Uri+"/"+sourceDatabase, "", "");
+            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+sourceDatabase, "", "");
             src_stmt = src_con.createStatement();
             tgt_stmt = tgt_con.createStatement();
         } catch (SQLException e) {
