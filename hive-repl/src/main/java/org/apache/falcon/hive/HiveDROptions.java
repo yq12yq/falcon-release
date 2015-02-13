@@ -133,6 +133,9 @@ public class HiveDROptions {
     public int getMaxEvents() {
         return Integer.valueOf(context.get(HiveDRArgs.MAX_EVENTS));
     }
+    public boolean shouldKeepHistory() {
+        return Boolean.valueOf(context.get(HiveDRArgs.KEEP_HISTORY));
+    }
 
     public String getFalconLibPath() { return context.get(HiveDRArgs.FALCON_LIBPATH); }
 

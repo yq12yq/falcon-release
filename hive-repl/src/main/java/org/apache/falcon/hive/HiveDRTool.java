@@ -56,11 +56,11 @@ import java.util.ListIterator;
  * DR Tool Driver.
  */
 public class HiveDRTool extends Configured implements Tool {
-    private FileSystem jobClusterFs;
+    private FileSystem jobFS;
 
     private HiveDROptions inputOptions;
     private DRStatusStore drStore;
-    private boolean submitted;
+    private String eventsInputFilename;
 
     private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
     private static final FsPermission FS_PERMISSION =
@@ -95,6 +95,8 @@ public class HiveDRTool extends Configured implements Tool {
             e.printStackTrace();
             LOG.error("Exception encountered ", e);
             return -1;
+        } finally {
+            cleanup();
         }
 
         return 0;
@@ -106,7 +108,7 @@ public class HiveDRTool extends Configured implements Tool {
         LOG.info("Input Options: {}", inputOptions);
 
         FileSystem targetClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getTargetWriteEP()));
-        jobClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getJobClusterWriteEP()));
+        jobFS = FileSystem.get(FileUtils.getConfiguration(inputOptions.getJobClusterWriteEP()));
 
         // init DR status store
         drStore = new HiveDRStatusStore(targetClusterFs);
@@ -114,10 +116,10 @@ public class HiveDRTool extends Configured implements Tool {
         // Create base dir to store events on cluster where job is running
         Path dir = new Path(DEFAULT_EVENT_STORE_PATH);
         // Validate base path
-        FileUtils.validatePath(jobClusterFs, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH));
+        FileUtils.validatePath(jobFS, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH));
 
-        if (!jobClusterFs.exists(dir)) {
-            if(!jobClusterFs.mkdirs(dir)) {
+        if (!jobFS.exists(dir)) {
+            if(!jobFS.mkdirs(dir)) {
                 throw new Exception("Creating directory failed: " + dir);
             }
         }
@@ -139,19 +141,11 @@ public class HiveDRTool extends Configured implements Tool {
         }
 
         String identifier = inputOptions.getJobName();
-        String inputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier, events);
-        Job job = null;
-        try {
-            job = createJob(inputFilename);
-            createPartitions(job);
+        eventsInputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier, events);
+        Job job = createJob(eventsInputFilename);
+        createPartitions(job);
 
-            job.submit();
-            submitted = true;
-        } finally {
-            if (!submitted) {
-                cleanup();
-            }
-        }
+        job.submit();
 
         String jobID = job.getJobID().toString();
         job.getConfiguration().set("HIVEDR_JOB_ID", jobID);
@@ -211,7 +205,7 @@ public class HiveDRTool extends Configured implements Tool {
 
     private String getHiveJars(String falconLibPath) throws Exception {
         StringBuilder hiveJarsFile = new StringBuilder();
-        FileStatus[] jarsFile = jobClusterFs.listStatus(new Path(falconLibPath));
+        FileStatus[] jarsFile = jobFS.listStatus(new Path(falconLibPath));
         for (FileStatus file : jarsFile) {
             String fileName = file.getPath().getName();
             if (file.isFile() && fileName.startsWith(HIVE_JARFILE_PREFIX) && fileName.endsWith(".jar")) {
@@ -265,7 +259,18 @@ public class HiveDRTool extends Configured implements Tool {
         return new Configuration();
     }
 
-    private void cleanup() {
+    private synchronized void cleanup() {
+        if (!inputOptions.shouldKeepHistory()) {
+            try {
+                if (StringUtils.isEmpty(eventsInputFilename)) {
+                    return;
+                }
+                jobFS.delete(new Path(eventsInputFilename), false);
+                eventsInputFilename = null;
+            } catch (IOException e) {
+                LOG.error("Unable to cleanup: {}", eventsInputFilename, e);
+            }
+        }
     }
 
     /* TODO : MR should delete the file in case of success or failure of map job */
@@ -275,7 +280,7 @@ public class HiveDRTool extends Configured implements Tool {
         Path filePath = new Path(getFilename(dir, filename));
 
         try {
-            out = FileSystem.create(jobClusterFs, filePath, FS_PERMISSION);
+            out = FileSystem.create(jobFS, filePath, FS_PERMISSION);
             while (eventsList.hasNext()) {
                 ReplicationEvents events = eventsList.next();
                 String dbName = events.getDbName();
@@ -305,7 +310,7 @@ public class HiveDRTool extends Configured implements Tool {
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return jobClusterFs.getFileStatus(filePath).getPath().toString();
+        return jobFS.getFileStatus(filePath).getPath().toString();
     }
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
