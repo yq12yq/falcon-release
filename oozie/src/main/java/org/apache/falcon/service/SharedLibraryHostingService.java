@@ -49,14 +49,14 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
     private static final String[] HIVE_LIBS = StartupProperties.get().getProperty("hive.shared.libs").split(",");
 
     private static class FalconLibPath implements  FalconPathFilter {
-        String SHARE_LIBS[];
-        FalconLibPath(String[] LibList) {
-            this.SHARE_LIBS = Arrays.copyOf(LibList, LibList.length);
+        private String[] shareLibs;
+        FalconLibPath(String[] libList) {
+            this.shareLibs = Arrays.copyOf(libList, libList.length);
         }
 
         @Override
         public boolean accept(Path path) {
-            for (String jarName : SHARE_LIBS) {
+            for (String jarName : shareLibs) {
                 if (path.getName().startsWith(jarName)) {
                     return true;
                 }
@@ -66,7 +66,7 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
 
         @Override
         public String getJarName(Path path) {
-            for (String jarName : SHARE_LIBS) {
+            for (String jarName : shareLibs) {
                 if (path.getName().startsWith(jarName)) {
                     return jarName;
                 }
@@ -79,17 +79,17 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
         Path lib = new Path(ClusterHelper.getLocation(cluster, "working"), "lib");
         Path hiveLib = new Path(ClusterHelper.getLocation(cluster, "working"), "lib/hive");
         Path libext = new Path(ClusterHelper.getLocation(cluster, "working"), "libext");
-        FalconPathFilter NON_FALCON_JAR_FILTER = new FalconLibPath(LIBS);
-        FalconPathFilter HIVE_JAR_FILTER = new FalconLibPath(HIVE_LIBS);
+        FalconPathFilter nonFalconJarFilter = new FalconLibPath(LIBS);
+        FalconPathFilter hiveJarFilter = new FalconLibPath(HIVE_LIBS);
         try {
             FileSystem fs = HadoopClientFactory.get().createFalconFileSystem(
                     ClusterHelper.getConfiguration(cluster));
 
             Properties properties = StartupProperties.get();
             pushLibsToHDFS(fs, properties.getProperty("system.lib.location"), lib,
-                    NON_FALCON_JAR_FILTER);
+                    nonFalconJarFilter);
             pushLibsToHDFS(fs, properties.getProperty("system.lib.location"), hiveLib,
-                    HIVE_JAR_FILTER);
+                    hiveJarFilter);
             pushLibsToHDFS(fs, properties.getProperty("libext.paths"), libext, null);
             pushLibsToHDFS(fs, properties.getProperty("libext.feed.paths"),
                     new Path(libext, EntityType.FEED.name()) , null);

@@ -441,8 +441,8 @@ public class OozieFeedWorkflowBuilderTest extends AbstractTestBase {
         final String distcpSourcePaths = props.get("distcpSourcePaths");
         Assert.assertEquals(distcpSourcePaths,
             FeedHelper.getStagingPath(true, srcCluster, tableFeed, srcStorage, Tag.REPLICATION,
-                "${coord:formatTime(coord:nominalTime(), 'yyyy-MM-dd-HH-mm')}" + "/" +
-                    trgCluster.getName()));
+                    "${coord:formatTime(coord:nominalTime(), 'yyyy-MM-dd-HH-mm')}" + "/"
+                            + trgCluster.getName()));
         Assert.assertTrue(props.containsKey("falconSourceStagingDir"));
 
         final String falconSourceStagingDir = props.get("falconSourceStagingDir");

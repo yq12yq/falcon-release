@@ -31,6 +31,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Class to store replication status of a DB and it's tables.
+ */
 public class DBReplicationStatus {
 
     private static final Logger LOG = LoggerFactory.getLogger(DBReplicationStatus.class);
@@ -44,8 +47,8 @@ public class DBReplicationStatus {
         setDbReplicationStatus(dbStatus);
     }
 
-    public DBReplicationStatus(ReplicationStatus dbStatus, Map<String, ReplicationStatus> tableStatuses)
-            throws HiveReplicationException {
+    public DBReplicationStatus(ReplicationStatus dbStatus,
+                               Map<String, ReplicationStatus> tableStatuses) throws HiveReplicationException {
         /*
         The order is important to ensure tables that do not belong to the db
         are not added to this DBReplicationStatus

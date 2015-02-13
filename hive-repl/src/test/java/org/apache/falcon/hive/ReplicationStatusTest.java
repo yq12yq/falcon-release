@@ -23,10 +23,13 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+/**
+ * Unit tests for ReplicationStatus.
+ */
 @Test
 public class ReplicationStatusTest {
 
-    ReplicationStatus dbStatus, tableStatus;
+    private ReplicationStatus dbStatus, tableStatus;
 
     public ReplicationStatusTest() {}
 

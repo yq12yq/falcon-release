@@ -39,10 +39,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+/**
+ * Unit tests for HiveDRStatusStore.
+ */
 @Test
 public class HiveDRStatusStoreTest {
     private HiveDRStatusStore drStatusStore;
-    FileSystem fileSystem = new JailedFileSystem();
+    private FileSystem fileSystem = new JailedFileSystem();
 
     public HiveDRStatusStoreTest() throws Exception {
         EmbeddedCluster cluster =  EmbeddedCluster.newCluster("hiveReplTest");
@@ -144,7 +147,7 @@ public class HiveDRStatusStoreTest {
         Assert.assertEquals(5, size);
     }
 
-    public void getReplicationStatusDBTest () throws HiveReplicationException {
+    public void getReplicationStatusDBTest() throws HiveReplicationException {
         ReplicationStatus status = drStatusStore.getReplicationStatus("source", "target", "jobname", "default1");
         Assert.assertEquals(status.getEventId(), 15);
         Assert.assertEquals(status.getStatus(), ReplicationStatus.Status.FAILURE);
@@ -207,7 +210,7 @@ public class HiveDRStatusStoreTest {
 
     }
 
-    public void DeleteReplicationStatusTest() throws Exception {
+    public void deleteReplicationStatusTest() throws Exception {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "deleteJob",
                 "deleteDB", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "deleteJob",
@@ -267,7 +270,7 @@ public class HiveDRStatusStoreTest {
         Assert.assertEquals(4, size);
     }
 
-    public void FileRotationTest() throws Exception {
+    public void fileRotationTest() throws Exception {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "jobname3",
                 "default3", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "jobname3",
