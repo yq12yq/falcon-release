@@ -70,7 +70,7 @@ public class RecipeTool extends Configured implements Tool {
         if (recipeType != null) {
             recipeType.validate(recipeProperties);
             Properties props = recipeType.getAdditionalSystemProperties(recipeProperties);
-            if(props != null && !props.isEmpty()) {
+            if (props != null && !props.isEmpty()) {
                 recipeProperties.putAll(props);
             }
         }

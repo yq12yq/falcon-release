@@ -30,6 +30,9 @@ import org.apache.hive.hcatalog.api.ObjectNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
 
+/**
+ * Hive Replication recipe tool for Falcon recipes.
+ */
 public class HiveReplicationRecipeTool implements Recipe {
 
     @Override
@@ -44,11 +47,13 @@ public class HiveReplicationRecipeTool implements Recipe {
         HCatClient targetMetastoreClient = null;
         try {
             // Validate if DB exists - source and target
-            sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
-                    (HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
+            sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty(
+                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
 
-            String sourceDbList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
-            String sourceTableList = recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
+            String sourceDbList = recipeProperties.getProperty(
+                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
+            String sourceTableList = recipeProperties.getProperty(
+                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
 
             String[] srcDbs = sourceDbList.split(",");
             if (srcDbs.length <= 0) {
@@ -69,8 +74,8 @@ public class HiveReplicationRecipeTool implements Recipe {
                 }
             }
 
-            targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty
-                    (HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
+            targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty(
+                HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
             // Verify db exists on target
             for (String db : srcDbs) {
                 if (!dbExists(targetMetastoreClient, db)) {
@@ -128,7 +133,7 @@ public class HiveReplicationRecipeTool implements Recipe {
     }
 
     private static boolean tableExists(HCatClient client, final String database, final String tableName)
-            throws Exception {
+        throws Exception {
         try {
             HCatTable table = client.getTable(database, tableName);
             return table != null;
@@ -140,7 +145,7 @@ public class HiveReplicationRecipeTool implements Recipe {
         }
     }
     private static boolean dbExists(HCatClient client, final String database)
-            throws Exception {
+        throws Exception {
         try {
             HCatDatabase db = client.getDatabase(database);
             return db != null;

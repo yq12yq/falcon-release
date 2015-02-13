@@ -18,6 +18,9 @@
 
 package org.apache.falcon.recipe;
 
+/**
+ * Hive Recipe tool options.
+ */
 public enum HiveReplicationRecipeToolOptions {
     REPLICATION_SOURCE_CLUSTER("sourceCluster", "Replication source cluster name"),
     REPLICATION_SOURCE_METASTORE_URI("sourceMetastoreUri", "Source Hive metastore uri"),

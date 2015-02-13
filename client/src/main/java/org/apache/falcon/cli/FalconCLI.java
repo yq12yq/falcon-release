@@ -117,6 +117,9 @@ public class FalconCLI {
     public static final String RECIPE_OPERATION= "operation";
     public static final String RECIPE_TOOL_CLASS_NAME = "tool";
 
+    /**
+     * Recipe operation enum.
+     */
     public static enum RecipeOperation {
         HDFS_REPLICATION,
         HIVE_DISASTER_RECOVERY
@@ -911,6 +914,7 @@ public class FalconCLI {
                 return;
             }
         }
-        throw new FalconCLIException("Allowed Recipe operations: " + java.util.Arrays.asList((RecipeOperation.values())));
+        throw new FalconCLIException("Allowed Recipe operations: "
+                + java.util.Arrays.asList((RecipeOperation.values())));
     }
 }

@@ -40,21 +40,29 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Recipe builder utility.
+ */
 public final class RecipeProcessBuilderUtils {
 
     private static final Pattern RECIPE_VAR_PATTERN = Pattern.compile("##[A-Za-z0-9_.]*##");
 
+    private RecipeProcessBuilderUtils() {
+    }
+
     public static String createProcessFromTemplate(final String processTemplateFile, final Properties recipeProperties,
                                                    final String processFilename) throws Exception {
-        org.apache.falcon.entity.v0.process.Process process = bindAttributesInTemplate(processTemplateFile, recipeProperties);
+        org.apache.falcon.entity.v0.process.Process process = bindAttributesInTemplate(
+                processTemplateFile, recipeProperties);
         String recipeProcessFilename = createProcessXmlFile(processFilename, process);
 
         validateProcessXmlFile(recipeProcessFilename);
         return recipeProcessFilename;
     }
 
-    private static org.apache.falcon.entity.v0.process.Process bindAttributesInTemplate(final String templateFile,
-                                                                                        final Properties recipeProperties) throws Exception {
+    private static org.apache.falcon.entity.v0.process.Process
+    bindAttributesInTemplate(final String templateFile, final Properties recipeProperties)
+        throws Exception {
         if (templateFile == null || recipeProperties == null) {
             throw new IllegalArgumentException("Invalid arguments passed");
         }
@@ -64,10 +72,10 @@ public final class RecipeProcessBuilderUtils {
         // hanles as part of marshalling
         unmarshaller.setSchema(null);
         unmarshaller.setEventHandler(new ValidationEventHandler() {
-                                         public boolean handleEvent (ValidationEvent validationEvent) {
-                                             return true;
-                                         }
-                                     }
+                public boolean handleEvent(ValidationEvent validationEvent) {
+                    return true;
+                }
+            }
         );
 
         URL processResourceUrl = new File(templateFile).toURI().toURL();
@@ -79,7 +87,7 @@ public final class RecipeProcessBuilderUtils {
         */
 
         String processName = recipeProperties.getProperty(RecipeToolOptions.RECIPE_NAME.getName());
-        if(StringUtils.isNotEmpty(processName)) {
+        if (StringUtils.isNotEmpty(processName)) {
             process.setName(processName);
         }
 
@@ -88,7 +96,7 @@ public final class RecipeProcessBuilderUtils {
 
         // bind scheduling properties
         String processFrequency = recipeProperties.getProperty(RecipeToolOptions.PROCESS_FREQUENCY.getName());
-        if(StringUtils.isNotEmpty(processName)) {
+        if (StringUtils.isNotEmpty(processName)) {
             process.setFrequency(Frequency.fromString(processFrequency));
         }
 
@@ -103,17 +111,17 @@ public final class RecipeProcessBuilderUtils {
                                               final Properties recipeProperties) {
         // DR process template has only one cluster
         String clusterName = recipeProperties.getProperty(RecipeToolOptions.CLUSTER_NAME.getName());
-        if(StringUtils.isNotEmpty(clusterName)) {
+        if (StringUtils.isNotEmpty(clusterName)) {
             cluster.setName(clusterName);
         }
 
         String clusterStartValidity = recipeProperties.getProperty(RecipeToolOptions.CLUSTER_VALIDITY_START.getName());
-        if(StringUtils.isNotEmpty(clusterStartValidity)) {
+        if (StringUtils.isNotEmpty(clusterStartValidity)) {
             cluster.getValidity().setStart(SchemaHelper.parseDateUTC(clusterStartValidity));
         }
 
         String clusterEndValidity = recipeProperties.getProperty(RecipeToolOptions.CLUSTER_VALIDITY_END.getName());
-        if(StringUtils.isNotEmpty(clusterEndValidity)) {
+        if (StringUtils.isNotEmpty(clusterEndValidity)) {
             cluster.getValidity().setEnd(SchemaHelper.parseDateUTC(clusterEndValidity));
         }
     }
@@ -121,19 +129,19 @@ public final class RecipeProcessBuilderUtils {
     private static void bindWorkflowProperties(final Workflow wf,
                                                final Properties recipeProperties) {
         String wfName = recipeProperties.getProperty(RecipeToolOptions.WORKFLOW_NAME.getName());
-        if(StringUtils.isNotEmpty(wfName)) {
+        if (StringUtils.isNotEmpty(wfName)) {
             wf.setName(wfName);
         }
 
         String wfLibPath = recipeProperties.getProperty(RecipeToolOptions.WORKFLOW_LIB_PATH.getName());
-        if(StringUtils.isNotEmpty(wfLibPath)) {
+        if (StringUtils.isNotEmpty(wfLibPath)) {
             wf.setLib(wfLibPath);
         } else if (wf.getLib().startsWith("##")) {
             wf.setLib("");
         }
 
         String wfPath = recipeProperties.getProperty(RecipeToolOptions.WORKFLOW_PATH.getName());
-        if(StringUtils.isNotEmpty(wfPath)) {
+        if (StringUtils.isNotEmpty(wfPath)) {
             wf.setPath(wfPath);
         }
     }
@@ -141,17 +149,17 @@ public final class RecipeProcessBuilderUtils {
     private static void bindRetryProperties(final Retry processRetry,
                                             final Properties recipeProperties) {
         String retryPolicy = recipeProperties.getProperty(RecipeToolOptions.RETRY_POLICY.getName());
-        if(StringUtils.isNotEmpty(retryPolicy)) {
+        if (StringUtils.isNotEmpty(retryPolicy)) {
             processRetry.setPolicy(PolicyType.fromValue(retryPolicy));
         }
 
         String retryAttempts = recipeProperties.getProperty(RecipeToolOptions.RETRY_ATTEMPTS.getName());
-        if(StringUtils.isNotEmpty(retryAttempts)) {
+        if (StringUtils.isNotEmpty(retryAttempts)) {
             processRetry.setAttempts(Integer.parseInt(retryAttempts));
         }
 
         String retryDelay = recipeProperties.getProperty(RecipeToolOptions.RETRY_DELAY.getName());
-        if(StringUtils.isNotEmpty(retryDelay)) {
+        if (StringUtils.isNotEmpty(retryDelay)) {
             processRetry.setDelay(Frequency.fromString(retryDelay));
         }
     }
@@ -160,8 +168,8 @@ public final class RecipeProcessBuilderUtils {
                                              final Properties recipeProperties) {
         List<Property> propertyList = new ArrayList<Property>();
 
-        for(Map.Entry<Object, Object> recipeProperty : recipeProperties.entrySet()) {
-            if (RecipeToolOptions.optionsMap.get(recipeProperty.getKey().toString()) == null) {
+        for (Map.Entry<Object, Object> recipeProperty : recipeProperties.entrySet()) {
+            if (RecipeToolOptions.OPTIONSMAP.get(recipeProperty.getKey().toString()) == null) {
                 addProperty(propertyList, (String) recipeProperty.getKey(), (String) recipeProperty.getValue());
             }
         }

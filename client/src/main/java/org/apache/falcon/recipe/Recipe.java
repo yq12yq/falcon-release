@@ -20,6 +20,9 @@ package org.apache.falcon.recipe;
 
 import java.util.Properties;
 
+/**
+ * Recipe interface.
+ */
 public interface Recipe {
     void validate(final Properties recipeProperties) throws Exception;
     Properties getAdditionalSystemProperties(final Properties recipeProperties);

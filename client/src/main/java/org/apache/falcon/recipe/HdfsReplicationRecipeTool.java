@@ -20,6 +20,9 @@ package org.apache.falcon.recipe;
 
 import java.util.Properties;
 
+/**
+ * Hdfs Replication recipe tool for Falcon recipes.
+ */
 public class HdfsReplicationRecipeTool implements Recipe {
 
     @Override

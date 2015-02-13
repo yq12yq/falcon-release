@@ -20,10 +20,16 @@ package org.apache.falcon.recipe;
 
 import org.apache.falcon.cli.FalconCLI.RecipeOperation;
 
+/**
+ * Recipe factory.
+ */
 public final class RecipeFactory {
 
+    private RecipeFactory() {
+    }
+
     public static Recipe getRecipeToolType(String recipeType) {
-        if(recipeType == null) {
+        if (recipeType == null) {
             return null;
         }
 

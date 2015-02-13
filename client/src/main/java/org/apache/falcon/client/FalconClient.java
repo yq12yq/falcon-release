@@ -107,7 +107,6 @@ public class FalconClient {
 
     /**
      * Create a Falcon client instance.
-     *
      * @param falconUrl of the server to which client interacts
      * @throws FalconCLIException - If unable to initialize SSL Props
      */
@@ -117,7 +116,6 @@ public class FalconClient {
 
     /**
      * Create a Falcon client instance.
-     *
      * @param falconUrl of the server to which client interacts
      * @param properties client properties
      * @throws FalconCLIException - If unable to initialize SSL Props
