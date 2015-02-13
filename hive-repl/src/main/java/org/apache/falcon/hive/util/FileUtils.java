@@ -32,7 +32,7 @@ public final class FileUtils {
         return conf;
     }
 
-    public static void validatePath(FileSystem fileSystem, Path basePath) throws IOException {
+    public static void validatePath(final FileSystem fileSystem, final Path basePath) throws IOException {
         if (fileSystem.exists(basePath)) {
             if (!fileSystem.getFileStatus(basePath).getPermission().equals(DRStatusStore.DEFAULT_STORE_PERMISSION)) {
                 throw new IOException("Base dir " + fileSystem.getUri() + DRStatusStore.BASE_DEFAULT_STORE_PATH

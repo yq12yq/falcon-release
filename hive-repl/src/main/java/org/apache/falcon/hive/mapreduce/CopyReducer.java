@@ -21,6 +21,7 @@ package org.apache.falcon.hive.mapreduce;
 
 import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.apache.falcon.hive.util.DRStatusStore;
+import org.apache.falcon.hive.util.FileUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
 import org.apache.falcon.hive.util.ReplicationStatus;
 import org.apache.hadoop.conf.Configuration;
@@ -42,13 +43,13 @@ public class CopyReducer extends Reducer<Text, Text, Text, Text> {
     protected void setup(Context context) throws IOException, InterruptedException {
         replicationStatusList = new ArrayList<ReplicationStatus>();
         conf = context.getConfiguration();
-        fs = FileSystem.get(conf);
+        fs = FileSystem.get(FileUtils.getConfiguration(conf.get("targetNN")));
         hiveDRStore = new HiveDRStatusStore(fs);
     }
 
     @Override
     protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-        ReplicationStatus rs = null;
+        ReplicationStatus rs;
         try {
             for (Text value : values) {
                 String[] fields = (value.toString()).split("\t");
