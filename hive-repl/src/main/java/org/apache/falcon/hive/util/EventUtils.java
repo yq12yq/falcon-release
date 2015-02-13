@@ -58,10 +58,13 @@ public class EventUtils {
     private String sourceStagingUri = null;
     private String targetStagingUri = null;
     private String jobName = null;
+    private List<String> sourceCleanUpList = null;
+    private List<String> targetCleanUpList = null;
     private int maxEvents;
     private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
-    FileSystem fs = null;
+    FileSystem trgFs = null;
+    FileSystem srcFs = null;
     static Connection src_con = null;
     static Connection tgt_con = null;
     static Statement src_stmt = null;
@@ -97,6 +100,8 @@ public class EventUtils {
         targetNN = conf.get("targetNN");
         targetRM = conf.get("targetRM");
         jobName = conf.get("jobName");
+        sourceCleanUpList = new ArrayList<String>();
+        targetCleanUpList = new ArrayList<String>();
     }
 
     public void setupConnection() {
@@ -118,14 +123,15 @@ public class EventUtils {
         targetStagingUri = targetNN + targetStagingPath;
 
         try {
-            fs = FileSystem.get(FileUtils.getConfiguration(targetNN));
+            srcFs = FileSystem.get(FileUtils.getConfiguration(sourceNN));
+            trgFs = FileSystem.get(FileUtils.getConfiguration(targetNN));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public void initializeHiveDRStore() throws IOException {
-        hiveStore = new HiveDRStatusStore(fs);
+        hiveStore = new HiveDRStatusStore(trgFs);
     }
 
     public void processEvents(String event) throws Exception{
@@ -137,13 +143,13 @@ public class EventUtils {
         String exportEventStr = eventSplit[2];
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
-            processCommands(exportEventStr, dbName, tableName, src_stmt);
+            processCommands(exportEventStr, dbName, tableName, src_stmt, sourceCleanUpList);
             //Todo: Check srcStagingDirectory is not empty
             invokeCopy();
         }
 
         if(StringUtils.isNotEmpty(importEventStr)) {
-            processCommands(importEventStr, dbName, tableName, tgt_stmt);
+            processCommands(importEventStr, dbName, tableName, tgt_stmt, targetCleanUpList);
         }
     }
 
@@ -151,14 +157,15 @@ public class EventUtils {
         return listReplicationStatus;
     }
 
-    private void processCommands(String eventStr, String dbName, String tableName, Statement sql_stmt)
-            throws SQLException, HiveReplicationException {
+    private void processCommands(String eventStr, String dbName, String tableName, Statement sql_stmt,
+                                 List<String> cleanUpList) throws SQLException, HiveReplicationException {
         long eventId = 0;
         ReplicationStatus.Status status = null;
         String commandList[] = eventStr.split(DelimiterUtils.getEventStmtDelim());
         for (String command : commandList) {
             ReplicationCommand cmd = ReplicationCommand.parseCommandString(command);
             eventId = cmd.getEventId();
+            cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
             try {
                 for (String stmt : cmd.get()) {
                     sql_stmt.execute(stmt);
@@ -238,6 +245,17 @@ public class EventUtils {
         return listPaths;
     }
 
+    public void cleanStagingDir() throws IOException {
+        LOG.info("Cleaning staging directory");
+        for(String cleanUpPath : sourceCleanUpList) {
+            srcFs.delete(new Path(cleanUpPath), true);
+        }
+
+        for(String cleanUpPath : targetCleanUpList) {
+            trgFs.delete(new Path(cleanUpPath), true);
+        }
+    }
+
     public void closeConnection() throws SQLException {
         if (src_con != null) {
             src_con.close();
@@ -246,5 +264,4 @@ public class EventUtils {
             tgt_con.close();
         }
     }
-
 }

@@ -68,10 +68,15 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
+        LOG.info("Invoking cleanup process");
         super.cleanup(context);
         try {
+            eventUtils.cleanStagingDir();
             eventUtils.closeConnection();
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        catch (IOException e) {
             e.printStackTrace();
         }
     }
