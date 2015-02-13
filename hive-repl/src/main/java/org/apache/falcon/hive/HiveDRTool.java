@@ -192,12 +192,11 @@ public class HiveDRTool extends Configured implements Tool {
         }
 
         String falconLibPath = inputOptions.getFalconLibPath();
-        if (StringUtils.isEmpty(falconLibPath)) {
-            throw new Exception("falconLibPath argument is null");
+        if (!StringUtils.isEmpty(falconLibPath)) {
+            String jarsFilePath = getHiveJars(falconLibPath + File.separator + HIVE_JARFILE_PREFIX);
+            job.getConfiguration().set("tmpjars", jarsFilePath);
         }
 
-        String jarsFilePath = getHiveJars(falconLibPath + File.separator + HIVE_JARFILE_PREFIX);
-        job.getConfiguration().set("tmpjars", jarsFilePath);
         job.getConfiguration().set("inputPath", inputFile); //Todo: change with getInputPath()
 
         return job;
