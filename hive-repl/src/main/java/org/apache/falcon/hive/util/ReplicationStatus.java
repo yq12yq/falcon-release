@@ -23,6 +23,9 @@ import org.apache.falcon.hive.exception.HiveReplicationException;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
+/**
+ * Object to store replication status of a DB or a table.
+ */
 public class ReplicationStatus {
 
     public static final int INDENT_FACTOR = 4;
@@ -35,7 +38,9 @@ public class ReplicationStatus {
     private static final String STATUS_KEY = "status";
     private static final String STATUS_LOG = "statusLog";
 
-
+    /**
+     * Replication Status enum.
+     */
     public static enum Status {
         INIT,
         SUCCESS,
@@ -51,27 +56,27 @@ public class ReplicationStatus {
     private long eventId = -1;
     private String log;
 
+    //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
     public ReplicationStatus(String sourceUri, String targetUri, String jobName,
                              String database, String table,
                              ReplicationStatus.Status status, long eventId) throws HiveReplicationException {
         init(sourceUri, targetUri, jobName, database, table, status, eventId, null);
     }
 
-    private void init (String sourceUri, String targetUri, String jobName,
-                       String database, String table,
-                       ReplicationStatus.Status status,
-                       long eventId, String log) throws HiveReplicationException {
-        setSourceUri(sourceUri);
-        setTargetUri(targetUri);
-        setJobName(jobName);
-        setDatabase(database);
-        setTable(table);
-        setStatus(status);
-        setEventId(eventId);
-        setLog(log);
+    private void init(String source, String target, String job,
+                      String dbName, String tableName, ReplicationStatus.Status replStatus,
+                      long eventNum, String logStr) throws HiveReplicationException {
+        setSourceUri(source);
+        setTargetUri(target);
+        setJobName(job);
+        setDatabase(dbName);
+        setTable(tableName);
+        setStatus(replStatus);
+        setEventId(eventNum);
+        setLog(logStr);
     }
+    //RESUME CHECKSTYLE CHECK ParameterNumberCheck
 
-    // deserialize
     public ReplicationStatus(String jsonString) throws HiveReplicationException {
         try {
             JSONObject object = new JSONObject(jsonString);
@@ -93,7 +98,6 @@ public class ReplicationStatus {
 
     }
 
-    // serialize
     public String toJsonString() throws HiveReplicationException {
         try {
             return toJsonObject().toString(INDENT_FACTOR);
@@ -210,8 +214,8 @@ public class ReplicationStatus {
     }
 
     public String toString() {
-        return sourceUri + "\t" + targetUri + "\t" + jobName + "\t" +
-                database + "\t"+ table + "\t" + status + "\t"+ eventId;
+        return sourceUri + "\t" + targetUri + "\t" + jobName + "\t"
+                + database + "\t"+ table + "\t" + status + "\t"+ eventId;
     }
 
 }

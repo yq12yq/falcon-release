@@ -27,6 +27,9 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Unit tests for DBReplicationStatus.
+ */
 @Test
 public class DBReplicationStatusTest {
 

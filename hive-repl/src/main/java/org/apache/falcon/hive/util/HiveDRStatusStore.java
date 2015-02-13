@@ -40,6 +40,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * DRStatusStore implementation for hive.
+ */
 public class HiveDRStatusStore extends DRStatusStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(DRStatusStore.class);
@@ -61,7 +64,7 @@ public class HiveDRStatusStore extends DRStatusStore {
 
         Path storePath = new Path(DEFAULT_STORE_PATH);
         if (!fileSystem.exists(storePath)) {
-            if (! FileSystem.mkdirs(fileSystem, storePath, DEFAULT_STORE_PERMISSION)) {
+            if (!FileSystem.mkdirs(fileSystem, storePath, DEFAULT_STORE_PERMISSION)) {
                 throw new IOException("mkdir failed for " + DEFAULT_STORE_PATH);
             }
         } else {
@@ -79,7 +82,7 @@ public class HiveDRStatusStore extends DRStatusStore {
      */
     @Override
     public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
-            throws HiveReplicationException {
+        throws HiveReplicationException {
         System.out.println("Inside updateReplicationStatus for jobname:"+jobName);
         Map<String, DBReplicationStatus> dbStatusMap = new HashMap<String, DBReplicationStatus>();
         for (ReplicationStatus status : statusList) {
@@ -91,7 +94,7 @@ public class HiveDRStatusStore extends DRStatusStore {
             }
 
             // init dbStatusMap and tableStatusMap from existing statuses.
-            if (! dbStatusMap.containsKey(status.getDatabase())) {
+            if (!dbStatusMap.containsKey(status.getDatabase())) {
                 DBReplicationStatus dbStatus = getDbReplicationStatus(status.getSourceUri(), status.getTargetUri(),
                         status.getJobName(), status.getDatabase());
                 dbStatusMap.put(status.getDatabase(), dbStatus);
@@ -112,7 +115,7 @@ public class HiveDRStatusStore extends DRStatusStore {
 
     @Override
     public ReplicationStatus getReplicationStatus(String source, String target, String jobName, String database)
-            throws HiveReplicationException {
+        throws HiveReplicationException {
         return getDbReplicationStatus(source, target, jobName, database).getDbReplicationStatus();
     }
 
@@ -134,7 +137,7 @@ public class HiveDRStatusStore extends DRStatusStore {
     @Override
     public Iterator<ReplicationStatus> getTableReplicationStatusesInDb(String source, String target,
                                                                        String jobName, String database)
-            throws HiveReplicationException {
+        throws HiveReplicationException {
         DBReplicationStatus dbReplicationStatus = getDbReplicationStatus(source, target, jobName, database);
         return dbReplicationStatus.getTableStatusIterator();
     }
@@ -164,7 +167,7 @@ public class HiveDRStatusStore extends DRStatusStore {
             if (fileSystem.exists(statusDirPath)) {
                 dbReplicationStatus = readStatusFile(statusDirPath);
             }
-            if(null == dbReplicationStatus) {
+            if (null == dbReplicationStatus) {
                 dbReplicationStatus = new DBReplicationStatus(new ReplicationStatus(source, target, jobName,
                         database, null, ReplicationStatus.Status.INIT, -1));
                 if (!FileSystem.mkdirs(fileSystem, statusDirPath, DEFAULT_STATUS_DIR_PERMISSION)) {

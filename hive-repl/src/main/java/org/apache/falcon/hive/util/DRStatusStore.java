@@ -25,6 +25,9 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Abstract class for Data Replication Status Store.
+ */
 public abstract class DRStatusStore {
 
     public static final String BASE_DEFAULT_STORE_PATH = "/apps/dr/";
@@ -37,7 +40,7 @@ public abstract class DRStatusStore {
      * @param statusList List of replication statuses of db/tables replicated by jobName.
      */
     public abstract void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
-            throws HiveReplicationException;
+        throws HiveReplicationException;
 
     /**
      * Get Replication status for a database.
@@ -48,8 +51,9 @@ public abstract class DRStatusStore {
      * @return ReplicationStatus
      * destination commands for each table
      */
-    public abstract ReplicationStatus getReplicationStatus(String source, String target, String jobName, String database)
-            throws HiveReplicationException;
+    public abstract ReplicationStatus getReplicationStatus(String source, String target,
+                                                           String jobName, String database)
+        throws HiveReplicationException;
 
     /**
      * Get Replication status for a table.
@@ -76,11 +80,11 @@ public abstract class DRStatusStore {
      */
     public abstract Iterator<ReplicationStatus> getTableReplicationStatusesInDb(String source, String target,
                                                                        String jobName, String database)
-            throws HiveReplicationException;
+        throws HiveReplicationException;
 
 
     /**
-     * Delete a replication job
+     * Delete a replication job.
      * @param jobName Name of the replication job.
      * @param database Name of the target database.
      * destination commands for each table

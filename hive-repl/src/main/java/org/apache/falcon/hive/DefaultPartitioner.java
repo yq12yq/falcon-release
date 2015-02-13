@@ -19,12 +19,9 @@
 package org.apache.falcon.hive;
 
 import com.google.common.collect.Lists;
+import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.HiveDRUtils;
 import org.apache.falcon.hive.util.ReplicationStatus;
-import org.apache.falcon.hive.util.DRStatusStore;
-
-import static org.apache.hive.hcatalog.api.HCatNotificationEvent.Scope;
-
 import org.apache.hive.hcatalog.api.repl.Command;
 import org.apache.hive.hcatalog.api.repl.ReplicationTask;
 import org.apache.hive.hcatalog.api.repl.StagingDirectoryProvider;
@@ -36,7 +33,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-/* Partitioner for partitioning events for a given DB */
+import static org.apache.hive.hcatalog.api.HCatNotificationEvent.Scope;
+
+/**
+ *  Partitioner for partitioning events for a given DB.
+ */
 public class DefaultPartitioner implements Partitioner {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultPartitioner.class);
@@ -142,12 +143,12 @@ public class DefaultPartitioner implements Partitioner {
         if (eventScope == Scope.DB) {
             dbEventList.add(cmd);
             /* add DB event to all tables */
-            if(!replicationEventMap.isEmpty()) {
+            if (!replicationEventMap.isEmpty()) {
                 addDbEventToAllTablesEventList(cmd, replicationEventMap);
             }
         } else if (eventScope == Scope.TABLE) {
             List<Command> tableEventList = replicationEventMap.get(tableName);
-            if(tableEventList == null) {
+            if (tableEventList == null) {
                 tableEventList = Lists.newArrayList();
                 replicationEventMap.put(tableName, tableEventList);
                 // Before adding this event, add all the DB events
@@ -178,7 +179,7 @@ public class DefaultPartitioner implements Partitioner {
     private void addTableEvent(final String tableName, final Command cmd, final List<Command> tableEventList) {
         Long eventId = eventFilter.eventFilterMap.get(tableName);
         /* If not already processed, add it */
-        if(eventId == null || cmd.getEventId() > eventId) {
+        if (eventId == null || cmd.getEventId() > eventId) {
             tableEventList.add(cmd);
         }
     }
