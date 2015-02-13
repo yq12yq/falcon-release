@@ -29,8 +29,8 @@ public enum HiveReplicationRecipeToolOptions {
     REPLICATION_SOURCE_DATABASE("sourceDatabase", "List of databases to replicate"),
     REPLICATION_SOURCE_TABLE("sourceTable", "List of tables to replicate"),
     REPLICATION_SOURCE_STAGING_PATH("sourceStagingPath", "Location of source staging path"),
-    REPLICATION_SOURCE_NN("sourceStagingPath", "Source name node"),
-    REPLICATION_SOURCE_RM("sourceStagingPath", "Source resource manager"),
+    REPLICATION_SOURCE_NN("sourceNN", "Source name node"),
+    REPLICATION_SOURCE_RM("sourceRM", "Source resource manager"),
 
     REPLICATION_TARGET_CLUSTER("targetCluster", "Replication target cluster name"),
     REPLICATION_TARGET_METASTORE_URI("targetMetastoreUri", "Target Hive metastore uri"),
