@@ -119,7 +119,7 @@ public class HiveDRTool extends Configured implements Tool {
         FileUtils.validatePath(jobFS, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH));
 
         if (!jobFS.exists(dir)) {
-            if(!jobFS.mkdirs(dir)) {
+            if (!jobFS.mkdirs(dir)) {
                 throw new Exception("Creating directory failed: " + dir);
             }
         }
@@ -135,7 +135,7 @@ public class HiveDRTool extends Configured implements Tool {
         assert getConf() != null;
 
         ListIterator<ReplicationEvents> events = sourceEvents();
-        if(events == null || !events.hasNext()) {
+        if (events == null || !events.hasNext()) {
             LOG.info("No events to process");
             return null;
         }
@@ -182,12 +182,11 @@ public class HiveDRTool extends Configured implements Tool {
         job.getConfiguration().set(JobContext.NUM_MAPS,
                 String.valueOf(inputOptions.getMaxMaps()));
 
-        for(HiveDRArgs args : HiveDRArgs.values()) {
-            if(inputOptions.getValue(args)!=null) {
-                job.getConfiguration().set(args.getName(),inputOptions.getValue(args));
-            }
-            else {
-                job.getConfiguration().set(args.getName(),"null");
+        for (HiveDRArgs args : HiveDRArgs.values()) {
+            if (inputOptions.getValue(args) != null) {
+                job.getConfiguration().set(args.getName(), inputOptions.getValue(args));
+            } else {
+                job.getConfiguration().set(args.getName(), "null");
             }
         }
 
@@ -245,8 +244,7 @@ public class HiveDRTool extends Configured implements Tool {
         try {
             HiveDRTool hiveDRTool = new HiveDRTool();
             exitCode = ToolRunner.run(getDefaultConf(), hiveDRTool, args);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOG.error("Couldn't complete HiveDR operation: ", e);
             exitCode = -1;
         }
@@ -318,7 +316,7 @@ public class HiveDRTool extends Configured implements Tool {
             Command cmd = cmds.next();
             //eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
             ReplicationCommand rc = new ReplicationCommand(cmd.get(), cmd.isRetriable(), cmd.isUndoable(),
-                    (cmd.isUndoable() ? cmd.getUndo() : new ArrayList<String>()) ,
+                    (cmd.isUndoable() ? cmd.getUndo() : new ArrayList<String>()),
                     cmd.cleanupLocationsPerRetry(), cmd.cleanupLocationsAfterEvent(), cmd.getEventId());
             eventStr.append(rc.toString());
             eventStr.append(DelimiterUtils.getEventStmtDelim());
