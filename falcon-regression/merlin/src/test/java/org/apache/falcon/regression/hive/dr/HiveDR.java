@@ -57,6 +57,7 @@ public class HiveDR extends BaseTestClass {
     private final ColoHelper cluster2 = servers.get(1);
     private final FileSystem clusterFS = serverFS.get(0);
     private final FileSystem clusterFS2 = serverFS.get(1);
+    private final OozieClient clusterOC = serverOC.get(0);
     private final OozieClient clusterOC2 = serverOC.get(1);
     private final String baseTestHDFSDir = baseHDFSDir + "/HiveDR/";
     private HCatClient clusterHC;
