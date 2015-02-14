@@ -66,6 +66,8 @@ public class CopyReducer extends Reducer<Text, Text, Text, Text> {
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
-        fs.close();
+        if (fs != null) {
+            fs.close();
+        }
     }
 }

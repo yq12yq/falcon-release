@@ -43,24 +43,16 @@ public class EventUtils {
     private static final String JDBC_PREFIX = "jdbc:";
     private Configuration conf = null;
     private String sourceHiveServer2Uri = null;
-    private String sourceServicePrincipal = null;
     private String sourceDatabase = null;
-    private String sourceTable = null;
     private String sourceStagingPath = null;
     private String sourceNN = null;
-    private String sourceRM = null;
     private String targetHiveServer2Uri = null;
-    private String targetServicePrincipal = null;
     private String targetStagingPath = null;
     private String targetNN = null;
-    private String targetRM = null;
-    private DRStatusStore hiveStore = null;
     private String sourceStagingUri = null;
     private String targetStagingUri = null;
-    private String jobName = null;
     private List<String> sourceCleanUpList = null;
     private List<String> targetCleanUpList = null;
-    private int maxEvents;
     private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
     FileSystem trgFs = null;
@@ -69,7 +61,6 @@ public class EventUtils {
     static Connection tgt_con = null;
     static Statement src_stmt = null;
     static Statement tgt_stmt = null;
-    private String fsName = null;
 
     private List<ReplicationStatus> listReplicationStatus;
 
@@ -85,21 +76,14 @@ public class EventUtils {
 
     public EventUtils(Configuration conf) {
         this.conf = conf;
-        this.fsName = conf.get("fs.default.name");
         sourceHiveServer2Uri = conf.get("sourceHiveServer2Uri");
-        sourceServicePrincipal = conf.get("sourceServicePrincipal");
         sourceDatabase = conf.get("sourceDatabase");
-        sourceTable = conf.get("sourceTable");
         sourceStagingPath = conf.get("sourceStagingPath");
         sourceNN = conf.get("sourceNN");
-        sourceRM = conf.get("sourceRM");
 
         targetHiveServer2Uri = conf.get("targetHiveServer2Uri");
-        targetServicePrincipal = conf.get("targetServicePrincipal");
         targetStagingPath = conf.get("targetStagingPath");
         targetNN = conf.get("targetNN");
-        targetRM = conf.get("targetRM");
-        jobName = conf.get("jobName");
         sourceCleanUpList = new ArrayList<String>();
         targetCleanUpList = new ArrayList<String>();
     }
@@ -130,10 +114,6 @@ public class EventUtils {
         }
     }
 
-    public void initializeHiveDRStore() throws IOException {
-        hiveStore = new HiveDRStatusStore(trgFs);
-    }
-
     public void processEvents(String event) throws Exception{
         System.out.println("EventUtils processEvents event to process:"+event);
         listReplicationStatus = new ArrayList<ReplicationStatus>() ;
@@ -159,8 +139,8 @@ public class EventUtils {
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sql_stmt,
                                  List<String> cleanUpList) throws SQLException, HiveReplicationException {
-        long eventId = 0;
-        ReplicationStatus.Status status = null;
+        long eventId;
+        ReplicationStatus.Status status;
         String commandList[] = eventStr.split(DelimiterUtils.getEventStmtDelim());
         for (String command : commandList) {
             ReplicationCommand cmd = ReplicationCommand.parseCommandString(command);

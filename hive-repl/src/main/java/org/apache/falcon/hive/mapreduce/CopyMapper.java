@@ -20,7 +20,6 @@ package org.apache.falcon.hive.mapreduce;
 
 import org.apache.falcon.hive.util.EventUtils;
 import org.apache.falcon.hive.util.ReplicationStatus;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -34,17 +33,14 @@ import java.util.List;
 
 public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
 
-    private Configuration conf;
     private static final Logger LOG = LoggerFactory.getLogger(CopyMapper.class);
     public EventUtils eventUtils;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
-        conf = context.getConfiguration();
-        eventUtils = new EventUtils(conf);
+        eventUtils = new EventUtils(context.getConfiguration());
         eventUtils.initializeFS();
         eventUtils.setupConnection();
-        eventUtils.initializeHiveDRStore();
     }
 
     @Override
