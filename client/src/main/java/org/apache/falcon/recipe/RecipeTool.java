@@ -48,14 +48,13 @@ import java.util.Properties;
 public class RecipeTool extends Configured implements Tool {
     private static final String HDFS_WF_PATH = "falcon" + File.separator + "recipes" + File.separator;
 
-    private FileSystem hdfsFileSystem;
-
     public static void main(String[] args) throws Exception {
         ToolRunner.run(new Configuration(), new RecipeTool(), args);
     }
 
     @Override
     public int run(String[] arguments) throws Exception {
+
         Map<RecipeToolArgs, String> argMap = setupArgs(arguments);
         if (argMap == null || argMap.isEmpty()) {
             throw new Exception("Arguments passed to recipe is null");
@@ -74,16 +73,23 @@ public class RecipeTool extends Configured implements Tool {
                 recipeProperties.putAll(props);
             }
         }
+        FileSystem fs = null;
+        String processFilename;
+        try {
+            fs = getFileSystemForHdfs(recipeProperties);
 
-        FileSystem fs = getFileSystemForHdfs(recipeProperties);
+            validateArtifacts(recipeProperties, fs);
 
-        validateArtifacts(recipeProperties, fs);
+            String recipeName = recipeProperties.getProperty(RecipeToolOptions.RECIPE_NAME.getName());
+            copyFilesToHdfsIfRequired(recipeProperties, fs, recipeName);
 
-        String recipeName = recipeProperties.getProperty(RecipeToolOptions.RECIPE_NAME.getName());
-        copyFilesToHdfsIfRequired(recipeProperties, fs, recipeName);
-
-        String processFilename = RecipeProcessBuilderUtils.createProcessFromTemplate(argMap.get(RecipeToolArgs
-                .RECIPE_FILE_ARG), recipeProperties, argMap.get(RecipeToolArgs.RECIPE_PROCESS_XML_FILE_PATH_ARG));
+            processFilename = RecipeProcessBuilderUtils.createProcessFromTemplate(argMap.get(RecipeToolArgs
+                    .RECIPE_FILE_ARG), recipeProperties, argMap.get(RecipeToolArgs.RECIPE_PROCESS_XML_FILE_PATH_ARG));
+        } finally {
+            if (fs != null) {
+                fs.close();
+            }
+        }
 
         System.out.println("Generated process file to be scheduled: ");
         System.out.println(FileUtils.readFileToString(new File(processFilename)));
@@ -100,7 +106,7 @@ public class RecipeTool extends Configured implements Tool {
             addOption(options, arg, arg.isRequired());
         }
 
-        CommandLine cmd =  new GnuParser().parse(options, arguments);
+        CommandLine cmd = new GnuParser().parse(options, arguments);
         for (RecipeToolArgs arg : RecipeToolArgs.values()) {
             String optionValue = arg.getOptionValue(cmd);
             if (StringUtils.isNotEmpty(optionValue)) {
@@ -137,7 +143,7 @@ public class RecipeTool extends Configured implements Tool {
         }
     }
 
-    private static void validateArtifacts(final Properties recipeProperties, final FileSystem fs) throws Exception{
+    private static void validateArtifacts(final Properties recipeProperties, final FileSystem fs) throws Exception {
         // validate the WF path
         String wfPath = recipeProperties.getProperty(RecipeToolOptions.WORKFLOW_PATH.getName());
 
@@ -249,12 +255,8 @@ public class RecipeTool extends Configured implements Tool {
     }
 
     private FileSystem getFileSystemForHdfs(final Properties recipeProperties) throws Exception {
-        if (hdfsFileSystem == null) {
-            String storageEndpoint = RecipeToolOptions.CLUSTER_HDFS_WRITE_ENDPOINT.getName();
-            hdfsFileSystem =  FileSystem.get(
-                    getConfiguration(recipeProperties.getProperty(storageEndpoint)));
-        }
-
-        return hdfsFileSystem;
+        String storageEndpoint = RecipeToolOptions.CLUSTER_HDFS_WRITE_ENDPOINT.getName();
+        return FileSystem.get(
+                getConfiguration(recipeProperties.getProperty(storageEndpoint)));
     }
 }
