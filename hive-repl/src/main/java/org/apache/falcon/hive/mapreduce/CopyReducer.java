@@ -60,7 +60,7 @@ public class CopyReducer extends Reducer<Text, Text, Text, Text> {
 
             hiveDRStore.updateReplicationStatus(key.toString(), replicationStatusList);
         } catch (HiveReplicationException e) {
-            e.printStackTrace();
+            throw new IOException(e);
         }
     }
 

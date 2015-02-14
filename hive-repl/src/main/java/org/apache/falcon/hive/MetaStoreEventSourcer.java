@@ -88,6 +88,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
         return hcatConf;
     }
 
+    @Override
     public ListIterator<ReplicationEvents> sourceEvents(HiveDROptions inputOptions) throws Exception {
         LOG.info("Enter sourceEvents");
         List<ReplicationEvents> replicationEvents = Lists.newArrayList();

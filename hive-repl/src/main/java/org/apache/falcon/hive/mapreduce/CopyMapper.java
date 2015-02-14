@@ -40,22 +40,25 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
     protected void setup(Context context) throws IOException, InterruptedException {
         eventUtils = new EventUtils(context.getConfiguration());
         eventUtils.initializeFS();
-        eventUtils.setupConnection();
+        try {
+            eventUtils.setupConnection();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
     }
 
     @Override
     protected void map(LongWritable key, Text value,
                        Context context) throws IOException, InterruptedException {
-        List<ReplicationStatus> replicationStatusList = null;
-        try {
-            LOG.info("Processing Event value:"+value.toString());
-            eventUtils.processEvents(value.toString());
-            replicationStatusList = eventUtils.getListReplicationStatus();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        LOG.info("Processing Event value: {}", value.toString());
 
-        if(replicationStatusList != null && !replicationStatusList.isEmpty()) {
+        try {
+            eventUtils.processEvents(value.toString());
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+        List<ReplicationStatus> replicationStatusList = eventUtils.getListReplicationStatus();
+        if (replicationStatusList != null && !replicationStatusList.isEmpty()) {
             for (ReplicationStatus rs : replicationStatusList) {
                 context.write(new Text(rs.getJobName()), new Text(rs.toString()));
             }
@@ -68,12 +71,14 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
         super.cleanup(context);
         try {
             eventUtils.cleanStagingDir();
-            eventUtils.closeConnection();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            LOG.error("Cleaning up staging directories failed", e);
+        } finally {
+            try {
+                eventUtils.closeConnection();
+            } catch (SQLException e) {
+                LOG.error("Closing the connections failed", e);
+            }
         }
     }
 }

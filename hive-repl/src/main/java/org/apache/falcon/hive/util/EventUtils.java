@@ -64,16 +64,6 @@ public class EventUtils {
 
     private List<ReplicationStatus> listReplicationStatus;
 
-    static {
-        try {
-            Class.forName(DRIVER_NAME);
-        }
-        catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-    }
-
     public EventUtils(Configuration conf) {
         this.conf = conf;
         sourceHiveServer2Uri = conf.get("sourceHiveServer2Uri");
@@ -88,20 +78,16 @@ public class EventUtils {
         targetCleanUpList = new ArrayList<String>();
     }
 
-    public void setupConnection() {
-        try {
-            DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
-            src_con = DriverManager.getConnection(JDBC_PREFIX+sourceHiveServer2Uri+"/"+sourceDatabase, "", "");
-            tgt_con = DriverManager.getConnection(JDBC_PREFIX+targetHiveServer2Uri+"/"+sourceDatabase, "", "");
-            src_stmt = src_con.createStatement();
-            tgt_stmt = tgt_con.createStatement();
-        } catch (SQLException e) {
-            LOG.info("Exception while establishing connection");
-            e.printStackTrace();
-        }
+    public void setupConnection() throws Exception {
+        Class.forName(DRIVER_NAME);
+        DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
+        src_con = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase, "", "");
+        tgt_con = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase, "", "");
+        src_stmt = src_con.createStatement();
+        tgt_stmt = tgt_con.createStatement();
     }
 
-    public void initializeFS() {
+    public void initializeFS() throws IOException {
         LOG.info("Initializing staging directory");
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
@@ -114,9 +100,9 @@ public class EventUtils {
         }
     }
 
-    public void processEvents(String event) throws Exception{
-        System.out.println("EventUtils processEvents event to process:"+event);
-        listReplicationStatus = new ArrayList<ReplicationStatus>() ;
+    public void processEvents(String event) throws Exception {
+        LOG.info("EventUtils processEvents event to process: {}", event);
+        listReplicationStatus = new ArrayList<ReplicationStatus>();
         String eventSplit[] = event.split(DelimiterUtils.getRecordFieldDelim());
         String dbName = eventSplit[0];
         String tableName = eventSplit[1];
@@ -124,11 +110,11 @@ public class EventUtils {
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
             processCommands(exportEventStr, dbName, tableName, src_stmt, sourceCleanUpList);
-            //Todo: Check srcStagingDirectory is not empty
+            //TODO: Check srcStagingDirectory is not empty
             invokeCopy();
         }
 
-        if(StringUtils.isNotEmpty(importEventStr)) {
+        if (StringUtils.isNotEmpty(importEventStr)) {
             processCommands(importEventStr, dbName, tableName, tgt_stmt, targetCleanUpList);
         }
     }
@@ -153,12 +139,13 @@ public class EventUtils {
                 status = ReplicationStatus.Status.SUCCESS;
                 addReplicationStatus(status, dbName, tableName, eventId);
             } catch (SQLException e) {
-                LOG.info("SQL Exception :"+e.toString());
-                if(cmd.isUndoable()) {
-                    undoCommands(cmd.getUndo(),sql_stmt);
+                LOG.error("SQL Exception: {}", e);
+                if (cmd.isUndoable()) {
+                    undoCommands(cmd.getUndo(), sql_stmt);
                 }
                 status = ReplicationStatus.Status.FAILURE;
                 addReplicationStatus(status, dbName, tableName, eventId);
+                throw e;
             } catch (HiveReplicationException hre) {
                 throw new HiveReplicationException("Could not update replication status store for "
                         + "EventId:" + eventId
@@ -169,21 +156,17 @@ public class EventUtils {
         }
     }
 
-    private void undoCommands(List<String> undo, Statement sql_stmt) throws HiveReplicationException {
-        LOG.info("Undo command:" + undo.toString());
-        try {
-            if (undo.size() != 0) {
-                for (String undoStmt : undo) {
-                    sql_stmt.execute(undoStmt);
-                }
+    private void undoCommands(List<String> undo, Statement sql_stmt) throws SQLException {
+        LOG.info("Undo command: {}", StringUtils.join(undo.toArray()));
+        if (undo.size() != 0) {
+            for (String undoStmt : undo) {
+                sql_stmt.execute(undoStmt);
             }
-        } catch(SQLException se) {
-            throw new HiveReplicationException("Could not undo Hive statement:"+se.toString());
         }
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
-            throws HiveReplicationException{
+            throws HiveReplicationException {
         String drJobName = conf.get("drJobName");
         ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"), drJobName,
                 dbName, tableName, status, eventId);
@@ -231,11 +214,11 @@ public class EventUtils {
 
     public void cleanStagingDir() throws IOException {
         LOG.info("Cleaning staging directory");
-        for(String cleanUpPath : sourceCleanUpList) {
+        for (String cleanUpPath : sourceCleanUpList) {
             srcFs.delete(new Path(cleanUpPath), true);
         }
 
-        for(String cleanUpPath : targetCleanUpList) {
+        for (String cleanUpPath : targetCleanUpList) {
             trgFs.delete(new Path(cleanUpPath), true);
         }
     }
