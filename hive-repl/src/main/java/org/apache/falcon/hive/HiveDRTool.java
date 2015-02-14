@@ -27,7 +27,6 @@ import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.DelimiterUtils;
 import org.apache.falcon.hive.util.FileUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
-import org.apache.falcon.hive.util.ReplicationCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
@@ -43,13 +42,13 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.api.repl.Command;
+import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.ListIterator;
 
 /**
@@ -119,7 +118,7 @@ public class HiveDRTool extends Configured implements Tool {
         FileUtils.validatePath(jobFS, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH));
 
         if (!jobFS.exists(dir)) {
-            if(!jobFS.mkdirs(dir)) {
+            if (!jobFS.mkdirs(dir)) {
                 throw new Exception("Creating directory failed: " + dir);
             }
         }
@@ -135,7 +134,7 @@ public class HiveDRTool extends Configured implements Tool {
         assert getConf() != null;
 
         ListIterator<ReplicationEvents> events = sourceEvents();
-        if(events == null || !events.hasNext()) {
+        if (events == null || !events.hasNext()) {
             LOG.info("No events to process");
             return null;
         }
@@ -182,12 +181,11 @@ public class HiveDRTool extends Configured implements Tool {
         job.getConfiguration().set(JobContext.NUM_MAPS,
                 String.valueOf(inputOptions.getMaxMaps()));
 
-        for(HiveDRArgs args : HiveDRArgs.values()) {
-            if(inputOptions.getValue(args)!=null) {
-                job.getConfiguration().set(args.getName(),inputOptions.getValue(args));
-            }
-            else {
-                job.getConfiguration().set(args.getName(),"null");
+        for (HiveDRArgs args : HiveDRArgs.values()) {
+            if (inputOptions.getValue(args) != null) {
+                job.getConfiguration().set(args.getName(), inputOptions.getValue(args));
+            } else {
+                job.getConfiguration().set(args.getName(), "null");
             }
         }
 
@@ -245,8 +243,7 @@ public class HiveDRTool extends Configured implements Tool {
         try {
             HiveDRTool hiveDRTool = new HiveDRTool();
             exitCode = ToolRunner.run(getDefaultConf(), hiveDRTool, args);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOG.error("Couldn't complete HiveDR operation: ", e);
             exitCode = -1;
         }
@@ -290,21 +287,21 @@ public class HiveDRTool extends Configured implements Tool {
                 if (dbName != null) {
                     out.write(dbName.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
                 if (tableName != null) {
                     out.write(tableName.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
                 String exportEventStr;
-                if ((exportEventStr = getCmdAsString(exportCmds)) != null) {
+                if (!StringUtils.isEmpty(exportEventStr = getCmdAsString(exportCmds))) {
                     out.write(exportEventStr.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
                 String importEventStr;
-                if ((importEventStr = getCmdAsString(importCmds)) != null) {
+                if (!StringUtils.isEmpty(importEventStr = getCmdAsString(importCmds))) {
                     out.write(importEventStr.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordNewLineDelim().getBytes());
+                out.write(DelimiterUtils.NEWLINE_DELIM.getBytes());
             }
         } finally {
             IOUtils.closeQuietly(out);
@@ -314,22 +311,14 @@ public class HiveDRTool extends Configured implements Tool {
 
     private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
         StringBuilder eventStr = new StringBuilder();
+
         while (cmds.hasNext()) {
-            Command cmd = cmds.next();
-            //eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
-            ReplicationCommand rc = new ReplicationCommand(cmd.get(), cmd.isRetriable(), cmd.isUndoable(),
-                    (cmd.isUndoable() ? cmd.getUndo() : new ArrayList<String>()) ,
-                    cmd.cleanupLocationsPerRetry(), cmd.cleanupLocationsAfterEvent(), cmd.getEventId());
-            eventStr.append(rc.toString());
-            eventStr.append(DelimiterUtils.getEventStmtDelim());
+            eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
+            if (cmds.hasNext()) {
+                eventStr.append(DelimiterUtils.STMT_DELIM);
+            }
         }
-        if (eventStr.length() > 0) {
-            String s = eventStr.toString();
-            s = s.substring(0, s.length() - DelimiterUtils.STMT_DELIM.length());
-            return s;
-        } else {
-            return null;
-        }
+        return eventStr.toString();
     }
 
     private static String getFilename(String dir, String identifier) throws Exception {

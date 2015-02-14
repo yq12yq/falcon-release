@@ -19,24 +19,7 @@
 package org.apache.falcon.hive.util;
 
 public class DelimiterUtils {
-
-    public static final String FIELD_DELIM = ",";
-    public static final String RECORD_FIELD_DELIM = "\t";
-    public static final String STMT_DELIM = ";";
+    public static final String FIELD_DELIM = "\u0001";
+    public static final String STMT_DELIM = "\u0002";
     public static final String NEWLINE_DELIM = "\n";
-    public static final String COMMAND_FIELD_DELIM = "\u0001";
-
-    public static String getEventStmtDelim() {
-        return STMT_DELIM;
-    }
-
-    public static String getRecordNewLineDelim() {
-        return NEWLINE_DELIM;
-    }
-
-    public static String getCommandEventDelim() { return FIELD_DELIM; }
-
-    public static String getCommandFieldDelim() { return COMMAND_FIELD_DELIM; }
-
-    public static String getRecordFieldDelim() { return RECORD_FIELD_DELIM; }
 }
