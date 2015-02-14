@@ -94,12 +94,8 @@ public class EventUtils {
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
 
-        try {
-            srcFs = FileSystem.get(FileUtils.getConfiguration(sourceNN));
-            trgFs = FileSystem.get(FileUtils.getConfiguration(targetNN));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        srcFs = FileSystem.get(FileUtils.getConfiguration(sourceNN));
+        trgFs = FileSystem.get(FileUtils.getConfiguration(targetNN));
     }
 
     public void processEvents(String event) throws Exception {
@@ -111,12 +107,14 @@ public class EventUtils {
         String exportEventStr = eventSplit[2];
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
+            LOG.info("Process the export statements");
             processCommands(exportEventStr, dbName, tableName, src_stmt, sourceCleanUpList);
             //TODO: Check srcStagingDirectory is not empty
             invokeCopy();
         }
 
         if (StringUtils.isNotEmpty(importEventStr)) {
+            LOG.info("Process the import statements");
             processCommands(importEventStr, dbName, tableName, tgt_stmt, targetCleanUpList);
         }
     }
