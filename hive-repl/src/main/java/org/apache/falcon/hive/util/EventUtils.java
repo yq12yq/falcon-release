@@ -210,26 +210,30 @@ public class EventUtils {
         listReplicationStatus.add(rs);
     }
 
-    public void invokeCopy() throws HiveReplicationException{
-        try {
-            DistCpOptions options = getDistCpOptions();
-            DistCp distCp = new DistCp(conf, options);
-            LOG.info("Started DistCp with source Path:" + options.getSourcePaths().toString()
-                    + "\ttarget path:" + options.getTargetPath());
-            Job distcpJob = distCp.execute();
-            LOG.info("Distp Hadoop job:" + distcpJob.getJobID().toString());
-            LOG.info("Completed DistCp");
-        } catch(Exception e) {
-            throw new HiveReplicationException("Hive Data replication failed:"+e.toString());
-        }
+    public void invokeCopy() throws Exception {
+        DistCpOptions options = getDistCpOptions();
+
+        Configuration conf = new Configuration();
+        // inject wf configs
+        Path confPath = new Path("file:///"
+                + System.getProperty("oozie.action.conf.xml"));
+
+        LOG.info("{} found conf ? {}", confPath, confPath.getFileSystem(conf).exists(confPath));
+        conf.addResource(confPath);
+
+        DistCp distCp = new DistCp(conf, options);
+        LOG.info("Started DistCp with source Path: {} \ttarget path: ", options.getSourcePaths().toString(),
+                options.getTargetPath());
+        Job distcpJob = distCp.execute();
+        LOG.info("Distp Hadoop job: {}", distcpJob.getJobID().toString());
+        LOG.info("Completed DistCp");
     }
 
     public DistCpOptions getDistCpOptions() {
-        String[] paths = conf.get("sourceStagingPath").trim().split(",");
+        String[] paths = (sourceStagingUri).trim().split(",");
         List<Path> srcPaths = getPaths(paths);
-        String trgPath = conf.get("targetStagingPath");
 
-        DistCpOptions distcpOptions = new DistCpOptions(srcPaths, new Path(trgPath));
+        DistCpOptions distcpOptions = new DistCpOptions(srcPaths, new Path(targetStagingUri));
         distcpOptions.setSyncFolder(true);
         distcpOptions.setBlocking(true);
         distcpOptions.setMaxMaps(Integer.valueOf(conf.get("maxMaps")));
