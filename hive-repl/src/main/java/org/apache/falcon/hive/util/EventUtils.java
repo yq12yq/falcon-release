@@ -26,8 +26,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpOptions;
-import org.apache.hive.hcatalog.api.repl.Command;
-import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +99,7 @@ public class EventUtils {
     public void processEvents(String event) throws Exception {
         LOG.info("EventUtils processEvents event to process: {}", event);
         listReplicationStatus = new ArrayList<ReplicationStatus>();
-        String eventSplit[] = event.split(DelimiterUtils.FIELD_DELIM);
+        String eventSplit[] = event.split(DelimiterUtils.getRecordFieldDelim());
         String dbName = eventSplit[0];
         String tableName = eventSplit[1];
         String exportEventStr = eventSplit[2];
@@ -127,15 +125,9 @@ public class EventUtils {
                                  List<String> cleanUpList) throws SQLException, HiveReplicationException {
         long eventId;
         ReplicationStatus.Status status;
-        String commandList[] = eventStr.split(DelimiterUtils.STMT_DELIM);
+        String commandList[] = eventStr.split(DelimiterUtils.getEventStmtDelim());
         for (String command : commandList) {
-            Command cmd;
-            try {
-                cmd = ReplicationUtils.deserializeCommand(command);
-            } catch (IOException ioe) {
-                throw new HiveReplicationException("Could not deserialize replication command for "
-                        + "DB Name:" + dbName + "Table Name:" + tableName, ioe);
-            }
+            ReplicationCommand cmd = ReplicationCommand.parseCommandString(command);
             eventId = cmd.getEventId();
             cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
             try {
