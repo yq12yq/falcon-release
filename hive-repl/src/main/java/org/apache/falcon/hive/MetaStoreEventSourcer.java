@@ -123,10 +123,11 @@ public class MetaStoreEventSourcer implements EventSourcer {
     private List<ReplicationEvents> sourceEventsForDb(HiveDROptions inputOptions, String dbName) throws Exception {
         HiveDRUtils.ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
         String jobName = inputOptions.getJobName();
-        String source = inputOptions.getSourceCluster();
-        String target = inputOptions.getTargetCluster();
-        Iterator<ReplicationTask> replicationTaskIter = sourceReplicationEvents(getLastSavedEventId(type, source,
-                target, jobName, dbName, null), inputOptions.getMaxEvents(), dbName, null);
+        String sourceMetastoreUri = inputOptions.getSourceMetastoreUri();
+        String targetMetastoreUri = inputOptions.getTargetMetastoreUri();
+        Iterator<ReplicationTask> replicationTaskIter = sourceReplicationEvents(getLastSavedEventId(type,
+                sourceMetastoreUri, targetMetastoreUri, jobName, dbName, null),
+                inputOptions.getMaxEvents(), dbName, null);
         if(replicationTaskIter == null || !replicationTaskIter.hasNext()) {
             LOG.info("No events for db: {}", dbName);
             return null;
@@ -137,10 +138,11 @@ public class MetaStoreEventSourcer implements EventSourcer {
     private List<ReplicationEvents> sourceEventsForTable(HiveDROptions inputOptions, String dbName, String tableName) throws Exception {
         HiveDRUtils.ReplicationType type = HiveDRUtils.getReplicationType(inputOptions.getSourceTables());
         String jobName = inputOptions.getJobName();
-        String source = inputOptions.getSourceCluster();
-        String target = inputOptions.getTargetCluster();
-        Iterator<ReplicationTask> replicationTaskIter = sourceReplicationEvents(getLastSavedEventId(type, source,
-                target, jobName, dbName, tableName), inputOptions.getMaxEvents(), dbName, tableName);
+        String sourceMetastoreUri = inputOptions.getSourceMetastoreUri();
+        String targetMetastoreUri = inputOptions.getTargetMetastoreUri();
+        Iterator<ReplicationTask> replicationTaskIter = sourceReplicationEvents(getLastSavedEventId(type,
+                sourceMetastoreUri, targetMetastoreUri, jobName, dbName, tableName),
+                inputOptions.getMaxEvents(), dbName, tableName);
         if(replicationTaskIter == null || !replicationTaskIter.hasNext()) {
             LOG.info("No events for db.table: {}.{}", dbName, tableName);
             return null;
@@ -167,21 +169,22 @@ public class MetaStoreEventSourcer implements EventSourcer {
         return replicationEvents;
     }
 
-    private long getLastSavedEventId(final HiveDRUtils.ReplicationType replicationType, final String source, final String target,
+    private long getLastSavedEventId(final HiveDRUtils.ReplicationType replicationType,
+                                     final String sourceMetastoreUri, final String targetMetastoreUri,
                                      final String jobName, final String dbName,
                                      final String tableName) throws Exception {
         long eventId = 0;
         if (HiveDRUtils.ReplicationType.DB == replicationType) {
-            eventId = drStore.getReplicationStatus(source, target, jobName, dbName).getEventId();
+            eventId = drStore.getReplicationStatus(sourceMetastoreUri, targetMetastoreUri, jobName, dbName).getEventId();
         } else if (HiveDRUtils.ReplicationType.TABLE == replicationType) {
-            eventId = drStore.getReplicationStatus(source, target, jobName, dbName, tableName).getEventId();
+            eventId = drStore.getReplicationStatus(sourceMetastoreUri, targetMetastoreUri, jobName, dbName, tableName).getEventId();
         }
 
         if (eventId == -1) {
             if (HiveDRUtils.ReplicationType.DB == replicationType) {
                 HCatDatabase database = targetMetastoreClient.getDatabase(dbName);
                 eventId = ReplicationUtils.getLastReplicationId(database);
-            } else if (HiveDRUtils.ReplicationType.TABLE == replicationType) {
+            } else {
                 HCatTable table = targetMetastoreClient.getTable(dbName, tableName);
                 eventId = ReplicationUtils.getLastReplicationId(table);
             }

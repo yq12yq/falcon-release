@@ -51,10 +51,11 @@ public class DefaultPartitioner implements Partitioner {
     private class EventFilter {
         private final Map<String, Long> eventFilterMap;
 
-        public EventFilter(String source, String target, String jobName, String database) throws Exception {
+        public EventFilter(String sourceMetastoreUri, String targetMetastoreUri, String jobName,
+                           String database) throws Exception {
             eventFilterMap = new HashMap<String, Long>();
-            Iterator<ReplicationStatus> replStatusIter = drStore.getTableReplicationStatusesInDb(source,
-                    target, jobName, database);
+            Iterator<ReplicationStatus> replStatusIter = drStore.getTableReplicationStatusesInDb(sourceMetastoreUri,
+                    targetMetastoreUri, jobName, database);
             while(replStatusIter.hasNext()) {
                 ReplicationStatus replStatus = replStatusIter.next();
                 eventFilterMap.put(replStatus.getTable(), replStatus.getEventId());
@@ -65,7 +66,7 @@ public class DefaultPartitioner implements Partitioner {
     public List<ReplicationEvents> partition(final HiveDROptions drOptions, final String dbName,
                                              final Iterator<ReplicationTask> taskIter) throws Exception {
         // init filtering before partitioning
-        this.eventFilter = new EventFilter(drOptions.getSourceCluster(), drOptions.getTargetCluster(),
+        this.eventFilter = new EventFilter(drOptions.getSourceMetastoreUri(), drOptions.getTargetMetastoreUri(),
                 drOptions.getJobName(), dbName);
         String srcStagingDirProvider = drOptions.getSourceStagingPath();
         String dstStagingDirProvider = drOptions.getTargetStagingPath();
