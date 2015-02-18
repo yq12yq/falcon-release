@@ -222,6 +222,14 @@ public class EventUtils {
     }
 
     public void closeConnection() throws SQLException {
+        if (src_stmt != null) {
+            src_stmt.close();
+        }
+
+        if (tgt_stmt != null) {
+            tgt_stmt.close();
+        }
+
         if (src_con != null) {
             src_con.close();
         }
