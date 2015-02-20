@@ -27,7 +27,6 @@ import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.DelimiterUtils;
 import org.apache.falcon.hive.util.FileUtils;
 import org.apache.falcon.hive.util.HiveDRStatusStore;
-import org.apache.falcon.hive.util.ReplicationCommand;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
@@ -43,13 +42,13 @@ import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.api.repl.Command;
+import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.ListIterator;
 
 /**
@@ -288,45 +287,35 @@ public class HiveDRTool extends Configured implements Tool {
                 if (dbName != null) {
                     out.write(dbName.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
                 if (tableName != null) {
                     out.write(tableName.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
-                String exportEventStr;
-                if ((exportEventStr = getCmdAsString(exportCmds)) != null) {
-                    out.write(exportEventStr.getBytes());
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
+                writeCommandsToFile(exportCmds, out);
+                out.write(DelimiterUtils.FIELD_DELIM.getBytes());
+                writeCommandsToFile(importCmds, out);
+
+                if (eventsList.hasNext()) {
+                    out.write(DelimiterUtils.NEWLINE_DELIM.getBytes());
                 }
-                out.write(DelimiterUtils.getRecordFieldDelim().getBytes());
-                String importEventStr;
-                if ((importEventStr = getCmdAsString(importCmds)) != null) {
-                    out.write(importEventStr.getBytes());
-                }
-                out.write(DelimiterUtils.getRecordNewLineDelim().getBytes());
             }
+            out.flush();
+            out.close();
         } finally {
             IOUtils.closeQuietly(out);
         }
         return jobFS.getFileStatus(filePath).getPath().toString();
     }
 
-    private static String getCmdAsString(ListIterator<Command> cmds) throws IOException {
-        StringBuilder eventStr = new StringBuilder();
+    private static void writeCommandsToFile(ListIterator<Command> cmds, OutputStream out) throws IOException {
         while (cmds.hasNext()) {
-            Command cmd = cmds.next();
-            //eventStr.append(ReplicationUtils.serializeCommand(cmds.next()));
-            ReplicationCommand rc = new ReplicationCommand(cmd.get(), cmd.isRetriable(), cmd.isUndoable(),
-                    (cmd.isUndoable() ? cmd.getUndo() : new ArrayList<String>()),
-                    cmd.cleanupLocationsPerRetry(), cmd.cleanupLocationsAfterEvent(), cmd.getEventId());
-            eventStr.append(rc.toString());
-            eventStr.append(DelimiterUtils.getEventStmtDelim());
-        }
-        if (eventStr.length() > 0) {
-            String s = eventStr.toString();
-            s = s.substring(0, s.length() - DelimiterUtils.STMT_DELIM.length());
-            return s;
-        } else {
-            return null;
+            String cmd = ReplicationUtils.serializeCommand(cmds.next());
+            out.write(cmd.getBytes());
+            LOG.info("HiveDR Serialized Repl Command : {}", cmd);
+            if (cmds.hasNext()) {
+                out.write(DelimiterUtils.STMT_DELIM.getBytes());
+            }
         }
     }
 
