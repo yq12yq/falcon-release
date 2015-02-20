@@ -18,6 +18,7 @@
 
 package org.apache.falcon.recipe;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.api.HCatClient;
@@ -55,6 +56,10 @@ public class HiveReplicationRecipeTool implements Recipe {
             String sourceTableList = recipeProperties.getProperty(
                 HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
 
+            if (StringUtils.isEmpty(sourceDbList)) {
+                throw new Exception("No source DB specified in property file");
+            }
+
             String[] srcDbs = sourceDbList.split(",");
             if (srcDbs.length <= 0) {
                 throw new Exception("No source DB specified in property file");
@@ -65,11 +70,13 @@ public class HiveReplicationRecipeTool implements Recipe {
                 }
             }
 
-            String[] srcTables = sourceTableList.split(",");
-            if (srcTables.length > 0) {
-                for (String table : srcTables) {
-                    if (!tableExists(sourceMetastoreClient, srcDbs[0], table)) {
-                        throw new Exception("Table " + table + " doesn't exist on source cluster");
+            if (StringUtils.isNotEmpty(sourceTableList)) {
+                String[] srcTables = sourceTableList.split(",");
+                if (srcTables.length > 0) {
+                    for (String table : srcTables) {
+                        if (!tableExists(sourceMetastoreClient, srcDbs[0], table)) {
+                            throw new Exception("Table " + table + " doesn't exist on source cluster");
+                        }
                     }
                 }
             }
