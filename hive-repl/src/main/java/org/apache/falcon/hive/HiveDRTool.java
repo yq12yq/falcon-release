@@ -269,7 +269,6 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
-    /* TODO : MR should delete the file in case of success or failure of map job */
     private String persistReplicationEvents(String dir, String filename,
                                             ListIterator<ReplicationEvents> eventsList) throws Exception {
         OutputStream out = null;
@@ -301,7 +300,6 @@ public class HiveDRTool extends Configured implements Tool {
                 }
             }
             out.flush();
-            out.close();
         } finally {
             IOUtils.closeQuietly(out);
         }
@@ -312,7 +310,7 @@ public class HiveDRTool extends Configured implements Tool {
         while (cmds.hasNext()) {
             String cmd = ReplicationUtils.serializeCommand(cmds.next());
             out.write(cmd.getBytes());
-            LOG.info("HiveDR Serialized Repl Command : {}", cmd);
+            LOG.debug("HiveDR Serialized Repl Command : {}", cmd);
             if (cmds.hasNext()) {
                 out.write(DelimiterUtils.STMT_DELIM.getBytes());
             }

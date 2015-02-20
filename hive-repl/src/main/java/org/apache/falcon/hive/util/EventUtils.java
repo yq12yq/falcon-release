@@ -129,7 +129,7 @@ public class EventUtils {
         ReplicationStatus.Status status;
         String commandList[] = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
-            LOG.info(" Hive DR Deserialize : {} :", command);
+            LOG.debug(" Hive DR Deserialize : {} :", command);
             Command cmd;
             try {
                 cmd = ReplicationUtils.deserializeCommand(command);
