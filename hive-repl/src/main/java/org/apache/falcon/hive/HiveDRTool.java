@@ -59,9 +59,11 @@ public class HiveDRTool extends Configured implements Tool {
 
     private HiveDROptions inputOptions;
     private DRStatusStore drStore;
-    private String eventsInputFilename;
+    private String eventsInputFile;
 
-    private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH + "/Events";
+    private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH
+            + File.separator + "Events";
+
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
     private static final String HIVE_JARFILE_PREFIX = "hive";
@@ -133,16 +135,15 @@ public class HiveDRTool extends Configured implements Tool {
         assert inputOptions != null;
         assert getConf() != null;
 
+        String jobIdentifier = getJobIdentifier(inputOptions.getJobName());
+        setStagingDirectory(jobIdentifier);
         ListIterator<ReplicationEvents> events = sourceEvents();
         if (events == null || !events.hasNext()) {
             LOG.info("No events to process");
             return null;
         }
-
-        String identifier = inputOptions.getJobName();
-        eventsInputFilename = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, identifier, events);
-        Job job = createJob(eventsInputFilename);
-        createPartitions(job);
+        eventsInputFile = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, jobIdentifier, events);
+        Job job = createJob(eventsInputFile);
 
         job.submit();
 
@@ -158,7 +159,7 @@ public class HiveDRTool extends Configured implements Tool {
         return job;
     }
 
-    private Job createJob(String inputFile) throws Exception {
+    private Job createJob(String eventsInputFile) throws Exception {
         String jobName = "hive-dr";
         String userChosenName = getConf().get(JobContext.JOB_NAME);
         if (userChosenName != null) {
@@ -189,15 +190,28 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
+        job.getConfiguration().set(FileInputFormat.INPUT_DIR, eventsInputFile);
+
         String falconLibPath = inputOptions.getFalconLibPath();
         if (!StringUtils.isEmpty(falconLibPath)) {
             String jarsFilePath = getHiveJars(falconLibPath + File.separator + HIVE_JARFILE_PREFIX);
             job.getConfiguration().set("tmpjars", jarsFilePath);
         }
 
-        job.getConfiguration().set("inputPath", inputFile); //Todo: change with getInputPath()
-
         return job;
+    }
+
+    private void setStagingDirectory(String jobIdentifier) throws Exception {
+        String sourceStagingPath = inputOptions.getSourceStagingPath();
+        String targetStagingPath = inputOptions.getTargetStagingPath();
+        if (StringUtils.isNotEmpty(sourceStagingPath) && StringUtils.isNotEmpty(targetStagingPath)) {
+            sourceStagingPath += File.separator + jobIdentifier;
+            targetStagingPath += File.separator + jobIdentifier;
+            inputOptions.setSourceStagingDir(sourceStagingPath);
+            inputOptions.setTargetStagingDir(targetStagingPath);
+        } else {
+            throw new Exception("Staging paths cannot be null");
+        }
     }
 
     private String getHiveJars(String falconLibPath) throws Exception {
@@ -234,11 +248,7 @@ public class HiveDRTool extends Configured implements Tool {
         return replicationEventsIter;
     }
 
-    private void createPartitions(Job job) throws IOException {
-        job.getConfiguration().set(FileInputFormat.INPUT_DIR, job.getConfiguration().get("inputPath"));
-    }
-
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         int exitCode;
         try {
             HiveDRTool hiveDRTool = new HiveDRTool();
@@ -258,13 +268,13 @@ public class HiveDRTool extends Configured implements Tool {
     private synchronized void cleanup() {
         if (!inputOptions.shouldKeepHistory()) {
             try {
-                if (StringUtils.isEmpty(eventsInputFilename)) {
+                if (StringUtils.isEmpty(eventsInputFile)) {
                     return;
                 }
-                jobFS.delete(new Path(eventsInputFilename), false);
-                eventsInputFilename = null;
+                jobFS.delete(new Path(eventsInputFile), false);
+                eventsInputFile = null;
             } catch (IOException e) {
-                LOG.error("Unable to cleanup: {}", eventsInputFilename, e);
+                LOG.error("Unable to cleanup: {}", eventsInputFile, e);
             }
         }
     }
@@ -317,9 +327,12 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
-    private static String getFilename(String dir, String identifier) throws Exception {
-        String prefix = identifier + "-" + System.currentTimeMillis();
-        return dir + File.separator + prefix + ".txt";
+    private static String getFilename(String dir, String filename) throws Exception {
+        return dir + File.separator + filename + ".txt";
+    }
+
+    private static String getJobIdentifier(String identifier) {
+        return identifier + "_" + System.currentTimeMillis();
     }
 
 /*

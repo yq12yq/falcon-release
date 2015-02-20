@@ -64,9 +64,9 @@ public enum HiveDRArgs {
     CLUSTER_FOR_JOB_RUN("clusterForJobRun", "cluster where job runs"),
     CLUSTER_FOR_JOB_RUN_WRITE_EP("clusterForJobRunWriteEP", "cluster where job runs write EP"),
 
-    FALCON_LIBPATH("falconLibPath","Falcon Lib Path for Jar files", false),
+    FALCON_LIBPATH("falconLibPath", "Falcon Lib Path for Jar files", false),
 
-    KEEP_HISTORY("keepHistory","Keep history of events file generated", false);
+    KEEP_HISTORY("keepHistory", "Keep history of events file generated", false);
 
     private final String name;
     private final String description;

@@ -141,6 +141,14 @@ public class HiveDROptions {
 
     public String getJobClusterWriteEP() { return context.get(HiveDRArgs.CLUSTER_FOR_JOB_RUN_WRITE_EP); }
 
+    public void setSourceStagingDir(String path) {
+        context.put(HiveDRArgs.SOURCE_STAGING_PATH, path);
+    }
+
+    public void setTargetStagingDir(String path) {
+        context.put(HiveDRArgs.TARGET_STAGING_PATH, path);
+    }
+
     public boolean shouldBlock() {
         return true;
     }
