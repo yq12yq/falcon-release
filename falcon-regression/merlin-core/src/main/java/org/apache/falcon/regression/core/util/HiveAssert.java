@@ -135,7 +135,8 @@ public class HiveAssert {
             "Table " + table1FullName + " has different Tabletype from " + table2FullName);
         final Map<String, String> tbl1Props = table1.getTblProps();
         final Map<String, String> tbl2Props = table2.getTblProps();
-        final String[] ignoreTblProps = {"transient_lastDdlTime"};
+        final String[] ignoreTblProps = {"transient_lastDdlTime", "repl.last.id",
+            "last_modified_by", "last_modified_time"};
         for (String ignoreTblProp : ignoreTblProps) {
             tbl1Props.remove(ignoreTblProp);
             tbl2Props.remove(ignoreTblProp);
