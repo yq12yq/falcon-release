@@ -47,7 +47,7 @@ class HiveObjectCreator {
     }
 
     static void bootstrapCopy(Connection srcConnection, FileSystem srcFs, String srcTable,
-        Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
+                              Connection dstConnection, String dstTable) throws Exception {
         final String srcPath = HDFS_TMP_DIR + srcTable + "/";
         deleteDirUsingJdbc(srcConnection, srcPath);
         HiveUtil.runSql(srcConnection, "export table " + srcTable + " to '" + srcPath + "'");

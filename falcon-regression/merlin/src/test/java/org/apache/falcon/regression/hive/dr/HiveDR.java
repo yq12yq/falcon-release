@@ -57,6 +57,7 @@ public class HiveDR extends BaseTestClass {
     private final ColoHelper cluster2 = servers.get(1);
     private final FileSystem clusterFS = serverFS.get(0);
     private final FileSystem clusterFS2 = serverFS.get(1);
+    private final OozieClient clusterOC = serverOC.get(0);
     private final OozieClient clusterOC2 = serverOC.get(1);
     private final String baseTestHDFSDir = baseHDFSDir + "/HiveDR/";
     private HCatClient clusterHC;
@@ -76,11 +77,11 @@ public class HiveDR extends BaseTestClass {
         bundles[1].generateUniqueBundle();
         final ClusterMerlin srcCluster = bundles[0].getClusterElement();
         final ClusterMerlin tgtCluster = bundles[1].getClusterElement();
-        Bundle.submitCluster(bundles[1]);
+        Bundle.submitCluster(bundles[0]);
 
         recipeMerlin = RecipeMerlin.readFromDir("HiveDrRecipe",
             FalconCLI.RecipeOperation.HIVE_DISASTER_RECOVERY)
-            .withRecipeCluster(tgtCluster);
+            .withRecipeCluster(srcCluster);
         recipeMerlin.withSourceCluster(srcCluster)
             .withTargetCluster(tgtCluster)
             .withFrequency(new Frequency("5", Frequency.TimeUnit.minutes))
@@ -94,7 +95,7 @@ public class HiveDR extends BaseTestClass {
     }
 
     @Test
-    public void recipeSubmission() throws Exception {
+    public void partitionReplication() throws Exception {
         recipeMerlin.withSourceDb("hdr_sdb1").withSourceTable("global_store_sales")
             .withTargetDb("hdr_sdb1").withTargetTable("global_store_sales");
         final List<String> command = recipeMerlin.getSubmissionCommand();
@@ -108,8 +109,12 @@ public class HiveDR extends BaseTestClass {
         HiveUtil.runSql(connection2, "create database hdr_sdb1");
         HiveUtil.runSql(connection2, "use hdr_sdb1");
         HiveObjectCreator.bootstrapCopy(connection, clusterFS, "global_store_sales",
-            connection2, clusterFS2, "global_store_sales");
-
+            connection2, "global_store_sales");
+        /* START TODO: remove propagation for NotificationEventId after BUG-31878 is fixed */
+        final long srcReplId = clusterHC.getCurrentNotificationEventId();
+        HiveUtil.runSql(connection2, "alter table global_store_sales SET TBLPROPERTIES " +
+            "(\"repl.last.id\"=\""+ srcReplId+ "\")");
+        /* END TODO: remove propagation for NotificationEventId after BUG-31878 is fixed */
         HiveUtil.runSql(connection,
             "insert into table global_store_sales partition (country = 'us') values"
                 + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01')");
@@ -120,7 +125,7 @@ public class HiveDR extends BaseTestClass {
 
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
-        InstanceUtil.waitTillInstanceReachState(clusterOC2, recipeMerlin.getName(), 1,
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
