@@ -241,6 +241,10 @@
                 <artifactId>commons-exec</artifactId>
                 <version>1.2</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-distcp</artifactId>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

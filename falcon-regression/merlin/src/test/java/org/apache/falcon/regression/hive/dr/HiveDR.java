@@ -28,7 +28,6 @@ import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
 import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
-import org.apache.falcon.regression.core.util.HiveUtil;
 import org.apache.falcon.regression.core.util.InstanceUtil;
 import org.apache.falcon.regression.core.util.TimeUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
@@ -48,11 +47,19 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
+import static org.apache.falcon.regression.core.util.HiveUtil.runSql;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.bootstrapCopy;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createExternalTable;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createPartitionedTable;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createSerDeTable;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createVanillaTable;
+
 /**
  * Hive DR Testing.
  */
 public class HiveDR extends BaseTestClass {
     private static final Logger LOGGER = Logger.getLogger(HiveDR.class);
+    private static final String DB_NAME = "hdr_sdb1";
     private final ColoHelper cluster = servers.get(0);
     private final ColoHelper cluster2 = servers.get(1);
     private final FileSystem clusterFS = serverFS.get(0);
@@ -89,66 +96,77 @@ public class HiveDR extends BaseTestClass {
         recipeMerlin.setUniqueName(this.getClass().getSimpleName());
 
         connection = cluster.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection, "drop database if exists hdr_sdb1 cascade");
+        runSql(connection, "drop database if exists hdr_sdb1 cascade");
+        runSql(connection, "create database hdr_sdb1");
+        runSql(connection, "use hdr_sdb1");
+
         connection2 = cluster2.getClusterHelper().getHiveJdbcConnection();
-        HiveUtil.runSql(connection2, "drop database if exists hdr_sdb1 cascade");
+        runSql(connection2, "drop database if exists hdr_sdb1 cascade");
+        runSql(connection2, "create database hdr_sdb1");
+        runSql(connection2, "use hdr_sdb1");
     }
 
     @Test
-    public void partitionReplication() throws Exception {
-        recipeMerlin.withSourceDb("hdr_sdb1").withSourceTable("global_store_sales")
-            .withTargetDb("hdr_sdb1").withTargetTable("global_store_sales");
+    public void partitionDR() throws Exception {
+        final String tblName = "partitionDR";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
-        HiveUtil.runSql(connection, "create database hdr_sdb1");
-        HiveUtil.runSql(connection, "use hdr_sdb1");
-        HiveUtil.runSql(connection, "create table global_store_sales "
-            + "(customer_id string, item_id string, quantity float, price float, time timestamp) "
-            + "partitioned by (country string)");
+        runSql(connection,
+            "create table " + tblName + "(comment string) partitioned by (pname string)");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'DELETE') values"
+                + "('this partition is going to be deleted - should NOT appear after dr')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'REPLACE') values"
+                + "('this partition is going to be replaced - should NOT appear after dr')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'ADD_DATA') values"
+                + "('this partition will have more data - should appear after dr')");
 
-        HiveUtil.runSql(connection2, "create database hdr_sdb1");
-        HiveUtil.runSql(connection2, "use hdr_sdb1");
-        HiveObjectCreator.bootstrapCopy(connection, clusterFS, "global_store_sales",
-            connection2, "global_store_sales");
-        /* START TODO: remove propagation for NotificationEventId after BUG-31878 is fixed */
-        final long srcReplId = clusterHC.getCurrentNotificationEventId();
-        HiveUtil.runSql(connection2, "alter table global_store_sales SET TBLPROPERTIES " +
-            "(\"repl.last.id\"=\""+ srcReplId+ "\")");
-        /* END TODO: remove propagation for NotificationEventId after BUG-31878 is fixed */
-        HiveUtil.runSql(connection,
-            "insert into table global_store_sales partition (country = 'us') values"
-                + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01')");
-        HiveUtil.runSql(connection,
-            "insert into table global_store_sales partition (country = 'uk') values"
-                + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
-        HiveUtil.runSql(connection, "select * from global_store_sales");
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'NEW_PART') values"
+                + "('this partition has been added post bootstrap - should appear after dr')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'ADD_DATA') values"
+                + "('more data has been added post bootstrap - should appear after dr')");
+        runSql(connection,
+            "alter table " + tblName + " drop partition(pname = 'DELETE')");
+        runSql(connection,
+            "alter table " + tblName + " drop partition(pname = 'REPLACE')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'REPLACE') values"
+                + "('this partition has been replaced - should appear after dr')");
 
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
-            cluster2, clusterHC2.getTable("hdr_sdb1", "global_store_sales"), new NotifyingAssert(true)
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
         ).assertAll();
     }
 
     @Test
     public void dataGeneration() throws Exception {
-        HiveUtil.runSql(connection, "create database hdr_sdb1");
-        HiveUtil.runSql(connection, "use hdr_sdb1");
-        HiveObjectCreator.createVanillaTable(connection);
-        HiveObjectCreator.createSerDeTable(connection);
-        HiveObjectCreator.createPartitionedTable(connection);
-        HiveObjectCreator.createExternalTable(connection, clusterFS,
+        runSql(connection, "create database hdr_sdb1");
+        runSql(connection, "use hdr_sdb1");
+        createVanillaTable(connection);
+        createSerDeTable(connection);
+        createPartitionedTable(connection);
+        createExternalTable(connection, clusterFS,
             baseTestHDFSDir + "click_data/");
 
-        HiveUtil.runSql(connection2, "create database hdr_sdb1");
-        HiveUtil.runSql(connection2, "use hdr_sdb1");
-        HiveObjectCreator.createVanillaTable(connection2);
-        HiveObjectCreator.createSerDeTable(connection2);
-        HiveObjectCreator.createPartitionedTable(connection2);
-        HiveObjectCreator.createExternalTable(connection2, clusterFS2,
+        runSql(connection2, "create database hdr_sdb1");
+        runSql(connection2, "use hdr_sdb1");
+        createVanillaTable(connection2);
+        createSerDeTable(connection2);
+        createPartitionedTable(connection2);
+        createExternalTable(connection2, clusterFS2,
             baseTestHDFSDir + "click_data/");
 
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase("hdr_sdb1"),
@@ -181,15 +199,15 @@ public class HiveDR extends BaseTestClass {
      */
     @Test
     public void dynamicPartitionsTest() throws SQLException, IOException {
-        HiveUtil.runSql(connection, "create database hdr_sdb1");
-        HiveUtil.runSql(connection, "use hdr_sdb1");
+        runSql(connection, "create database hdr_sdb1");
+        runSql(connection, "use hdr_sdb1");
         //create table with static partitions on first cluster
-        HiveObjectCreator.createPartitionedTable(connection, false);
+        createPartitionedTable(connection, false);
 
-        HiveUtil.runSql(connection2, "create database hdr_sdb1");
-        HiveUtil.runSql(connection2, "use hdr_sdb1");
+        runSql(connection2, "create database hdr_sdb1");
+        runSql(connection2, "use hdr_sdb1");
         //create table with dynamic partitions on second cluster
-        HiveObjectCreator.createPartitionedTable(connection2, true);
+        createPartitionedTable(connection2, true);
 
         //check that both tables are equal
         HiveAssert.assertTableEqual(

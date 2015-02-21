@@ -103,6 +103,12 @@ public final class HiveUtil {
         return output;
     }
 
+    /**
+     * Run a sql using given connection
+     * @param connection The connection to be used for running sql
+     * @param sql the sql to be run
+     * @throws SQLException
+     */
     public static void runSql(Connection connection, String sql) throws SQLException {
         final Statement stmt = connection.createStatement();
         LOGGER.info("Executing: " + sql);

@@ -18,9 +18,6 @@
 
 package org.apache.falcon.regression.hive.dr;
 
-import org.apache.falcon.regression.core.util.HadoopUtil;
-import org.apache.falcon.regression.core.util.HiveUtil;
-import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -33,6 +30,10 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.falcon.regression.core.util.HadoopUtil.writeDataForHive;
+import static org.apache.falcon.regression.core.util.HiveUtil.runSql;
 
 /**
  * Create Hive tables for testing Hive DR. Note that this is not expected to be used out of
@@ -47,21 +48,38 @@ class HiveObjectCreator {
     }
 
     static void bootstrapCopy(Connection srcConnection, FileSystem srcFs, String srcTable,
-                              Connection dstConnection, String dstTable) throws Exception {
-        final String srcPath = HDFS_TMP_DIR + srcTable + "/";
-        deleteDirUsingJdbc(srcConnection, srcPath);
-        HiveUtil.runSql(srcConnection, "export table " + srcTable + " to '" + srcPath + "'");
-        HiveUtil.runSql(dstConnection, "import table " + dstTable + " from '"
-            + srcFs.getUri() + "/" + srcPath + "'");
-        deleteDirUsingJdbc(srcConnection, srcPath);
+                              Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
+        final String dumpPath = HDFS_TMP_DIR + srcTable + "/";
+        runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
+        runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
+        runSql(srcConnection, "export table " + srcTable + " to '" + dumpPath + "'" +
+            " FOR REPLICATION('ignore')");
+        runSqlQuietly(srcConnection, "dfs -chmod -R 777 " + dumpPath);
+        new DistCp(new Configuration(), getDistCpOptions(srcFs, dstFs, dumpPath)).execute();
+        runSql(dstConnection, "import table " + dstTable + " from '" + dumpPath + "'");
+        runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
+        runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
+    }
+
+    private static DistCpOptions getDistCpOptions(FileSystem srcFs, FileSystem dstFs,
+                                                  String dumpPath) {
+        final Path srcPath = new Path(srcFs.getUri() + "/" + dumpPath);
+        final Path dstPath = new Path(dstFs.getUri() + "/" + dumpPath);
+        final List<Path> srcPathList = new ArrayList<Path>();
+        srcPathList.add(srcPath);
+        final DistCpOptions distCpOptions = new DistCpOptions(srcPathList, dstPath);
+        distCpOptions.preserve(DistCpOptions.FileAttribute.BLOCKSIZE);
+        distCpOptions.setSyncFolder(true);
+        distCpOptions.setBlocking(true);
+        return distCpOptions;
     }
 
     /* We need to delete it using hive query as the created directory is owned by hive.*/
-    private static void deleteDirUsingJdbc(Connection srcConnection, String srcPath) {
+    private static void runSqlQuietly(Connection srcConnection, String sql) {
         try {
-            HiveUtil.runSql(srcConnection, "dfs -rmr " + srcPath);
-        } catch (SQLException e) {
-            //ignore the exception as it is expected for non-existing paths
+            runSql(srcConnection, sql);
+        } catch (SQLException ignore) {
+            //ignore the exception as it is expected
         }
     }
 
@@ -79,19 +97,19 @@ class HiveObjectCreator {
         final String clickDataPart2 = clickDataLocation + "2001-01-02/";
         fs.mkdirs(new Path(clickDataLocation));
         fs.setPermission(new Path(clickDataLocation), FsPermission.getDirDefault());
-        HadoopUtil.writeDataForHive(fs, clickDataPart1,
+        writeDataForHive(fs, clickDataPart1,
             new StringBuffer("click1").append((char) 0x01).append("01:01:01"), true);
-        HadoopUtil.writeDataForHive(fs, clickDataPart2,
+        writeDataForHive(fs, clickDataPart2,
             new StringBuffer("click2").append((char) 0x01).append("02:02:02"), true);
         //clusterFS.setPermission(new Path(clickDataPart2), FsPermission.getFileDefault());
-        HiveUtil.runSql(connection, "create external table click_data "
+        runSql(connection, "create external table click_data "
             + "(data string, time string) partitioned by (date string) "
             + "location '" + clickDataLocation + "'");
-        HiveUtil.runSql(connection, "alter table click_data add partition "
+        runSql(connection, "alter table click_data add partition "
             + "(date='2001-01-01') location '" + clickDataPart1 + "'");
-        HiveUtil.runSql(connection, "alter table click_data add partition "
+        runSql(connection, "alter table click_data add partition "
             + "(date='2001-01-02') location '" + clickDataPart2 + "'");
-        HiveUtil.runSql(connection, "select * from click_data");
+        runSql(connection, "select * from click_data");
     }
 
     /**
@@ -100,16 +118,16 @@ class HiveObjectCreator {
      * @throws SQLException
      */
     static void createPartitionedTable(Connection connection) throws SQLException {
-        HiveUtil.runSql(connection, "create table global_store_sales "
+        runSql(connection, "create table global_store_sales "
             + "(customer_id string, item_id string, quantity float, price float, time timestamp) "
             + "partitioned by (country string)");
-        HiveUtil.runSql(connection,
+        runSql(connection,
             "insert into table global_store_sales partition (country = 'us') values"
                 + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01')");
-        HiveUtil.runSql(connection,
+        runSql(connection,
             "insert into table global_store_sales partition (country = 'uk') values"
                 + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
-        HiveUtil.runSql(connection, "select * from global_store_sales");
+        runSql(connection, "select * from global_store_sales");
     }
 
     /**
@@ -119,12 +137,12 @@ class HiveObjectCreator {
      */
     static void createVanillaTable(Connection connection) throws SQLException {
         //vanilla table
-        HiveUtil.runSql(connection, "create table store_sales "
+        runSql(connection, "create table store_sales "
             + "(customer_id string, item_id string, quantity float, price float, time timestamp)");
-        HiveUtil.runSql(connection, "insert into table store_sales values "
+        runSql(connection, "insert into table store_sales values "
             + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01'), "
             + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
-        HiveUtil.runSql(connection, "select * from store_sales");
+        runSql(connection, "select * from store_sales");
     }
 
     /**
@@ -142,15 +160,15 @@ class HiveObjectCreator {
             {"au", "Victoria", },
         };
         //create table
-        HiveUtil.runSql(connection, "drop table global_store_sales");
-        HiveUtil.runSql(connection, "create table global_store_sales(customer_id string,"
+        runSql(connection, "drop table global_store_sales");
+        runSql(connection, "create table global_store_sales(customer_id string,"
             + " item_id string, quantity float, price float, time timestamp) "
             + "partitioned by (country string, state string)");
         //provide data
         String query;
         if (dynamic) {
             //disable strict mode, thus both partitions can be used as dynamic
-            HiveUtil.runSql(connection, "set hive.exec.dynamic.partition.mode=nonstrict");
+            runSql(connection, "set hive.exec.dynamic.partition.mode=nonstrict");
             query = "insert into table global_store_sales partition"
                 + "(country, state) values('c%3$s', 'i%3$s', '%3$s', '%3$s', "
                 + "'2001-01-01 01:01:0%3$s', '%1$s', '%2$s')";
@@ -160,19 +178,19 @@ class HiveObjectCreator {
                 + "'2001-01-01 01:01:0%3$s')";
         }
         for(int i = 0 ; i < partitions.length; i++){
-            HiveUtil.runSql(connection, String.format(query, partitions[i][0], partitions[i][1], i+1));
+            runSql(connection, String.format(query, partitions[i][0], partitions[i][1], i + 1));
         }
-        HiveUtil.runSql(connection, "select * from global_store_sales");
+        runSql(connection, "select * from global_store_sales");
     }
 
     static void createSerDeTable(Connection connection) throws SQLException {
-        HiveUtil.runSql(connection, "create table store_json "
+        runSql(connection, "create table store_json "
             + "(customer_id string, item_id string, quantity float, price float, time timestamp) "
             + "row format serde 'org.apache.hive.hcatalog.data.JsonSerDe' ");
-        HiveUtil.runSql(connection, "insert into table store_json values "
+        runSql(connection, "insert into table store_json values "
             + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01'), "
             + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
-        HiveUtil.runSql(connection, "select * from store_json");
+        runSql(connection, "select * from store_json");
     }
 
 }
