@@ -28,8 +28,6 @@ import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -49,13 +47,24 @@ public class HiveDRStatusStoreTest {
 
     public HiveDRStatusStoreTest() throws Exception {
         EmbeddedCluster cluster =  EmbeddedCluster.newCluster("hiveReplTest");
+        Path storePath = new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH);
+
         fileSystem.initialize(LocalFileSystem.getDefaultUri(cluster.getConf()), cluster.getConf());
-        FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
-        if (fileSystem.exists(new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH))) {
-            fileSystem.delete(new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH), true);
+        if (fileSystem.exists(storePath)) {
+            fileSystem.delete(storePath, true);
         }
-        FileSystem.mkdirs(fileSystem, new Path(DRStatusStore.BASE_DEFAULT_STORE_PATH), permission);
-        drStatusStore = new HiveDRStatusStore(fileSystem);
+        FileSystem.mkdirs(fileSystem, storePath,
+                DRStatusStore.DEFAULT_STORE_PERMISSION);
+        try {
+            new HiveDRStatusStore(fileSystem);
+            Assert.fail();
+        } catch (IOException ie) {
+            // Exception expected.
+            Assert.assertEquals(ie.getMessage(), "Base dir jail://hiveReplTest:00/apps/data-mirroring/ "
+                    + "does not have correct ownership/permissions. "
+                    + "Please set group to hadoop and permissions to rwxrwx---");
+        }
+        drStatusStore = new HiveDRStatusStore(fileSystem, fileSystem.getFileStatus(storePath).getGroup());
     }
 
     @BeforeClass

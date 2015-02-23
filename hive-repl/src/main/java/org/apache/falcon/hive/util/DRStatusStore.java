@@ -30,9 +30,12 @@ import java.util.List;
  */
 public abstract class DRStatusStore {
 
-    public static final String BASE_DEFAULT_STORE_PATH = "/apps/dr/";
+    public static final String BASE_DEFAULT_STORE_PATH = "/apps/data-mirroring/";
     public static final FsPermission DEFAULT_STORE_PERMISSION =
-            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.NONE);
+
+    private static String storeGroup = "hadoop";
+
 
     /**
      * Update replication status of a table(s)/db after replication job jobName completes.
@@ -90,4 +93,12 @@ public abstract class DRStatusStore {
      * destination commands for each table
      */
     public abstract void deleteReplicationStatus(String jobName, String database) throws HiveReplicationException;
+
+    public static String getStoreGroup() {
+        return storeGroup;
+    }
+
+    public static void setStoreGroup(String group) {
+        storeGroup = group;
+    }
 }

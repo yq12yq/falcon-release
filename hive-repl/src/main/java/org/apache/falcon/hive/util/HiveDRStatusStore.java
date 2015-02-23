@@ -58,6 +58,15 @@ public class HiveDRStatusStore extends DRStatusStore {
 
 
     public HiveDRStatusStore(FileSystem targetFileSystem) throws IOException {
+        init(targetFileSystem);
+    }
+
+    public HiveDRStatusStore(FileSystem targetFileSystem, String group) throws IOException {
+        HiveDRStatusStore.setStoreGroup(group);
+        init(targetFileSystem);
+    }
+
+    private void init(FileSystem targetFileSystem) throws IOException {
         this.fileSystem = targetFileSystem;
         Path basePath = new Path(BASE_DEFAULT_STORE_PATH);
         FileUtils.validatePath(fileSystem, basePath);
@@ -83,7 +92,6 @@ public class HiveDRStatusStore extends DRStatusStore {
     @Override
     public void updateReplicationStatus(String jobName, List<ReplicationStatus> statusList)
         throws HiveReplicationException {
-        System.out.println("Inside updateReplicationStatus for jobname:"+jobName);
         Map<String, DBReplicationStatus> dbStatusMap = new HashMap<String, DBReplicationStatus>();
         for (ReplicationStatus status : statusList) {
             if (!status.getJobName().equals(jobName)) {
