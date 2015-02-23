@@ -35,9 +35,10 @@ import java.util.Properties;
  * Hive Replication recipe tool for Falcon recipes.
  */
 public class HiveReplicationRecipeTool implements Recipe {
+    private static final String ALL_TABLES = "*";
 
     @Override
-    public void validate(final Properties recipeProperties)  throws Exception {
+    public void validate(final Properties recipeProperties) throws Exception {
         for (HiveReplicationRecipeToolOptions option : HiveReplicationRecipeToolOptions.values()) {
             if (recipeProperties.getProperty(option.getName()) == null && option.isRequired()) {
                 throw new IllegalArgumentException("Missing argument: " + option.getName());
@@ -49,15 +50,20 @@ public class HiveReplicationRecipeTool implements Recipe {
         try {
             // Validate if DB exists - source and target
             sourceMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty(
-                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
+                    HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_METASTORE_URI.getName()));
 
             String sourceDbList = recipeProperties.getProperty(
-                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
-            String sourceTableList = recipeProperties.getProperty(
-                HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
+                    HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_DATABASE.getName());
 
             if (StringUtils.isEmpty(sourceDbList)) {
                 throw new Exception("No source DB specified in property file");
+            }
+
+            String sourceTableList = recipeProperties.getProperty(
+                    HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
+            if (StringUtils.isEmpty(sourceTableList)) {
+                throw new Exception("No source table specified in property file. For DB replication please specify * " +
+                        "for sourceTable");
             }
 
             String[] srcDbs = sourceDbList.split(",");
@@ -70,7 +76,7 @@ public class HiveReplicationRecipeTool implements Recipe {
                 }
             }
 
-            if (StringUtils.isNotEmpty(sourceTableList)) {
+            if (!sourceTableList.equals(ALL_TABLES)) {
                 String[] srcTables = sourceTableList.split(",");
                 if (srcTables.length > 0) {
                     for (String table : srcTables) {
@@ -82,7 +88,7 @@ public class HiveReplicationRecipeTool implements Recipe {
             }
 
             targetMetastoreClient = getHiveMetaStoreClient(recipeProperties.getProperty(
-                HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
+                    HiveReplicationRecipeToolOptions.REPLICATION_TARGET_METASTORE_URI.getName()));
             // Verify db exists on target
             for (String db : srcDbs) {
                 if (!dbExists(targetMetastoreClient, db)) {
@@ -140,7 +146,7 @@ public class HiveReplicationRecipeTool implements Recipe {
     }
 
     private static boolean tableExists(HCatClient client, final String database, final String tableName)
-        throws Exception {
+            throws Exception {
         try {
             HCatTable table = client.getTable(database, tableName);
             return table != null;
@@ -151,8 +157,9 @@ public class HiveReplicationRecipeTool implements Recipe {
             throw new Exception("Exception checking if the table exists:" + e.getMessage(), e);
         }
     }
+
     private static boolean dbExists(HCatClient client, final String database)
-        throws Exception {
+            throws Exception {
         try {
             HCatDatabase db = client.getDatabase(database);
             return db != null;

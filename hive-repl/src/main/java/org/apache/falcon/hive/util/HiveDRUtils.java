@@ -22,6 +22,7 @@ import java.io.File;
 import java.util.List;
 
 public final class HiveDRUtils {
+    private static final String ALL_TABLES = "*";
 
     public enum ReplicationType {
         TABLE,
@@ -31,7 +32,8 @@ public final class HiveDRUtils {
     public static final String SEPARATOR = File.separator;
 
     public static ReplicationType getReplicationType(List<String> sourceTables) {
-        return (sourceTables.isEmpty()) ? ReplicationType.DB : ReplicationType.TABLE;
+        return (sourceTables.size() == 1 && sourceTables.get(0).equals(ALL_TABLES)) ? ReplicationType.DB
+                : ReplicationType.TABLE;
     }
 
 }
