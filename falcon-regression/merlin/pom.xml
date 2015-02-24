@@ -57,6 +57,11 @@
                 </dependency>
 
                 <dependency>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>hadoop-distcp</artifactId>
+                </dependency>
+
+                <dependency>
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-jdbc</artifactId>
                 </dependency>
@@ -89,11 +94,6 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-support</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-distcp</artifactId>
         </dependency>
     </dependencies>
 </project>
