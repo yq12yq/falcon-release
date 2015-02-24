@@ -93,7 +93,7 @@ public class HiveAssert {
     }
 
     /**
-     * Assertion for equality of two tables.
+     * Assertion for equality of two tables (including table properties and table type).
      * @param cluster1 the ColoHelper of first cluster
      * @param table1 the first table
      * @param cluster2 the ColoHelper of second cluster
@@ -105,6 +105,23 @@ public class HiveAssert {
     public static SoftAssert assertTableEqual(ColoHelper cluster1, HCatTable table1,
                                               ColoHelper cluster2, HCatTable table2,
                                               SoftAssert softAssert) throws IOException {
+        return assertTableEqual(cluster1, table1, cluster2, table2, softAssert, true);
+    }
+
+    /**
+     * Assertion for equality of two tables.
+     * @param cluster1 the ColoHelper of first cluster
+     * @param table1 the first table
+     * @param cluster2 the ColoHelper of second cluster
+     * @param table2 the second table
+     * @param softAssert object used for performing assertion
+     * @return object used for performing assertion
+     * @throws java.io.IOException
+     */
+    public static SoftAssert assertTableEqual(ColoHelper cluster1, HCatTable table1,
+                                              ColoHelper cluster2, HCatTable table2,
+                                              SoftAssert softAssert,
+                                              boolean notIgnoreTblTypeAndProps) throws IOException {
         FileSystem cluster1FS = cluster1.getClusterHelper().getHadoopFS();
         FileSystem cluster2FS = cluster2.getClusterHelper().getHadoopFS();
         final String table1FullName = table1.getDbName() + "." + table1.getTableName();
@@ -131,8 +148,10 @@ public class HiveAssert {
             "Table " + table1FullName + " has different sort columns from " + table2FullName);
         softAssert.assertEquals(table1.getStorageHandler(), table2.getStorageHandler(),
             "Table " + table1FullName + " has different storage handler from " + table2FullName);
-        softAssert.assertEquals(table1.getTabletype(), table2.getTabletype(),
-            "Table " + table1FullName + " has different Tabletype from " + table2FullName);
+        if (notIgnoreTblTypeAndProps) {
+            softAssert.assertEquals(table1.getTabletype(), table2.getTabletype(),
+                "Table " + table1FullName + " has different Tabletype from " + table2FullName);
+        }
         final Map<String, String> tbl1Props = table1.getTblProps();
         final Map<String, String> tbl2Props = table2.getTblProps();
         final String[] ignoreTblProps = {"transient_lastDdlTime", "repl.last.id",
@@ -141,8 +160,10 @@ public class HiveAssert {
             tbl1Props.remove(ignoreTblProp);
             tbl2Props.remove(ignoreTblProp);
         }
-        softAssert.assertEquals(tbl1Props, tbl2Props,
-            "Table " + table1FullName + " has different TblProps from " + table2FullName);
+        if (notIgnoreTblTypeAndProps) {
+            softAssert.assertEquals(tbl1Props, tbl2Props,
+                "Table " + table1FullName + " has different TblProps from " + table2FullName);
+        }
         LOGGER.info("Checking equality of table partitions");
         HCatClient hcatClient1 = cluster1.getClusterHelper().getHCatClient();
         HCatClient hcatClient2 = cluster2.getClusterHelper().getHCatClient();
@@ -151,12 +172,15 @@ public class HiveAssert {
         final List<HCatPartition> table2Partitions =
             hcatClient2.getPartitions(table2.getDbName(), table2.getTableName());
         assertPartitionListEqual(table1Partitions, table2Partitions, softAssert);
+        if (notIgnoreTblTypeAndProps) {
+                softAssert.assertEquals(
+                cluster1FS.getContentSummary(new Path(table1.getLocation())).getLength(),
+                cluster2FS.getContentSummary(new Path(table2.getLocation())).getLength(),
+                "Size of content for table1 and table2 are different");
+        }
+
         //table content equality
         LOGGER.info("Checking equality of table contents");
-        softAssert.assertEquals(
-            cluster1FS.getContentSummary(new Path(table1.getLocation())).getLength(),
-            cluster2FS.getContentSummary(new Path(table2.getLocation())).getLength(),
-            "Size of content for table1 and table2 are different");
         try {
             final boolean execute1;
             final boolean execute2;

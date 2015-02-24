@@ -50,6 +50,7 @@ import java.util.List;
 import static org.apache.falcon.regression.core.util.HiveUtil.runSql;
 import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.bootstrapCopy;
 import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createExternalTable;
+import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createExternalPartitionedTable;
 import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createPartitionedTable;
 import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createSerDeTable;
 import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createVanillaTable;
@@ -268,24 +269,62 @@ public class HiveDR extends BaseTestClass {
 
     }
 
+    @Test
+    public void drExternalToNonExternal() throws Exception {
+        final String tblName = "externalToNonExternal";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        createExternalTable(connection, clusterFS,
+            baseTestHDFSDir + "click_data/", tblName);
+        runSql(connection2,
+            "create table " + tblName + " (data string, time string)");
+        runSql(connection2, "insert into table " + tblName + " values "
+            + "('click1', '01:01:01'), "
+            + "('click2', '02:02:02')");
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
+        ).assertAll();
+
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        //change column name
+        runSql(connection,
+            "alter table " + tblName + " change column data data_new string");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+
+    }
+
+
 
     @Test
     public void dataGeneration() throws Exception {
-        runSql(connection, "create database hdr_sdb1");
         runSql(connection, "use hdr_sdb1");
         createVanillaTable(connection);
         createSerDeTable(connection);
         createPartitionedTable(connection);
         createExternalTable(connection, clusterFS,
-            baseTestHDFSDir + "click_data/");
+            baseTestHDFSDir + "click_data/", "click_data");
+        createExternalPartitionedTable(connection, clusterFS,
+            baseTestHDFSDir + "click_data2/", "click_data2");
 
-        runSql(connection2, "create database hdr_sdb1");
         runSql(connection2, "use hdr_sdb1");
         createVanillaTable(connection2);
         createSerDeTable(connection2);
         createPartitionedTable(connection2);
         createExternalTable(connection2, clusterFS2,
-            baseTestHDFSDir + "click_data/");
+            baseTestHDFSDir + "click_data/", "click_data");
+        createExternalPartitionedTable(connection2, clusterFS2,
+            baseTestHDFSDir + "click_data2/", "click_data2");
 
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase("hdr_sdb1"),
             cluster2, clusterHC2.getDatabase("hdr_sdb1"), new NotifyingAssert(true)

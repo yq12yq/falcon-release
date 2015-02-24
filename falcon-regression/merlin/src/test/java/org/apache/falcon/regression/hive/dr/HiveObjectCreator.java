@@ -94,7 +94,30 @@ class HiveObjectCreator {
      * @throws SQLException
      */
     static void createExternalTable(Connection connection, FileSystem fs, String
-        clickDataLocation) throws IOException, SQLException {
+        clickDataLocation, String tableName) throws IOException, SQLException {
+        fs.mkdirs(new Path(clickDataLocation));
+        fs.setPermission(new Path(clickDataLocation), FsPermission.getDirDefault());
+        writeDataForHive(fs, clickDataLocation,
+            new StringBuffer("click1").append((char) 0x01).append("01:01:01").append("\n")
+                .append("click2").append((char) 0x01).append("02:02:02"), true);
+        //clusterFS.setPermission(new Path(clickDataPart2), FsPermission.getFileDefault());
+        runSql(connection, "create external table " + tableName
+            + " (data string, time string) "
+            + "location '" + clickDataLocation + "'");
+        runSql(connection, "select * from " + tableName);
+    }
+
+
+    /**
+     * Create an external table
+     * @param connection jdbc connection object to use for issuing queries to hive
+     * @param fs filesystem object to upload the data
+     * @param clickDataLocation location to upload the data to
+     * @throws IOException
+     * @throws SQLException
+     */
+    static void createExternalPartitionedTable(Connection connection, FileSystem fs, String
+        clickDataLocation, String tableName) throws IOException, SQLException {
         final String clickDataPart1 = clickDataLocation + "2001-01-01/";
         final String clickDataPart2 = clickDataLocation + "2001-01-02/";
         fs.mkdirs(new Path(clickDataLocation));
@@ -104,14 +127,14 @@ class HiveObjectCreator {
         writeDataForHive(fs, clickDataPart2,
             new StringBuffer("click2").append((char) 0x01).append("02:02:02"), true);
         //clusterFS.setPermission(new Path(clickDataPart2), FsPermission.getFileDefault());
-        runSql(connection, "create external table click_data "
-            + "(data string, time string) partitioned by (date string) "
+        runSql(connection, "create external table " + tableName
+            + " (data string, time string) partitioned by (date string) "
             + "location '" + clickDataLocation + "'");
         runSql(connection, "alter table click_data add partition "
             + "(date='2001-01-01') location '" + clickDataPart1 + "'");
         runSql(connection, "alter table click_data add partition "
             + "(date='2001-01-02') location '" + clickDataPart2 + "'");
-        runSql(connection, "select * from click_data");
+        runSql(connection, "select * from " + tableName);
     }
 
     /**
