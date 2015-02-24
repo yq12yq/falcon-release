@@ -227,10 +227,16 @@ public class EventUtils {
         return listPaths;
     }
 
-    public void cleanStagingDir() throws IOException {
+    public void cleanEventsDirectory() throws IOException {
         LOG.info("Cleaning staging directory");
-        for (String cleanUpPath : sourceCleanUpList) {
-            sourceFileSystem.delete(new Path(cleanUpPath), true);
+        try {
+            for (String cleanUpPath : sourceCleanUpList) {
+                String cleanUpStmt = "dfs -rmr " + cleanUpPath;
+                PreparedStatement srcStmt = sourceConnection.prepareStatement(cleanUpStmt);
+                srcStmt.execute();
+            }
+        } catch (SQLException e) {
+            throw new IOException(e);
         }
 
         for (String cleanUpPath : targetCleanUpList) {
