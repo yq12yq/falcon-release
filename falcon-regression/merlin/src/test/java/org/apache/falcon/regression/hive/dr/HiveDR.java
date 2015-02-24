@@ -107,7 +107,7 @@ public class HiveDR extends BaseTestClass {
     }
 
     @Test
-    public void partitionDR() throws Exception {
+    public void drPartition() throws Exception {
         final String tblName = "partitionDR";
         recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
             .withTargetDb(DB_NAME).withTargetTable(tblName);
@@ -140,6 +140,50 @@ public class HiveDR extends BaseTestClass {
         runSql(connection,
             "insert into table " + tblName + " partition (pname = 'REPLACE') values"
                 + "('this partition has been replaced - should appear after dr')");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+    }
+
+    @Test
+    public void drInsertOverwritePartition() throws Exception {
+        final String tblName = "drInsertOverwritePartition";
+        final String hlpTblName = "drInsertOverwritePartitionHelperTbl";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+        runSql(connection, "create table " + hlpTblName + "(comment string)");
+        runSql(connection,
+            "insert into table " + hlpTblName
+                + " values('overwrite data - should appear after dr')");
+        runSql(connection,
+            "insert into table " + hlpTblName + " values('newdata row2 - should appear after dr')");
+        runSql(connection,
+            "insert into table " + hlpTblName + " values('newdata row1 - should appear after dr')");
+
+        runSql(connection,
+            "create table " + tblName + "(comment string) partitioned by (pname string)");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'OLD_PART') values"
+                + "('this data should be retained - should appear after dr')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname = 'OVERWRITE_PART') values"
+                + "('this data should get overwritten - should NOT appear after dr')");
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        runSql(connection,
+            "insert overwrite table " + tblName + " partition (pname = 'OVERWRITE_PART') "
+                + "select * from " + hlpTblName + " where comment REGEXP '^overwrite'");
+        runSql(connection,
+            "insert overwrite table " + tblName + " partition (pname = 'NEW_DATA') "
+                + "select * from " + hlpTblName + " where comment REGEXP '^newdata'");
 
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 

@@ -49,6 +49,7 @@ class HiveObjectCreator {
 
     static void bootstrapCopy(Connection srcConnection, FileSystem srcFs, String srcTable,
                               Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
+        LOGGER.info("Starting bootstrap...");
         final String dumpPath = HDFS_TMP_DIR + srcTable + "/";
         runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
         runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
@@ -59,6 +60,7 @@ class HiveObjectCreator {
         runSql(dstConnection, "import table " + dstTable + " from '" + dumpPath + "'");
         runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
         runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
+        LOGGER.info("Finished bootstrap");
     }
 
     private static DistCpOptions getDistCpOptions(FileSystem srcFs, FileSystem dstFs,
