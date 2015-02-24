@@ -63,6 +63,7 @@ import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createVanil
 /**
  * Hive DR Testing.
  */
+@Test(groups = "embedded")
 public class HiveDR extends BaseTestClass {
     private static final Logger LOGGER = Logger.getLogger(HiveDR.class);
     private static final String DB_NAME = "hdr_sdb1";
