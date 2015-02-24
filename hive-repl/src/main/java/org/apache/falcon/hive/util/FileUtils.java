@@ -34,16 +34,14 @@ public final class FileUtils {
 
     public static void validatePath(final FileSystem fileSystem, final Path basePath) throws IOException {
         if (!fileSystem.exists(basePath)) {
-            throw new IOException("Please create base dir "
-                    + fileSystem.getUri() + DRStatusStore.BASE_DEFAULT_STORE_PATH
+            throw new IOException("Please create base dir " + fileSystem.getUri() + basePath
                     + ". Please set group to " + DRStatusStore.getStoreGroup()
                     + " and permissions to " + DRStatusStore.DEFAULT_STORE_PERMISSION.toString());
         }
 
         if (!fileSystem.getFileStatus(basePath).getPermission().equals(DRStatusStore.DEFAULT_STORE_PERMISSION)
                 || !fileSystem.getFileStatus(basePath).getGroup().equalsIgnoreCase(DRStatusStore.getStoreGroup())) {
-            throw new IOException("Base dir "
-                    + fileSystem.getUri() + DRStatusStore.BASE_DEFAULT_STORE_PATH
+            throw new IOException("Base dir " + fileSystem.getUri() + basePath
                     + " does not have correct ownership/permissions."
                     + " Please set group to " + DRStatusStore.getStoreGroup()
                     + " and permissions to " + DRStatusStore.DEFAULT_STORE_PERMISSION.toString());
