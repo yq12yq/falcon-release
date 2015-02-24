@@ -22,7 +22,7 @@ package org.apache.falcon.hive;
  * Test class for DR.
  */
 public class DRTest {
-    public static void main(String[] args) {
+    public void testHiveDr(String[] args) {
         String[] testArgs = {
             "-sourceMetastoreUri", "thrift://localhost:9083",
             "-sourceServicePrincipal", "org/apache/falcon/hive",
@@ -42,7 +42,6 @@ public class DRTest {
             "-maxMaps", "1",
             "-mapBandwidth", "4",
         };
-
         HiveDRTool.main(testArgs);
     }
 }

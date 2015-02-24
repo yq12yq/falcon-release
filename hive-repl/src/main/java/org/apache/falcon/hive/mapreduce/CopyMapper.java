@@ -30,11 +30,13 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-
+/**
+ * Map class for Hive DR.
+ */
 public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CopyMapper.class);
-    public EventUtils eventUtils;
+    private EventUtils eventUtils;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {

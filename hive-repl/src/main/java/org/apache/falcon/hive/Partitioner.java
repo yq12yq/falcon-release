@@ -23,12 +23,15 @@ import org.apache.hive.hcatalog.api.repl.ReplicationTask;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Partition hive events.
+ */
 public interface Partitioner {
     /**
-     * Partition events
-     * @param ReplicationTask Iterator
-     * @param String dbName
-     * @param HiveDROptions
+     * Partition events.
+     * @param options Hive dr options.
+     * @param dbName Database name.
+     * @param replicationTaskIterator Repl task iterator.
      * @return List of ReplicationEvents
      * destination commands for each table
      */

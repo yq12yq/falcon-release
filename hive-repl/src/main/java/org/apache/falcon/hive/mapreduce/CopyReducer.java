@@ -33,16 +33,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Reducer class for Hive DR.
+ */
 public class CopyReducer extends Reducer<Text, Text, Text, Text> {
-    List<ReplicationStatus> replicationStatusList;
-    Configuration conf;
-    FileSystem fs;
-    DRStatusStore hiveDRStore;
+    private List<ReplicationStatus> replicationStatusList;
+    private FileSystem fs;
+    private DRStatusStore hiveDRStore;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         replicationStatusList = new ArrayList<ReplicationStatus>();
-        conf = context.getConfiguration();
+        Configuration conf = context.getConfiguration();
         fs = FileSystem.get(FileUtils.getConfiguration(conf.get("targetNN")));
         hiveDRStore = new HiveDRStatusStore(fs);
     }

@@ -23,6 +23,9 @@ import org.apache.hive.hcatalog.api.repl.Command;
 import java.util.List;
 import java.util.ListIterator;
 
+/**
+ * Replication events class.
+ */
 public class ReplicationEvents {
     private String dbName;
     private String tableName;

@@ -18,6 +18,9 @@
 
 package org.apache.falcon.hive.exception;
 
+/**
+ * Wrapper class for HiveReplication exceptions.
+ */
 public class HiveReplicationException extends Exception {
 
     /**

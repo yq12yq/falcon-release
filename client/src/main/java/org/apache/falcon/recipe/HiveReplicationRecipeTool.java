@@ -62,8 +62,8 @@ public class HiveReplicationRecipeTool implements Recipe {
             String sourceTableList = recipeProperties.getProperty(
                     HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_TABLE.getName());
             if (StringUtils.isEmpty(sourceTableList)) {
-                throw new Exception("No source table specified in property file. For DB replication please specify * " +
-                        "for sourceTable");
+                throw new Exception("No source table specified in property file. For DB replication please specify * "
+                        + "for sourceTable");
             }
 
             String[] srcDbs = sourceDbList.split(",");
@@ -146,7 +146,7 @@ public class HiveReplicationRecipeTool implements Recipe {
     }
 
     private static boolean tableExists(HCatClient client, final String database, final String tableName)
-            throws Exception {
+        throws Exception {
         try {
             HCatTable table = client.getTable(database, tableName);
             return table != null;
@@ -159,7 +159,7 @@ public class HiveReplicationRecipeTool implements Recipe {
     }
 
     private static boolean dbExists(HCatClient client, final String database)
-            throws Exception {
+        throws Exception {
         try {
             HCatDatabase db = client.getDatabase(database);
             return db != null;

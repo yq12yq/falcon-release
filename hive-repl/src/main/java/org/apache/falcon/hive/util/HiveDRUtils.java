@@ -21,15 +21,23 @@ package org.apache.falcon.hive.util;
 import java.io.File;
 import java.util.List;
 
+/**
+ * Hive replication utility class.
+ */
 public final class HiveDRUtils {
-    private static final String ALL_TABLES = "*";
-
-    public enum ReplicationType {
+    /**
+     * Enum for Hive replication type.
+     */
+    public static enum ReplicationType {
         TABLE,
         DB
     }
 
+    private static final String ALL_TABLES = "*";
+
     public static final String SEPARATOR = File.separator;
+
+    private HiveDRUtils() {}
 
     public static ReplicationType getReplicationType(List<String> sourceTables) {
         return (sourceTables.size() == 1 && sourceTables.get(0).equals(ALL_TABLES)) ? ReplicationType.DB

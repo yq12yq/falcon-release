@@ -28,12 +28,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+/**
+ * Copy committer class.
+ */
 public class CopyCommitter extends FileOutputCommitter {
 
     private static final Logger LOG = LoggerFactory.getLogger(CopyCommitter.class);
 
     /**
-     * Create a file output committer
+     * Create a file output committer.
      *
      * @param outputPath the job's output path, or null if you want the output
      *                   committer to act as a noop.

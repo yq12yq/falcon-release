@@ -24,7 +24,12 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 
+/**
+ * Utility class to validate HDFS files.
+ */
 public final class FileUtils {
+
+    private FileUtils() {}
 
     public static Configuration getConfiguration(final String writeEP) {
         Configuration conf = new Configuration();

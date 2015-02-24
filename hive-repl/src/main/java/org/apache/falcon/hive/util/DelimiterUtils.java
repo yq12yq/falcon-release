@@ -18,8 +18,13 @@
 
 package org.apache.falcon.hive.util;
 
-public class DelimiterUtils {
+/**
+ * Public delimiters used for event processing.
+ */
+public final class DelimiterUtils {
     public static final String FIELD_DELIM = "\u0001";
     public static final String STMT_DELIM = ":";
     public static final String NEWLINE_DELIM = "\n";
+
+    private DelimiterUtils() {}
 }

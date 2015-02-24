@@ -60,13 +60,11 @@ public class HiveDRStatusStoreTest {
             Assert.fail();
         } catch (IOException ie) {
             // Exception expected.
-            Assert.assertEquals(ie.getMessage(), "Base dir jail://hiveReplTest:00/apps/data-mirroring/ "
-                    + "does not have correct ownership/permissions. "
-                    + "Please set group to hadoop and permissions to rwxrwx---");
+            Assert.assertEquals(ie.getMessage(), "Base dir jail://hiveReplTest:00/apps/data-mirroring does not"
+                    + " have correct ownership/permissions. Please set group to hadoop and permissions to rwxrwx---");
         }
         drStatusStore = new HiveDRStatusStore(fileSystem, fileSystem.getFileStatus(storePath).getGroup());
     }
-
     @BeforeClass
     public  void updateReplicationStatusTest() throws Exception {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "jobname",

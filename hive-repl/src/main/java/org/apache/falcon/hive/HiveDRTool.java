@@ -142,8 +142,12 @@ public class HiveDRTool extends Configured implements Tool {
             LOG.info("No events to process");
             return null;
         }
-        eventsInputFile = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, jobIdentifier, events);
-        Job job = createJob(eventsInputFile);
+
+        Job job;
+        synchronized (this) {
+            eventsInputFile = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, jobIdentifier, events);
+            job = createJob();
+        }
 
         job.submit();
 
@@ -159,7 +163,7 @@ public class HiveDRTool extends Configured implements Tool {
         return job;
     }
 
-    private Job createJob(String eventsInputFile) throws Exception {
+    private Job createJob() throws Exception {
         String jobName = "hive-dr";
         String userChosenName = getConf().get(JobContext.JOB_NAME);
         if (userChosenName != null) {
@@ -190,7 +194,7 @@ public class HiveDRTool extends Configured implements Tool {
             }
         }
 
-        job.getConfiguration().set(FileInputFormat.INPUT_DIR, eventsInputFile);
+        job.getConfiguration().set(FileInputFormat.INPUT_DIR, this.eventsInputFile);
 
         String falconLibPath = inputOptions.getFalconLibPath();
         if (!StringUtils.isEmpty(falconLibPath)) {

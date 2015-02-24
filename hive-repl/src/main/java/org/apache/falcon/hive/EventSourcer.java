@@ -20,10 +20,12 @@ package org.apache.falcon.hive;
 
 import java.util.ListIterator;
 
+/**
+ * Source events for each table into a file.
+ */
 public interface EventSourcer {
     /**
-     * Source events for each table into a file
-     * @param HiveDROptions
+     * @param inputOptions
      * @return input filename to mapper
      */
     /* Source events for each <db, table> into a file */
