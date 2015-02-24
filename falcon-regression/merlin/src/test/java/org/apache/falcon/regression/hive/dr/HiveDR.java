@@ -29,22 +29,27 @@ import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
 import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.InstanceUtil;
+import org.apache.falcon.regression.core.util.OozieUtil;
 import org.apache.falcon.regression.core.util.TimeUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
+import org.apache.oozie.client.BundleJob;
 import org.apache.oozie.client.CoordinatorAction;
+import org.apache.oozie.client.CoordinatorJob;
 import org.apache.oozie.client.OozieClient;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.falcon.regression.core.util.HiveUtil.runSql;
@@ -413,6 +418,47 @@ public class HiveDR extends BaseTestClass {
             cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
             cluster2, clusterHC2.getTable("hdr_sdb1", "global_store_sales"), new SoftAssert()
         ).assertAll();
+    }
+
+    /**
+     * Run recipe with different frequencies. Submission should go through.
+     * Check frequency of the launched oozie job
+     */
+    @Test(dataProvider = "frequencyGenerator")
+    public void differentRecipeFrequenciesTest(String frequency) throws Exception {
+        LOGGER.info("Testing with frequency: " + frequency);
+        String tblName = "myTable";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName).withTargetDb(DB_NAME)
+            .withTargetTable(tblName).withFrequency(new Frequency(frequency));
+        runSql(connection, "create table " + tblName + "(comment string)");
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+        LOGGER.info("Submission went through.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.RUNNING, EntityType.PROCESS);
+        String filter = "name=FALCON_PROCESS_" + recipeMerlin.getName();
+        List<BundleJob> bundleJobs = OozieUtil.getBundles(clusterOC, filter, 0, 10);
+        List<String> bundleIds = OozieUtil.getBundleIds(bundleJobs);
+        String bundleId = OozieUtil.getMaxId(bundleIds);
+        List<CoordinatorJob> coords = clusterOC.getBundleJobInfo(bundleId).getCoordinators();
+        List<String> cIds = new ArrayList<String>();
+        for (CoordinatorJob coord : coords) {
+            cIds.add(coord.getId());
+        }
+        String coordId = OozieUtil.getMinId(cIds);
+        CoordinatorJob job = clusterOC.getCoordJobInfo(coordId);
+        CoordinatorJob.Timeunit timeUnit = job.getTimeUnit();
+        String freq = job.getFrequency();
+        LOGGER.info("Frequency of running job: " + timeUnit + " " + freq);
+        Assert.assertTrue(frequency.contains(timeUnit.name().toLowerCase().replace("_", ""))
+            && frequency.contains(freq), "Running job has different frequency.");
+    }
+
+    @DataProvider(name = "frequencyGenerator")
+    public Object[][] frequencyGenerator() {
+        return new Object[][]{{"minutes(10)"}, {"minutes(10000)"}, {"hours(5)"}, {"hours(5000)"},
+            {"days(3)"}, {"days(3000)"}, {"months(1)"}, {"months(1000)"}};
     }
 
     @AfterMethod(alwaysRun = true)
