@@ -56,6 +56,7 @@ import java.util.ListIterator;
  */
 public class HiveDRTool extends Configured implements Tool {
     private FileSystem jobFS;
+    private FileSystem targetClusterFs;
 
     private HiveDROptions inputOptions;
     private DRStatusStore drStore;
@@ -63,6 +64,8 @@ public class HiveDRTool extends Configured implements Tool {
 
     private static final String DEFAULT_EVENT_STORE_PATH = DRStatusStore.BASE_DEFAULT_STORE_PATH
             + File.separator + "Events";
+    public static final FsPermission STAGING_DIR_PERMISSION =
+            new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
     private static final FsPermission FS_PERMISSION =
             new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
@@ -108,7 +111,7 @@ public class HiveDRTool extends Configured implements Tool {
         inputOptions = parseOptions(args);
         LOG.info("Input Options: {}", inputOptions);
 
-        FileSystem targetClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getTargetWriteEP()));
+        targetClusterFs = FileSystem.get(FileUtils.getConfiguration(inputOptions.getTargetWriteEP()));
         jobFS = FileSystem.get(FileUtils.getConfiguration(inputOptions.getJobClusterWriteEP()));
 
         // init DR status store
@@ -145,6 +148,7 @@ public class HiveDRTool extends Configured implements Tool {
         eventsInputFile = persistReplicationEvents(DEFAULT_EVENT_STORE_PATH, jobIdentifier, events);
         Job job = createJob(eventsInputFile);
 
+        createStagingDirectory();
         job.submit();
 
         String jobID = job.getJobID().toString();
@@ -214,6 +218,33 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
+    private void createStagingDirectory() throws IOException {
+        Path sourceStagingPath = new Path(inputOptions.getSourceStagingPath());
+        Path targetStagingPath = new Path(inputOptions.getTargetStagingPath());
+        LOG.info("Source staging path: {}", sourceStagingPath);
+        if (!FileSystem.mkdirs(jobFS, sourceStagingPath, STAGING_DIR_PERMISSION)) {
+            throw new IOException("mkdir failed for " + sourceStagingPath);
+        }
+
+        LOG.info("Target staging path: {}", targetStagingPath);
+        if (!FileSystem.mkdirs(targetClusterFs, targetStagingPath, STAGING_DIR_PERMISSION)) {
+            throw new IOException("mkdir failed for " + targetStagingPath);
+        }
+    }
+
+    private void cleanStagingDirectory() throws IOException {
+        LOG.info("Cleaning staging directories");
+        Path sourceStagingPath = new Path(inputOptions.getSourceStagingPath());
+        Path targetStagingPath = new Path(inputOptions.getTargetStagingPath());
+        if (jobFS.exists(sourceStagingPath)) {
+            jobFS.delete(sourceStagingPath);
+        }
+
+        if (targetClusterFs.exists(targetStagingPath)) {
+            targetClusterFs.delete(targetStagingPath);
+        }
+    }
+
     private String getHiveJars(String falconLibPath) throws Exception {
         StringBuilder hiveJarsFile = new StringBuilder();
         FileStatus[] jarsFile = jobFS.listStatus(new Path(falconLibPath));
@@ -265,7 +296,7 @@ public class HiveDRTool extends Configured implements Tool {
         return new Configuration();
     }
 
-    private synchronized void cleanup() {
+    private void cleanInputFile() {
         if (!inputOptions.shouldKeepHistory()) {
             try {
                 if (StringUtils.isEmpty(eventsInputFile)) {
@@ -277,6 +308,11 @@ public class HiveDRTool extends Configured implements Tool {
                 LOG.error("Unable to cleanup: {}", eventsInputFile, e);
             }
         }
+    }
+
+    private synchronized void cleanup() throws IOException{
+        cleanStagingDirectory();
+        cleanInputFile();
     }
 
     private String persistReplicationEvents(String dir, String filename,

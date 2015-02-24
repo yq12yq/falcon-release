@@ -70,9 +70,9 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
         LOG.info("Invoking cleanup process");
         super.cleanup(context);
         try {
-            eventUtils.cleanStagingDir();
+            eventUtils.cleanEventsDirectory();
         } catch (IOException e) {
-            LOG.error("Cleaning up staging directories failed", e);
+            LOG.error("Cleaning up of events directories failed", e);
         } finally {
             try {
                 eventUtils.closeConnection();
