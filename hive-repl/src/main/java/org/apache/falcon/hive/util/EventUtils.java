@@ -34,16 +34,16 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility class to process hive events.
+ * Utility class to handle Hive events for data-mirroring.
  */
 public class EventUtils {
-    public static final String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
+    private static final String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
     private static final int TIMEOUT_IN_SECS = 300;
     private static final String JDBC_PREFIX = "jdbc:";
     private Configuration conf = null;
@@ -61,9 +61,10 @@ public class EventUtils {
     private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
     private FileSystem targetFileSystem = null;
-    private FileSystem sourceFileSystem = null;
     private Connection sourceConnection = null;
     private Connection targetConnection = null;
+    private Statement sourceStatement = null;
+    private Statement targetStatement = null;
 
     private List<ReplicationStatus> listReplicationStatus;
 
@@ -84,18 +85,16 @@ public class EventUtils {
     public void setupConnection() throws Exception {
         Class.forName(DRIVER_NAME);
         DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
-        sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri
-                + "/" + sourceDatabase);
-        targetConnection = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri
-                + "/" + sourceDatabase);
+        sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase);
+        targetConnection = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase);
+        sourceStatement = sourceConnection.createStatement();
+        targetStatement = targetConnection.createStatement();
     }
 
     public void initializeFS() throws IOException {
         LOG.info("Initializing staging directory");
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
-
-        sourceFileSystem = FileSystem.get(FileUtils.getConfiguration(sourceNN));
         targetFileSystem = FileSystem.get(FileUtils.getConfiguration(targetNN));
     }
 
@@ -109,14 +108,14 @@ public class EventUtils {
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
             LOG.info("Process the export statements");
-            processCommands(exportEventStr, dbName, tableName, sourceConnection, sourceCleanUpList);
+            processCommands(exportEventStr, dbName, tableName, sourceStatement, sourceCleanUpList, false);
             //TODO Check srcStagingDirectory is not empty
             invokeCopy();
         }
 
         if (StringUtils.isNotEmpty(importEventStr)) {
             LOG.info("Process the import statements");
-            processCommands(importEventStr, dbName, tableName, targetConnection, targetCleanUpList);
+            processCommands(importEventStr, dbName, tableName, targetStatement, targetCleanUpList, true);
         }
     }
 
@@ -124,68 +123,75 @@ public class EventUtils {
         return listReplicationStatus;
     }
 
-    private void processCommands(String eventStr, String dbName, String tableName, Connection connection,
-                                 List<String> cleanUpList) throws SQLException, HiveReplicationException {
-        long eventId;
-        ReplicationStatus.Status status;
+    private void processCommands(String eventStr, String dbName, String tableName, Statement sqlStmt,
+                                 List<String> cleanUpList, boolean updateStatus)
+        throws SQLException, HiveReplicationException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
             LOG.debug(" Hive DR Deserialize : {} :", command);
-            Command cmd;
             try {
-                cmd = ReplicationUtils.deserializeCommand(command);
+                Command cmd = ReplicationUtils.deserializeCommand(command);
+                cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
+                executeCommand(cmd, dbName, tableName, sqlStmt, updateStatus);
             } catch (IOException ioe) {
                 throw new HiveReplicationException("Could not deserialize replication command for "
                         + " DB Name:" + dbName + ", Table Name:" + tableName, ioe);
             }
-            eventId = cmd.getEventId();
-            cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
-            for (String stmt : cmd.get()) {
-                PreparedStatement sqlStmt = connection.prepareStatement(stmt);
-                try {
-                    sqlStmt.execute();
-                } catch (SQLException sqeOuter) {
-                    LOG.error("SQL Exception: {}", sqeOuter);
-                    if (cmd.isUndoable()) {
-                        try {
-                            undoCommands(cmd.getUndo(), connection);
-                        } catch (SQLException sqeInner) {
-                            addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName, tableName, eventId);
-                            sqlStmt.close();
-                            throw sqeInner;
-                        }
-                    }
-                    addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName, tableName, eventId);
-                    throw sqeOuter;
-                } finally {
-                    sqlStmt.close();
-                }
-                status = ReplicationStatus.Status.SUCCESS;
-                addReplicationStatus(status, dbName, tableName, eventId);
-            }
         }
     }
 
-    private void undoCommands(List<String> undo, Connection connection) throws SQLException {
-        LOG.info("Undo command: {}", StringUtils.join(undo.toArray()));
-        if (undo.size() != 0) {
-            for (String undoStmt : undo) {
-                PreparedStatement sqlStmt = connection.prepareStatement(undoStmt);
-                try {
-                    sqlStmt.execute();
-                }  finally {
-                    sqlStmt.close();
+    private void executeCommand(Command cmd, String dbName, String tableName, Statement sqlStmt, boolean updateStatus)
+        throws HiveReplicationException, SQLException {
+        for (final String stmt : cmd.get()) {
+            try {
+                sqlStmt.execute(stmt);
+            } catch (SQLException sqeOuter) {
+                LOG.error("SQL Exception: {}", sqeOuter);
+                if (cmd.isUndoable()) {
+                    try {
+                        undoCommands(cmd.getUndo(), sqlStmt);
+                    } catch (SQLException sqeInner) {
+                        if (updateStatus) {
+                            addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName,
+                                    tableName, cmd.getEventId());
+                        }
+                        throw sqeInner;
+                    }
                 }
+                if (updateStatus) {
+                    addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName, tableName, cmd.getEventId());
+                }
+                throw sqeOuter;
+            }
+        }
+        if (updateStatus) {
+            addReplicationStatus(ReplicationStatus.Status.SUCCESS, dbName, tableName, cmd.getEventId());
+        }
+    }
+
+    private void undoCommands(List<String> undoCommands, Statement sqlStmt) throws SQLException {
+        LOG.info("Undo command: {}", StringUtils.join(undoCommands.toArray()));
+        if (undoCommands.size() != 0) {
+            for (final String undoStmt : undoCommands) {
+                sqlStmt.execute(undoStmt);
             }
         }
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
         throws HiveReplicationException {
-        String drJobName = conf.get("drJobName");
-        ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"), drJobName,
-                dbName, tableName, status, eventId);
-        listReplicationStatus.add(rs);
+        try {
+            String drJobName = conf.get("drJobName");
+            ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"),
+                    drJobName, dbName, tableName, status, eventId);
+            listReplicationStatus.add(rs);
+        } catch (HiveReplicationException hre) {
+            throw new HiveReplicationException("Could not update replication status store for "
+                    + " EventId:" + eventId
+                    + " DB Name:" + dbName
+                    + " Table Name:" + tableName
+                    + hre.toString());
+        }
     }
 
     public void invokeCopy() throws Exception {
@@ -232,8 +238,7 @@ public class EventUtils {
         try {
             for (String cleanUpPath : sourceCleanUpList) {
                 String cleanUpStmt = "dfs -rmr " + cleanUpPath;
-                PreparedStatement srcStmt = sourceConnection.prepareStatement(cleanUpStmt);
-                srcStmt.execute();
+                sourceStatement.execute(cleanUpStmt);
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -245,6 +250,14 @@ public class EventUtils {
     }
 
     public void closeConnection() throws SQLException {
+        if (sourceStatement != null) {
+            sourceStatement.close();
+        }
+
+        if (targetStatement != null) {
+            targetStatement.close();
+        }
+
         if (sourceConnection != null) {
             sourceConnection.close();
         }
