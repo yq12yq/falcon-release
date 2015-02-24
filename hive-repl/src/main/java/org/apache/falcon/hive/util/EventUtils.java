@@ -108,14 +108,14 @@ public class EventUtils {
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
             LOG.info("Process the export statements");
-            processCommands(exportEventStr, dbName, tableName, src_stmt, sourceCleanUpList);
+            processCommands(exportEventStr, dbName, tableName, src_stmt, sourceCleanUpList, false);
             //TODO: Check srcStagingDirectory is not empty
             invokeCopy();
         }
 
         if (StringUtils.isNotEmpty(importEventStr)) {
             LOG.info("Process the import statements");
-            processCommands(importEventStr, dbName, tableName, tgt_stmt, targetCleanUpList);
+            processCommands(importEventStr, dbName, tableName, tgt_stmt, targetCleanUpList, true);
         }
     }
 
@@ -124,7 +124,7 @@ public class EventUtils {
     }
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sql_stmt,
-                                 List<String> cleanUpList) throws SQLException, HiveReplicationException {
+                                 List<String> cleanUpList, boolean updateStatus) throws SQLException, HiveReplicationException {
         long eventId;
         ReplicationStatus.Status status;
         String commandList[] = eventStr.split(DelimiterUtils.STMT_DELIM);
@@ -144,14 +144,16 @@ public class EventUtils {
                     sql_stmt.execute(stmt);
                 }
                 status = ReplicationStatus.Status.SUCCESS;
-                addReplicationStatus(status, dbName, tableName, eventId);
+                if (updateStatus)
+                    addReplicationStatus(status, dbName, tableName, eventId);
             } catch (SQLException e) {
                 LOG.error("SQL Exception: {}", e);
                 if (cmd.isUndoable()) {
                     undoCommands(cmd.getUndo(), sql_stmt);
                 }
                 status = ReplicationStatus.Status.FAILURE;
-                addReplicationStatus(status, dbName, tableName, eventId);
+                if (updateStatus)
+                    addReplicationStatus(status, dbName, tableName, eventId);
                 throw e;
             } catch (HiveReplicationException hre) {
                 throw new HiveReplicationException("Could not update replication status store for "

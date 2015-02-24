@@ -31,24 +31,36 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class CopyReducer extends Reducer<Text, Text, Text, Text> {
-    List<ReplicationStatus> replicationStatusList;
     Configuration conf;
     FileSystem fs;
     DRStatusStore hiveDRStore;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
-        replicationStatusList = new ArrayList<ReplicationStatus>();
         conf = context.getConfiguration();
         fs = FileSystem.get(FileUtils.getConfiguration(conf.get("targetNN")));
         hiveDRStore = new HiveDRStatusStore(fs);
     }
 
+    private List<ReplicationStatus> sortStatusList(List<ReplicationStatus> replicationStatusList) {
+        Collections.sort(replicationStatusList, new Comparator<ReplicationStatus>() {
+            @Override
+            public int compare(ReplicationStatus r1, ReplicationStatus r2) {
+                return (int) (r1.getEventId() - r2.getEventId());
+            }
+        });
+
+        return replicationStatusList ;
+    }
+
     @Override
     protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        List<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
         ReplicationStatus rs;
         try {
             for (Text value : values) {
@@ -58,7 +70,7 @@ public class CopyReducer extends Reducer<Text, Text, Text, Text> {
                 replicationStatusList.add(rs);
             }
 
-            hiveDRStore.updateReplicationStatus(key.toString(), replicationStatusList);
+            hiveDRStore.updateReplicationStatus(key.toString(), sortStatusList(replicationStatusList));
         } catch (HiveReplicationException e) {
             throw new IOException(e);
         }
