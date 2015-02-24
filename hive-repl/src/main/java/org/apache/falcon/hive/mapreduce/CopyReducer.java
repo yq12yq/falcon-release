@@ -39,42 +39,39 @@ import java.util.List;
  * Reducer class for Hive DR.
  */
 public class CopyReducer extends Reducer<Text, Text, Text, Text> {
-    private List<ReplicationStatus> replicationStatusList;
     private FileSystem fs;
     private DRStatusStore hiveDRStore;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
-        replicationStatusList = new ArrayList<ReplicationStatus>();
         Configuration conf = context.getConfiguration();
         fs = FileSystem.get(FileUtils.getConfiguration(conf.get("targetNN")));
         hiveDRStore = new HiveDRStatusStore(fs);
     }
 
-    private List<ReplicationStatus> sortStatusList(List<ReplicationStatus> replicationStatusList) {
-        Collections.sort(replicationStatusList, new Comparator<ReplicationStatus>() {
+    private List<ReplicationStatus> sortStatusList(List<ReplicationStatus> replStatusList) {
+        Collections.sort(replStatusList, new Comparator<ReplicationStatus>() {
             @Override
             public int compare(ReplicationStatus r1, ReplicationStatus r2) {
                 return (int) (r1.getEventId() - r2.getEventId());
             }
         });
-
-        return replicationStatusList ;
+        return replStatusList;
     }
 
     @Override
     protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-        List<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
+        List<ReplicationStatus> replStatusList = new ArrayList<ReplicationStatus>();
         ReplicationStatus rs;
         try {
             for (Text value : values) {
                 String[] fields = (value.toString()).split("\t");
                 rs = new ReplicationStatus(fields[0], fields[1], fields[2], fields[3], fields[4],
                         ReplicationStatus.Status.valueOf(fields[5]), Long.parseLong(fields[6]));
-                replicationStatusList.add(rs);
+                replStatusList.add(rs);
             }
 
-            hiveDRStore.updateReplicationStatus(key.toString(), sortStatusList(replicationStatusList));
+            hiveDRStore.updateReplicationStatus(key.toString(), sortStatusList(replStatusList));
         } catch (HiveReplicationException e) {
             throw new IOException(e);
         }
