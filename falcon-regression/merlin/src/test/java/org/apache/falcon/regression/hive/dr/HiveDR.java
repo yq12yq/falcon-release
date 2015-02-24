@@ -196,6 +196,80 @@ public class HiveDR extends BaseTestClass {
     }
 
     @Test
+    public void drTwoDstTablesOneRequest() throws Exception {
+        final String tblName = "firstTableDR";
+        final String tbl2Name = "secondTableDR";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName + ',' + tbl2Name);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        runSql(connection,
+            "create table " + tblName + "(comment string)");
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tbl2Name);
+
+        runSql(connection,
+            "insert into table " + tblName + " values"
+                + "('this string has been added post bootstrap - should appear after dr')");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), new NotifyingAssert(true)
+        ).assertAll();
+
+    }
+
+    @Test
+    public void drTwoDstTablesTwoRequests() throws Exception {
+        final String tblName = "firstTableDR";
+        final String tbl2Name = "secondTableDR";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command1 = recipeMerlin.getSubmissionCommand();
+        final String recipe1Name = recipeMerlin.getName();
+        recipeMerlin.setUniqueName(this.getClass().getSimpleName());
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tbl2Name);
+        final List<String> command2 = recipeMerlin.getSubmissionCommand();
+        final String recipe2Name = recipeMerlin.getName();
+        runSql(connection,
+            "create table " + tblName + "(comment string)");
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tbl2Name);
+
+        runSql(connection,
+            "insert into table " + tblName + " values"
+                + "('this string has been added post bootstrap - should appear after dr')");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command1), 0, "Recipe submission failed.");
+        Assert.assertEquals(Bundle.runFalconCLI(command2), 0, "Recipe submission failed.");
+
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipe1Name, 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipe2Name, 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), new NotifyingAssert(true)
+        ).assertAll();
+
+    }
+
+
+    @Test
     public void dataGeneration() throws Exception {
         runSql(connection, "create database hdr_sdb1");
         runSql(connection, "use hdr_sdb1");
