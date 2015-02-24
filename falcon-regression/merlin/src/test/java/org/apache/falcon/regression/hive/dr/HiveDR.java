@@ -304,6 +304,48 @@ public class HiveDR extends BaseTestClass {
 
     }
 
+    @Test
+    public void drExtPartitionedToNonExtPartitioned() throws Exception {
+        final String tblName = "externalToNonExternal";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        createExternalPartitionedTable(connection, clusterFS,
+            baseTestHDFSDir + "click_data/", tblName);
+        runSql(connection2,
+            "create table " + tblName + " (data string, time string) partitioned by (date string)");
+        runSql(connection2, "alter table " + tblName + " add partition "
+            + "(date='2001-01-01') location '" + baseTestHDFSDir + "click_data/2001-01-01/'");
+        runSql(connection2, "alter table " + tblName + " add partition "
+            + "(date='2001-01-02') location '" + baseTestHDFSDir + "click_data/2001-01-02/'");
+
+        runSql(connection2, "insert into table " + tblName + " partition (date='2001-01-01') " +
+            "values ('click1', '01:01:01')");
+        runSql(connection2, "insert into table " + tblName + " partition (date='2001-01-02') " +
+            "values ('click2', '02:02:02')");
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
+        ).assertAll();
+
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        //change column name
+        runSql(connection,
+            "alter table " + tblName + " change column data data_new string");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+
+    }
+
+
 
 
     @Test

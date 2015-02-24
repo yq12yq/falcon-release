@@ -130,9 +130,9 @@ class HiveObjectCreator {
         runSql(connection, "create external table " + tableName
             + " (data string, time string) partitioned by (date string) "
             + "location '" + clickDataLocation + "'");
-        runSql(connection, "alter table click_data add partition "
+        runSql(connection, "alter table " + tableName + " add partition "
             + "(date='2001-01-01') location '" + clickDataPart1 + "'");
-        runSql(connection, "alter table click_data add partition "
+        runSql(connection, "alter table " + tableName + " add partition "
             + "(date='2001-01-02') location '" + clickDataPart2 + "'");
         runSql(connection, "select * from " + tableName);
     }
