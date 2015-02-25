@@ -364,6 +364,8 @@
                         </additionalClasspathElement>
                         <additionalClasspathElement>src/test/resources/hadoop-conf
                         </additionalClasspathElement>
+                        <additionalClasspathElement>merlin/src/test/resources/falcon-conf
+                        </additionalClasspathElement>
                         <additionalClasspathElement>src/test/resources/falcon-conf
                         </additionalClasspathElement>
                     </additionalClasspathElements>
