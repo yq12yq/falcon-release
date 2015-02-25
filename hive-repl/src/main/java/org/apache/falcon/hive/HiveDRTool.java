@@ -329,7 +329,7 @@ public class HiveDRTool extends Configured implements Tool {
                 targetClusterFs.close();
             }
         } catch (IOException e) {
-            LOG.error("Closing FS failed");
+            LOG.error("Closing FS failed", e);
         }
     }
 
