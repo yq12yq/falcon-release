@@ -158,16 +158,17 @@ class HiveObjectCreator {
     /**
      * Create an plain old table
      * @param connection jdbc connection object to use for issuing queries to hive
+     * @param tblName
      * @throws SQLException
      */
-    static void createVanillaTable(Connection connection) throws SQLException {
+    static void createVanillaTable(Connection connection, String tblName) throws SQLException {
         //vanilla table
-        runSql(connection, "create table store_sales "
+        runSql(connection, "create table " + tblName
             + "(customer_id string, item_id string, quantity float, price float, time timestamp)");
-        runSql(connection, "insert into table store_sales values "
+        runSql(connection, "insert into table " + tblName + " values "
             + "('c1', 'i1', '1', '1', '2001-01-01 01:01:01'), "
             + "('c2', 'i2', '2', '2', '2001-01-01 01:01:02')");
-        runSql(connection, "select * from store_sales");
+        runSql(connection, "select * from " + tblName);
     }
 
     /**

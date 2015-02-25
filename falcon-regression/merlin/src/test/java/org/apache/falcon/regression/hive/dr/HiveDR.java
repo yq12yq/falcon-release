@@ -357,7 +357,7 @@ public class HiveDR extends BaseTestClass {
     @Test
     public void dataGeneration() throws Exception {
         runSql(connection, "use hdr_sdb1");
-        createVanillaTable(connection);
+        createVanillaTable(connection, "store_sales");
         createSerDeTable(connection);
         createPartitionedTable(connection);
         createExternalTable(connection, clusterFS,
@@ -366,7 +366,7 @@ public class HiveDR extends BaseTestClass {
             baseTestHDFSDir + "click_data2/", "click_data2");
 
         runSql(connection2, "use hdr_sdb1");
-        createVanillaTable(connection2);
+        createVanillaTable(connection2, "store_sales");
         createSerDeTable(connection2);
         createPartitionedTable(connection2);
         createExternalTable(connection2, clusterFS2,

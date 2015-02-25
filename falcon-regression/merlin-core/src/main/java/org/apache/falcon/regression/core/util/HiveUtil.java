@@ -108,8 +108,9 @@ public final class HiveUtil {
      * @param connection The connection to be used for running sql
      * @param sql the sql to be run
      * @throws SQLException
+     * @return output of the query as a List of strings
      */
-    public static void runSql(Connection connection, String sql) throws SQLException {
+    public static List<String> runSql(Connection connection, String sql) throws SQLException {
         final Statement stmt = connection.createStatement();
         LOGGER.info("Executing: " + sql);
         stmt.execute(sql);
@@ -117,7 +118,9 @@ public final class HiveUtil {
         if (resultSet != null) {
             final List<String> output = fetchRows(resultSet);
             LOGGER.info("Results are:\n" + StringUtils.join(output, "\n"));
+            return output;
         }
         LOGGER.info("Query executed.");
+        return new ArrayList<String>();
     }
 }
