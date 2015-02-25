@@ -54,8 +54,8 @@ import static org.apache.falcon.regression.hive.dr.HiveObjectCreator.createVanil
  * Hive DR Testing for Hive database replication.
  */
 @Test(groups = "embedded")
-public class HiveDbDR extends BaseTestClass {
-    private static final Logger LOGGER = Logger.getLogger(HiveDbDR.class);
+public class HiveDbDRTest extends BaseTestClass {
+    private static final Logger LOGGER = Logger.getLogger(HiveDbDRTest.class);
     private final ColoHelper cluster = servers.get(0);
     private final ColoHelper cluster2 = servers.get(1);
     private final FileSystem clusterFS = serverFS.get(0);
