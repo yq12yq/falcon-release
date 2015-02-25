@@ -384,7 +384,7 @@ public class HiveDRTest extends BaseTestClass {
 
     }
 
-    @Test
+    @Test(enabled = false)
     public void assertionTest() throws Exception {
         HiveAssert.assertTableEqual(
             cluster, clusterHC.getTable("default", "hcatsmoke10546"),
