@@ -236,16 +236,20 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
-    private void cleanStagingDirectory() throws IOException {
+    private void cleanStagingDirectory() {
         LOG.info("Cleaning staging directories");
         Path sourceStagingPath = new Path(inputOptions.getSourceStagingPath());
         Path targetStagingPath = new Path(inputOptions.getTargetStagingPath());
-        if (jobFS.exists(sourceStagingPath)) {
-            jobFS.delete(sourceStagingPath);
-        }
+        try {
+            if (jobFS.exists(sourceStagingPath)) {
+                jobFS.delete(sourceStagingPath, false);
+            }
 
-        if (targetClusterFs.exists(targetStagingPath)) {
-            targetClusterFs.delete(targetStagingPath);
+            if (targetClusterFs.exists(targetStagingPath)) {
+                targetClusterFs.delete(targetStagingPath, false);
+            }
+        } catch (IOException e) {
+            LOG.error("Unable to cleanup staging dir:", e);
         }
     }
 
@@ -314,9 +318,19 @@ public class HiveDRTool extends Configured implements Tool {
         }
     }
 
-    private synchronized void cleanup() throws IOException{
+    private synchronized void cleanup() {
         cleanStagingDirectory();
         cleanInputFile();
+        try {
+            if (jobFS != null) {
+                jobFS.close();
+            }
+            if (targetClusterFs != null) {
+                targetClusterFs.close();
+            }
+        } catch (IOException e) {
+            LOG.error("Closing FS failed");
+        }
     }
 
     private String persistReplicationEvents(String dir, String filename,

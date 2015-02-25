@@ -241,11 +241,15 @@ public class EventUtils {
                 sourceStatement.execute(cleanUpStmt);
             }
         } catch (SQLException e) {
-            throw new IOException(e);
+            LOG.error("Cleaning up of source staging directory failed", e);
         }
 
-        for (String cleanUpPath : targetCleanUpList) {
-            targetFileSystem.delete(new Path(cleanUpPath), true);
+        try {
+            for (String cleanUpPath : targetCleanUpList) {
+                targetFileSystem.delete(new Path(cleanUpPath), true);
+            }
+        } catch (IOException e) {
+            LOG.error("Cleaning up of target staging directory failed", e);
         }
     }
 
