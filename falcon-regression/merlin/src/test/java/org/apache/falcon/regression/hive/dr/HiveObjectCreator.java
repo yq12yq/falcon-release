@@ -20,17 +20,14 @@ package org.apache.falcon.regression.hive.dr;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.tools.DistCp;
-import org.apache.hadoop.tools.DistCpOptions;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.falcon.regression.core.util.HadoopUtil.writeDataForHive;
 import static org.apache.falcon.regression.core.util.HiveUtil.runSql;
@@ -56,32 +53,20 @@ class HiveObjectCreator {
         runSql(srcConnection, "export table " + srcTable + " to '" + dumpPath + "'" +
             " FOR REPLICATION('ignore')");
         runSqlQuietly(srcConnection, "dfs -chmod -R 777 " + dumpPath);
-        new DistCp(new Configuration(), getDistCpOptions(srcFs, dstFs, dumpPath)).execute();
+        FileUtil.copy(srcFs, new Path(dumpPath), dstFs, new Path(dumpPath),
+            false, true, new Configuration());
         runSql(dstConnection, "import table " + dstTable + " from '" + dumpPath + "'");
         runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
         runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
         LOGGER.info("Finished bootstrap");
     }
 
-    private static DistCpOptions getDistCpOptions(FileSystem srcFs, FileSystem dstFs,
-                                                  String dumpPath) {
-        final Path srcPath = new Path(srcFs.getUri() + "/" + dumpPath);
-        final Path dstPath = new Path(dstFs.getUri() + "/" + dumpPath);
-        final List<Path> srcPathList = new ArrayList<Path>();
-        srcPathList.add(srcPath);
-        final DistCpOptions distCpOptions = new DistCpOptions(srcPathList, dstPath);
-        distCpOptions.preserve(DistCpOptions.FileAttribute.BLOCKSIZE);
-        distCpOptions.setSyncFolder(true);
-        distCpOptions.setBlocking(true);
-        return distCpOptions;
-    }
-
     /* We need to delete it using hive query as the created directory is owned by hive.*/
     private static void runSqlQuietly(Connection srcConnection, String sql) {
         try {
             runSql(srcConnection, sql);
-        } catch (SQLException ignore) {
-            //ignore the exception as it is expected
+        } catch (SQLException ex) {
+            LOGGER.info("Exception while hive ql execution: " + ex.getMessage());
         }
     }
 
