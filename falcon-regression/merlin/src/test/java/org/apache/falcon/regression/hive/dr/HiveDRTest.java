@@ -235,6 +235,38 @@ public class HiveDRTest extends BaseTestClass {
     }
 
     @Test
+    public void drSerDeWithProperties() throws Exception {
+        final String tblName = "serdeTable";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        runSql(connection,
+            "create table " + tblName + "(comment string) "
+                + "row format serde 'org.apache.hive.hcatalog.data.JsonSerDe'" );
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        runSql(connection,
+            "insert into table " + tblName + " values"
+                + "('this string has been added post bootstrap - should appear after dr')");
+
+        runSql(connection,
+            "ALTER TABLE " + tblName + " SET SERDEPROPERTIES ('someProperty' = 'value')");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+
+    }
+
+
+    @Test
     public void drTwoDstTablesTwoRequests() throws Exception {
         final String tblName = "firstTableDR";
         final String tbl2Name = "secondTableDR";
