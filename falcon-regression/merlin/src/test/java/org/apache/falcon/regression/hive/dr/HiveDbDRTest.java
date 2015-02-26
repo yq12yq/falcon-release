@@ -190,10 +190,10 @@ public class HiveDbDRTest extends BaseTestClass {
         createVanillaTable(connection, tblName);
         runSql(connection, "create view " + tblView + " as select * from " + tblName);
         createVanillaTable(connection, tblOffline);
-        runSql(connection, "alter table " + tblOffline + " offline");
+        runSql(connection, "alter table " + tblOffline + " enable offline");
         final String newComment = "'new comment for offline table should not reach destination'";
-        runSql(connection, "alter table " + tblOffline + " set comment " + newComment);
-
+        runSql(connection,
+            "alter table " + tblOffline + " set tblproperties ('comment' =" + newComment +")");
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
