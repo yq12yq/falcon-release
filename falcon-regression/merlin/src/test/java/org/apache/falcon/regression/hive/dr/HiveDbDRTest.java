@@ -170,6 +170,47 @@ public class HiveDbDRTest extends BaseTestClass {
             cluster2, clusterHC2.getDatabase(dbName), new NotifyingAssert(true)).assertAll();
     }
 
+    @Test
+    public void drDbNonReplicatableTable() throws Exception {
+        final String dbName = "drDbNonReplicatableTable";
+        final String tblName = "vanillaTable";
+        final String tblView = "vanillaTableView";
+        final String tblOffline = "offlineTable";
+
+        setUpDb(dbName, connection);
+        setUpDb(dbName, connection2);
+        recipeMerlin.withSourceDb(dbName).withSourceTable("*")
+            .withFrequency(new Frequency("2", Frequency.TimeUnit.minutes));
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        final long srcReplId = clusterHC.getCurrentNotificationEventId();
+        runSql(connection2, "alter database " + dbName + " set dbproperties " +
+            "(\"repl.last.id\"=\"" + srcReplId + "\")");
+
+        createVanillaTable(connection, tblName);
+        runSql(connection, "create view " + tblView + " as select * from " + tblName);
+        createVanillaTable(connection, tblOffline);
+        runSql(connection, "alter table " + tblOffline + " offline");
+        final String newComment = "'new comment for offline table should not reach destination'";
+        runSql(connection, "alter table " + tblOffline + " set comment " + newComment);
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        //vanilla table gets replicated, offline table & view are not replicated
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(dbName, tblName),
+            cluster2, clusterHC2.getTable(dbName, tblName), new NotifyingAssert(true)).assertAll();
+        final List<String> dstTables = runSql(connection2, "show tables");
+        Assert.assertFalse(dstTables.contains(tblView),
+            "dstTables = " + dstTables + " was not expected to contain " + tblView);
+        final List<String> dstComment =
+            runSql(connection, "show tblproperties " + tblOffline + "('comment')");
+        Assert.assertFalse(dstComment.contains(newComment),
+            tblOffline + " comment = " + dstComment + " was not expected to contain " + newComment);
+    }
+
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws IOException {
         try {
