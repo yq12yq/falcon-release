@@ -124,6 +124,49 @@ public class HiveDbDRTest extends BaseTestClass {
             "contain " + dbName);
     }
 
+
+    @Test
+    public void drDbDropTableCreateTable() throws Exception {
+        final String dbName = "drDbTableToDrop";
+        final String tblName = "tableToDrop";
+        setUpDb(dbName, connection);
+        runSql(connection, "create table " + tblName + "(data string)");
+        clusterHC.getTable(dbName, tblName);
+        setUpDb(dbName, connection2);
+        runSql(connection2, "create table " + tblName + "(data string)");
+        clusterHC2.getTable(dbName, tblName);
+
+        recipeMerlin
+            .withSourceDb(dbName)
+            .withTargetDb(dbName)
+            .withSourceTable("*")
+            .withTargetTable("*");
+
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        final long srcReplId = clusterHC.getCurrentNotificationEventId();
+        runSql(connection2, "alter database " + dbName + " set dbproperties " +
+            "(\"repl.last.id\"=\"" + srcReplId + "\")");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        runSql(connection2, "drop table " + tblName);
+        runSql(connection, "insert into table " + tblName
+            + " values('cannot be replicated now')");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.KILLED, EntityType.PROCESS);
+
+        runSql(connection2, "create table " + tblName + "(data string)");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(dbName, tblName),
+            cluster2, clusterHC2.getTable(dbName, tblName), new NotifyingAssert(true)
+        ).assertAll();
+    }
+
     @Test
     public void drDbAddDropTable() throws Exception {
         final String dbName = "drDbAddDropTable";
