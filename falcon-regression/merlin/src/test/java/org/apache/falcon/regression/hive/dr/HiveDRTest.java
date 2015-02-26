@@ -404,13 +404,9 @@ public class HiveDRTest extends BaseTestClass {
      */
     @Test
     public void dynamicPartitionsTest() throws SQLException, IOException {
-        runSql(connection, "create database hdr_sdb1");
-        runSql(connection, "use hdr_sdb1");
         //create table with static partitions on first cluster
         createPartitionedTable(connection, false);
 
-        runSql(connection2, "create database hdr_sdb1");
-        runSql(connection2, "use hdr_sdb1");
         //create table with dynamic partitions on second cluster
         createPartitionedTable(connection2, true);
 
@@ -418,6 +414,124 @@ public class HiveDRTest extends BaseTestClass {
         HiveAssert.assertTableEqual(
             cluster, clusterHC.getTable("hdr_sdb1", "global_store_sales"),
             cluster2, clusterHC2.getTable("hdr_sdb1", "global_store_sales"), new SoftAssert()
+        ).assertAll();
+    }
+
+    /**
+     * 1 src tbl 1 dst tbl replication. Insert/delete/replace partitions using dynamic partition
+     * queries. The changes should get reflected at destination.
+     */
+    @Test
+    public void drInsertDropReplaceDynamicPartition() throws Exception {
+        final String tblName = "dynamicPartitionDR";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        //disable strict mode to use only dynamic partition
+        runSql(connection, "set hive.exec.dynamic.partition.mode=nonstrict");
+
+        runSql(connection,
+            "create table " + tblName + "(comment string) partitioned by (pname string)");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this partition is going to be deleted - should NOT appear after dr', 'DELETE')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this partition is going to be replaced - should NOT appear after dr', 'REPLACE')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this partition will have more data - should appear after dr', 'ADD_DATA')");
+
+        LOGGER.info(tblName + " before bootstrap copying: ");
+        runSql(connection, "select * from " + tblName);
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this partition has been added post bootstrap - should appear after dr', 'NEW_PART')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('more data has been added post bootstrap - should appear after dr', 'ADD_DATA')");
+        runSql(connection,
+            "alter table " + tblName + " drop partition(pname = 'DELETE')");
+        runSql(connection,
+            "alter table " + tblName + " drop partition(pname = 'REPLACE')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this partition has been replaced - should appear after dr', 'REPLACE')");
+
+        LOGGER.info(tblName + " after modifications, before replication: ");
+        runSql(connection, "select * from " + tblName);
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+    }
+
+    /**
+     * 1 src tbl 1 dst tbl replication. Insert/overwrite partitions using dynamic partitions
+     * queries. The changes should get reflected at destination.
+     * @throws Exception
+     */
+    @Test
+    public void drInsertOverwriteDynamicPartition () throws Exception {
+        final String tblName = "drInsertOverwritePartition";
+        final String hlpTblName = "drInsertOverwritePartitionHelperTbl";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
+
+        //disable strict mode to use only dynamic partition
+        runSql(connection, "set hive.exec.dynamic.partition.mode=nonstrict");
+
+        runSql(connection,
+            "create table " + hlpTblName + "(comment string) partitioned by (pname string)");
+        runSql(connection,
+            "insert into table " + hlpTblName + " partition (pname)"
+                + " values('overwrite data - should appear after dr', 'OVERWRITE_PART')");
+        runSql(connection,
+            "insert into table " + hlpTblName + " partition (pname)"
+            + " values('newdata row2 - should appear after dr', 'NEW_DATA')");
+        runSql(connection,
+            "insert into table " + hlpTblName + " partition (pname)"
+                + " values('newdata row1 - should appear after dr', 'NEW_DATA')");
+
+        runSql(connection,
+            "create table " + tblName + "(comment string) partitioned by (pname string)");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this data should be retained - should appear after dr', 'OLD_PART')");
+        runSql(connection,
+            "insert into table " + tblName + " partition (pname) values"
+                + "('this data should get overwritten - should NOT appear after dr', 'OVERWRITE_PART')");
+
+        LOGGER.info(tblName + " before bootstrap copying: ");
+        runSql(connection, "select * from " + tblName);
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        runSql(connection,
+            "insert overwrite table " + tblName + " partition (pname) "
+                + "select comment, pname from " + hlpTblName + " where comment REGEXP '^overwrite'");
+        runSql(connection,
+            "insert overwrite table " + tblName + " partition (pname) "
+                + "select comment, pname from " + hlpTblName + " where comment REGEXP '^newdata'");
+
+        LOGGER.info(tblName + " after modifications, before replication: ");
+        runSql(connection, "select * from " + tblName);
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
         ).assertAll();
     }
 
