@@ -18,6 +18,7 @@
 
 package org.apache.falcon.regression.hive.dr;
 
+import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
@@ -48,17 +49,26 @@ class HiveObjectCreator {
                               Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
         LOGGER.info("Starting bootstrap...");
         final String dumpPath = HDFS_TMP_DIR + srcTable + "/";
-        runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
-        runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
+        cleanUpPathQuietly(srcConnection, srcFs, dumpPath);
+        cleanUpPathQuietly(dstConnection, dstFs, dumpPath);
         runSql(srcConnection, "export table " + srcTable + " to '" + dumpPath + "'" +
             " FOR REPLICATION('ignore')");
         runSqlQuietly(srcConnection, "dfs -chmod -R 777 " + dumpPath);
         FileUtil.copy(srcFs, new Path(dumpPath), dstFs, new Path(dumpPath),
             false, true, new Configuration());
         runSql(dstConnection, "import table " + dstTable + " from '" + dumpPath + "'");
-        runSqlQuietly(srcConnection, "dfs -rmr " + dumpPath);
-        runSqlQuietly(dstConnection, "dfs -rmr " + dumpPath);
+        cleanUpPathQuietly(srcConnection, srcFs, dumpPath);
+        cleanUpPathQuietly(dstConnection, dstFs, dumpPath);
         LOGGER.info("Finished bootstrap");
+    }
+
+    private static void cleanUpPathQuietly(Connection connection, FileSystem fs, String path) {
+        runSqlQuietly(connection, "dfs -rmr " + path);
+        try {
+            HadoopUtil.deleteDirIfExists(path, fs);
+        } catch (IOException e) {
+            LOGGER.info("Exception while deleting " + fs.getUri() + path + " : " + e.getMessage());
+        }
     }
 
     /* We need to delete it using hive query as the created directory is owned by hive.*/
