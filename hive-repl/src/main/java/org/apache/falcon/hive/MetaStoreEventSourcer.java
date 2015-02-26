@@ -217,7 +217,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
                     eventId = temp;
                 }
             }
-            return (eventId == Long.MAX_VALUE) ?  -1 : eventId;
+            return (eventId == Long.MAX_VALUE) ?  0 : eventId;
         } catch (HCatException e) {
             throw new HiveReplicationException("Unable to find last replication id for database "
                 + databaseName, e);
