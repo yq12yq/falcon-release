@@ -409,8 +409,50 @@ public class HiveDRTest extends BaseTestClass {
 
     }
 
+    /**
+     * 1 src tbl 1 dst tbl. Change table properties and comment at the source.
+     * Changes should get reflected at destination.
+     */
+    @Test
+    public void drChangeCommentAndPropertyTest() throws Exception {
+        final String tblName = "myTable";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command = recipeMerlin.getSubmissionCommand();
 
+        runSql(connection, "create table " + tblName + "(field string)");
+        //add new table property
+        runSql(connection,
+            "ALTER TABLE " + tblName + " SET TBLPROPERTIES('someProperty' = 'initialValue')");
+        //set comment
+        runSql(connection,
+            "ALTER TABLE " + tblName + " SET TBLPROPERTIES('comment' = 'this comment will be " +
+                "changed, SHOULD NOT appear')");
 
+        LOGGER.info(tblName + " before bootstrap copy: ");
+        runSql(connection, "describe extended " + tblName);
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        //change table property and comment
+        runSql(connection,
+            "ALTER TABLE " + tblName + " SET TBLPROPERTIES('someProperty' = 'anotherValue')");
+        runSql(connection,
+            "ALTER TABLE " + tblName + " SET TBLPROPERTIES('comment' = 'this comment should " +
+                "appear after replication done')");
+
+        LOGGER.info(tblName + " after modifications, before replication: ");
+        runSql(connection, "describe extended " + tblName);
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+    }
 
     @Test
     public void dataGeneration() throws Exception {
