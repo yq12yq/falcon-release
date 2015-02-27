@@ -628,9 +628,7 @@ public final class InstanceUtil {
     public static void createHDFSFolders(ColoHelper helper, List<String> folderList)
         throws IOException {
         LOGGER.info("creating folders.....");
-        Configuration conf = new Configuration();
-        conf.set("fs.default.name", "hdfs://" + helper.getFeedHelper().getHadoopURL());
-        final FileSystem fs = FileSystem.get(conf);
+        final FileSystem fs = helper.getClusterHelper().getHadoopFS();
         for (final String folder : folderList) {
             if (StringUtils.isNotEmpty(folder)) {
                 fs.mkdirs(new Path(folder));
