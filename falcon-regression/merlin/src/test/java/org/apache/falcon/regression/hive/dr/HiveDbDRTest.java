@@ -26,6 +26,7 @@ import org.apache.falcon.regression.Entities.RecipeMerlin;
 import org.apache.falcon.regression.core.bundle.Bundle;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
+import org.apache.falcon.regression.core.util.AssertUtil;
 import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.InstanceUtil;
@@ -39,6 +40,7 @@ import org.apache.oozie.client.OozieClient;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -125,8 +127,8 @@ public class HiveDbDRTest extends BaseTestClass {
     }
 
 
-    @Test
-    public void drDbDropTableCreateTable() throws Exception {
+    @Test(dataProvider = "isDBReplication")
+    public void drDbDropTableCreateTable(Boolean isDBReplication) throws Exception {
         final String dbName = "drDbTableToDrop";
         final String tblName = "tableToDrop";
         setUpDb(dbName, connection);
@@ -139,8 +141,8 @@ public class HiveDbDRTest extends BaseTestClass {
         recipeMerlin
             .withSourceDb(dbName)
             .withTargetDb(dbName)
-            .withSourceTable("*")
-            .withTargetTable("*");
+            .withSourceTable(isDBReplication ? "*" : tblName)
+            .withTargetTable(isDBReplication ? "*" : tblName);
 
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
@@ -158,6 +160,9 @@ public class HiveDbDRTest extends BaseTestClass {
             CoordinatorAction.Status.KILLED, EntityType.PROCESS);
 
         runSql(connection2, "create table " + tblName + "(data string)");
+        AssertUtil.assertSucceeded(
+            prism.getProcessHelper().deleteByName(recipeMerlin.getName(), null));
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
@@ -264,5 +269,10 @@ public class HiveDbDRTest extends BaseTestClass {
         }
         removeBundles();
         cleanTestDirs();
+    }
+
+    @DataProvider
+    public Object[][] isDBReplication() {
+        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 }
