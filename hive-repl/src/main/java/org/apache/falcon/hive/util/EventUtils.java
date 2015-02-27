@@ -90,7 +90,7 @@ public class EventUtils {
         UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
         String user = "";
         if (currentUser != null) {
-            user = currentUser.toString();
+            user = currentUser.getShortUserName();
         }
         sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase,
                 user, "");
