@@ -265,6 +265,32 @@ public class HiveDRTest extends BaseTestClass {
 
     }
 
+    @Test
+    public void drChangeColumn() throws Exception {
+        final String tblName = "tableForColumnChange";
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        final List<String> command1 = recipeMerlin.getSubmissionCommand();
+        final String recipe1Name = recipeMerlin.getName();
+        runSql(connection,
+            "create table " + tblName + "(id int)");
+
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
+
+        Assert.assertEquals(Bundle.runFalconCLI(command1), 0, "Recipe submission failed.");
+        runSql(connection,
+            "ALTER TABLE " + tblName + " CHANGE id id STRING COMMENT 'some_comment'");
+
+
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipe1Name, 1,
+            CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
+
+
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
+        ).assertAll();
+    }
+
 
     @Test
     public void drTwoDstTablesTwoRequests() throws Exception {
