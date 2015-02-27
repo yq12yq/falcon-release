@@ -160,11 +160,8 @@ public class HiveDbDRTest extends BaseTestClass {
             CoordinatorAction.Status.KILLED, EntityType.PROCESS);
 
         runSql(connection2, "create table " + tblName + "(data string)");
-        AssertUtil.assertSucceeded(
-            prism.getProcessHelper().deleteByName(recipeMerlin.getName(), null));
-        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
-        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 2,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(dbName, tblName),
