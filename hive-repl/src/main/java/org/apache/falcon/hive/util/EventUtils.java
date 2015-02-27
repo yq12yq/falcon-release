@@ -28,6 +28,7 @@ import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpOptions;
 import org.apache.hive.hcatalog.api.repl.Command;
 import org.apache.hive.hcatalog.api.repl.ReplicationUtils;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,9 +85,12 @@ public class EventUtils {
 
     public void setupConnection() throws Exception {
         Class.forName(DRIVER_NAME);
+        UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
         DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
-        sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase);
-        targetConnection = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase);
+        sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase,
+                currentUser.toString(), "");
+        targetConnection = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase,
+                currentUser.toString(), "");
         sourceStatement = sourceConnection.createStatement();
         targetStatement = targetConnection.createStatement();
     }
@@ -125,7 +129,7 @@ public class EventUtils {
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sqlStmt,
                                  List<String> cleanUpList, boolean updateStatus)
-        throws SQLException, HiveReplicationException {
+            throws SQLException, HiveReplicationException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
             LOG.debug(" Hive DR Deserialize : {} :", command);
@@ -141,7 +145,7 @@ public class EventUtils {
     }
 
     private void executeCommand(Command cmd, String dbName, String tableName, Statement sqlStmt, boolean updateStatus)
-        throws HiveReplicationException, SQLException {
+            throws HiveReplicationException, SQLException {
         for (final String stmt : cmd.get()) {
             try {
                 sqlStmt.execute(stmt);
@@ -179,7 +183,7 @@ public class EventUtils {
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
-        throws HiveReplicationException {
+            throws HiveReplicationException {
         try {
             String drJobName = conf.get("drJobName");
             ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"),
