@@ -85,12 +85,17 @@ public class EventUtils {
 
     public void setupConnection() throws Exception {
         Class.forName(DRIVER_NAME);
-        UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
         DriverManager.setLoginTimeout(TIMEOUT_IN_SECS);
+
+        UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
+        String user = "";
+        if (currentUser != null) {
+            user = currentUser.toString();
+        }
         sourceConnection = DriverManager.getConnection(JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase,
-                currentUser.toString(), "");
+                user, "");
         targetConnection = DriverManager.getConnection(JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase,
-                currentUser.toString(), "");
+                user, "");
         sourceStatement = sourceConnection.createStatement();
         targetStatement = targetConnection.createStatement();
     }
