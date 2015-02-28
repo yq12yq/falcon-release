@@ -137,10 +137,11 @@ public class EventUtils {
             throws SQLException, HiveReplicationException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
-            LOG.debug(" Hive DR Deserialize : {} :", command);
+            LOG.info(" Hive DR Deserialize : {} :", command);
             try {
                 Command cmd = ReplicationUtils.deserializeCommand(command);
                 cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
+                LOG.info("Executing command : {} : {} ", cmd.getEventId(), cmd.toString());
                 executeCommand(cmd, dbName, tableName, sqlStmt, updateStatus);
             } catch (IOException ioe) {
                 throw new HiveReplicationException("Could not deserialize replication command for "
