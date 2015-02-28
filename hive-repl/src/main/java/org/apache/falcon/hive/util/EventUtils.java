@@ -47,6 +47,8 @@ public class EventUtils {
     private static final String DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
     private static final int TIMEOUT_IN_SECS = 300;
     private static final String JDBC_PREFIX = "jdbc:";
+    private static final int RETRY_ATTEMPTS = 3;
+
     private Configuration conf = null;
     private String sourceHiveServer2Uri = null;
     private String sourceDatabase = null;
@@ -61,6 +63,7 @@ public class EventUtils {
     private List<String> targetCleanUpList = null;
     private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
+    private FileSystem sourceFileSystem = null;
     private FileSystem targetFileSystem = null;
     private Connection sourceConnection = null;
     private Connection targetConnection = null;
@@ -104,6 +107,7 @@ public class EventUtils {
         LOG.info("Initializing staging directory");
         sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
+        sourceFileSystem = FileSystem.get(FileUtils.getConfiguration(sourceNN));
         targetFileSystem = FileSystem.get(FileUtils.getConfiguration(targetNN));
     }
 
@@ -133,8 +137,8 @@ public class EventUtils {
     }
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sqlStmt,
-                                 List<String> cleanUpList, boolean updateStatus)
-            throws SQLException, HiveReplicationException {
+                                 List<String> cleanUpList, boolean isImportStatements)
+        throws SQLException, HiveReplicationException, IOException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
             LOG.info(" Hive DR Deserialize : {} :", command);
@@ -142,54 +146,86 @@ public class EventUtils {
                 Command cmd = ReplicationUtils.deserializeCommand(command);
                 cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
                 LOG.info("Executing command : {} : {} ", cmd.getEventId(), cmd.toString());
-                executeCommand(cmd, dbName, tableName, sqlStmt, updateStatus);
-            } catch (IOException ioe) {
+                executeCommand(cmd, dbName, tableName, sqlStmt, isImportStatements, 0);
+            } catch (Exception e) {
+                // clean up locations before failing.
+                cleanupEventLocations(sourceCleanUpList, sourceFileSystem);
+                cleanupEventLocations(targetCleanUpList, targetFileSystem);
                 throw new HiveReplicationException("Could not deserialize replication command for "
-                        + " DB Name:" + dbName + ", Table Name:" + tableName, ioe);
+                        + " DB Name:" + dbName + ", Table Name:" + tableName, e);
             }
         }
     }
 
-    private void executeCommand(Command cmd, String dbName, String tableName, Statement sqlStmt, boolean updateStatus)
-            throws HiveReplicationException, SQLException {
+    private void executeCommand(Command cmd, String dbName, String tableName,
+                                Statement sqlStmt, boolean isImportStatements, int attempt)
+        throws HiveReplicationException, SQLException, IOException {
         for (final String stmt : cmd.get()) {
-            try {
-                sqlStmt.execute(stmt);
-            } catch (SQLException sqeOuter) {
-                LOG.error("SQL Exception: {}", sqeOuter);
-                if (cmd.isUndoable()) {
-                    try {
-                        undoCommands(cmd.getUndo(), sqlStmt);
-                    } catch (SQLException sqeInner) {
-                        if (updateStatus) {
-                            addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName,
-                                    tableName, cmd.getEventId());
-                        }
-                        throw sqeInner;
-                    }
-                }
-                if (updateStatus) {
-                    addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName, tableName, cmd.getEventId());
-                }
-                throw sqeOuter;
-            }
+            executeSqlStatement(cmd, dbName, tableName, sqlStmt, stmt, isImportStatements, attempt);
         }
-        if (updateStatus) {
+        if (isImportStatements) {
             addReplicationStatus(ReplicationStatus.Status.SUCCESS, dbName, tableName, cmd.getEventId());
         }
     }
 
-    private void undoCommands(List<String> undoCommands, Statement sqlStmt) throws SQLException {
-        LOG.info("Undo command: {}", StringUtils.join(undoCommands.toArray()));
-        if (undoCommands.size() != 0) {
-            for (final String undoStmt : undoCommands) {
-                sqlStmt.execute(undoStmt);
+    private void executeSqlStatement(Command cmd, String dbName, String tableName,
+                                     Statement sqlStmt, String stmt, boolean isImportStatements, int attempt)
+        throws HiveReplicationException, SQLException, IOException {
+        try {
+            sqlStmt.execute(stmt);
+        } catch (SQLException sqeOuter) {
+            // Retry if command is retriable.
+            if (attempt < RETRY_ATTEMPTS && cmd.isRetriable()) {
+                if (isImportStatements) {
+                    try {
+                        cleanupEventLocations(cmd.cleanupLocationsPerRetry(), targetFileSystem);
+                    } catch (IOException ioe) {
+                        // Clean up failed before retry on target. Update failure status and return
+                        addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName,
+                                tableName, cmd.getEventId());
+                        throw ioe;
+                    }
+                } else {
+                    cleanupEventLocations(cmd.cleanupLocationsPerRetry(), sourceFileSystem);
+                }
+                executeCommand(cmd, dbName, tableName, sqlStmt, isImportStatements, ++attempt);
+                return; // Retry succeeded, return without throwing an exception.
+            }
+            // If we reached here, retries have failed.
+            LOG.error("SQL Exception: {}", sqeOuter);
+            undoCommand(cmd, dbName, tableName, sqlStmt, isImportStatements);
+            if (isImportStatements) {
+                addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName, tableName, cmd.getEventId());
+            }
+            throw sqeOuter;
+        }
+    }
+
+    private void undoCommand(Command cmd, String dbName,
+                             String tableName, Statement sqlStmt, boolean isImportStatements)
+        throws SQLException, HiveReplicationException {
+        if (cmd.isUndoable()) {
+            try {
+                List<String> undoCommands = cmd.getUndo();
+                LOG.info("Undo command: {}", StringUtils.join(undoCommands.toArray()));
+                if (undoCommands.size() != 0) {
+                    for (final String undoStmt : undoCommands) {
+                        sqlStmt.execute(undoStmt);
+                    }
+                }
+            } catch (SQLException sqeInner) {
+                if (isImportStatements) {
+                    addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName,
+                            tableName, cmd.getEventId());
+                }
+                LOG.error("SQL Exception: {}", sqeInner);
+                throw sqeInner;
             }
         }
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
-            throws HiveReplicationException {
+        throws HiveReplicationException {
         try {
             String drJobName = conf.get("drJobName");
             ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"),
@@ -236,22 +272,21 @@ public class EventUtils {
 
     public void cleanEventsDirectory() throws IOException {
         LOG.info("Cleaning staging directory");
-        try {
-            for (String cleanUpPath : sourceCleanUpList) {
-                String cleanUpStmt = "dfs -rmr " + cleanUpPath;
-                sourceStatement.execute(cleanUpStmt);
+        cleanupEventLocations(sourceCleanUpList, sourceFileSystem);
+        cleanupEventLocations(targetCleanUpList, targetFileSystem);
+    }
+
+    private void cleanupEventLocations(List<String> cleanupList, FileSystem fileSystem)
+        throws IOException {
+        for (String cleanUpPath : cleanupList) {
+            try {
+                fileSystem.delete(new Path(cleanUpPath), true);
+            } catch (IOException ioe) {
+                LOG.error("Cleaning up of staging directory {} failed {}", cleanUpPath, ioe.toString());
+                throw ioe;
             }
-        } catch (SQLException e) {
-            LOG.error("Cleaning up of source staging directory failed", e);
         }
 
-        try {
-            for (String cleanUpPath : targetCleanUpList) {
-                targetFileSystem.delete(new Path(cleanUpPath), true);
-            }
-        } catch (IOException e) {
-            LOG.error("Cleaning up of target staging directory failed", e);
-        }
     }
 
     public void closeConnection() throws SQLException {
