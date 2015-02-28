@@ -90,6 +90,7 @@ class HiveObjectCreator {
      */
     static void createExternalTable(Connection connection, FileSystem fs, String
         clickDataLocation, String tableName) throws IOException, SQLException {
+        cleanUpPathQuietly(connection, fs, clickDataLocation);
         fs.mkdirs(new Path(clickDataLocation));
         fs.setPermission(new Path(clickDataLocation), FsPermission.getDirDefault());
         writeDataForHive(fs, clickDataLocation,

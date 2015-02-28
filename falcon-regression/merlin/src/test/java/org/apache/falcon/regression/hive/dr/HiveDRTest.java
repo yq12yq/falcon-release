@@ -340,24 +340,14 @@ public class HiveDRTest extends BaseTestClass {
             .withTargetDb(DB_NAME).withTargetTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
-        createExternalTable(connection, clusterFS,
-            baseTestHDFSDir + "click_data/", tblName);
-        runSql(connection2,
-            "create table " + tblName + " (data string, time string)");
-        runSql(connection2, "insert into table " + tblName + " values "
-            + "('click1', '01:01:01'), "
-            + "('click2', '02:02:02')");
-
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
-        ).assertAll();
-
-
-        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
+        createExternalTable(connection, clusterFS, baseTestHDFSDir + "click_data/", tblName);
+        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
 
         //change column name
         runSql(connection,
             "alter table " + tblName + " change column data data_new string");
+
+        Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
