@@ -301,7 +301,9 @@ public class HiveDRTool extends Configured implements Tool {
     }
 
     private static Configuration getDefaultConf() {
-        return new Configuration();
+        Configuration conf = new Configuration();
+        conf.addResource(new Path("file:///", System.getProperty("oozie.action.conf.xml")));
+        return conf;
     }
 
     private void cleanInputFile() {

@@ -205,16 +205,7 @@ public class EventUtils {
 
     public void invokeCopy() throws Exception {
         DistCpOptions options = getDistCpOptions();
-
-        Configuration configuration = new Configuration();
-        // inject wf configs
-        Path confPath = new Path("file:///"
-                + System.getProperty("oozie.action.conf.xml"));
-
-        LOG.info("{} found conf ? {}", confPath, confPath.getFileSystem(configuration).exists(confPath));
-        configuration.addResource(confPath);
-
-        DistCp distCp = new DistCp(configuration, options);
+        DistCp distCp = new DistCp(conf, options);
         LOG.info("Started DistCp with source Path: {} \ttarget path: ", options.getSourcePaths().toString(),
                 options.getTargetPath());
         Job distcpJob = distCp.execute();
