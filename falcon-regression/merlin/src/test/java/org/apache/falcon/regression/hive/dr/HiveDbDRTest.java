@@ -112,10 +112,6 @@ public class HiveDbDRTest extends BaseTestClass {
         recipeMerlin.withSourceDb(dbName).withSourceTable("*");
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
-        final long srcReplId = clusterHC.getCurrentNotificationEventId();
-        runSql(connection2, "alter database " + dbName + " set dbproperties " +
-            "(\"repl.last.id\"=\"" + srcReplId + "\")");
-
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
         runSql(connection, "drop database " + dbName);
@@ -141,10 +137,6 @@ public class HiveDbDRTest extends BaseTestClass {
 
         recipeMerlin.withSourceDb(dbName).withSourceTable(isDBReplication ? "*" : tblName)
             .withTargetDb(dbName).withTargetTable(isDBReplication ? "*" : tblName);
-
-        final long srcReplId = clusterHC.getCurrentNotificationEventId();
-        runSql(connection2, "alter database " + dbName + " set dbproperties " +
-            "(\"repl.last.id\"=\"" + srcReplId + "\")");
 
         final List<String> command = recipeMerlin.getSubmissionCommand();
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
@@ -188,9 +180,6 @@ public class HiveDbDRTest extends BaseTestClass {
             connection2, clusterFS2, tblToBeDropped);
         bootstrapCopy(connection, clusterFS, tblToBeDroppedAndAdded,
             connection2, clusterFS2, tblToBeDroppedAndAdded);
-        final long srcReplId = clusterHC.getCurrentNotificationEventId();
-        runSql(connection2, "alter database " + dbName + " set dbproperties " +
-            "(\"repl.last.id\"=\"" + srcReplId + "\")");
 
         /* For first replication - two tables are dropped & one table is added */
         runSql(connection, "drop table " + tblToBeDropped);
@@ -227,10 +216,6 @@ public class HiveDbDRTest extends BaseTestClass {
         recipeMerlin.withSourceDb(dbName).withSourceTable("*")
             .withFrequency(new Frequency("2", Frequency.TimeUnit.minutes));
         final List<String> command = recipeMerlin.getSubmissionCommand();
-
-        final long srcReplId = clusterHC.getCurrentNotificationEventId();
-        runSql(connection2, "alter database " + dbName + " set dbproperties " +
-            "(\"repl.last.id\"=\"" + srcReplId + "\")");
 
         createVanillaTable(connection, tblName);
         runSql(connection, "create view " + tblView + " as select * from " + tblName);
