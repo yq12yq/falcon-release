@@ -26,13 +26,15 @@ import org.apache.falcon.regression.Entities.RecipeMerlin;
 import org.apache.falcon.regression.core.bundle.Bundle;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.supportClasses.NotifyingAssert;
-import org.apache.falcon.regression.core.util.AssertUtil;
 import org.apache.falcon.regression.core.util.BundleUtil;
 import org.apache.falcon.regression.core.util.HiveAssert;
 import org.apache.falcon.regression.core.util.InstanceUtil;
 import org.apache.falcon.regression.core.util.TimeUtil;
+import org.apache.falcon.regression.core.util.Util;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.log4j.Logger;
 import org.apache.oozie.client.CoordinatorAction;
@@ -88,7 +90,7 @@ public class HiveDbDRTest extends BaseTestClass {
         recipeMerlin.withSourceCluster(srcCluster)
             .withTargetCluster(tgtCluster)
             .withFrequency(new Frequency("5", Frequency.TimeUnit.minutes))
-            .withValidity(TimeUtil.getTimeWrtSystemTime(-1), TimeUtil.getTimeWrtSystemTime(6));
+            .withValidity(TimeUtil.getTimeWrtSystemTime(-1), TimeUtil.getTimeWrtSystemTime(11));
         recipeMerlin.setUniqueName(this.getClass().getSimpleName());
 
         connection = cluster.getClusterHelper().getHiveJdbcConnection();
@@ -128,38 +130,36 @@ public class HiveDbDRTest extends BaseTestClass {
 
 
     @Test(dataProvider = "isDBReplication")
-    public void drDbDropTableCreateTable(Boolean isDBReplication) throws Exception {
-        final String dbName = "drDbTableToDrop";
-        final String tblName = "tableToDrop";
+    public void drDbFailPass(Boolean isDBReplication) throws Exception {
+        final String dbName = "drDbFailPass";
+        final String tblName = "vanillaTable";
+        final String dbPath = "/apps/hive/warehouse/" + dbName.toLowerCase() + ".db";
         setUpDb(dbName, connection);
         runSql(connection, "create table " + tblName + "(data string)");
-        clusterHC.getTable(dbName, tblName);
         setUpDb(dbName, connection2);
         runSql(connection2, "create table " + tblName + "(data string)");
-        clusterHC2.getTable(dbName, tblName);
 
-        recipeMerlin
-            .withSourceDb(dbName)
-            .withTargetDb(dbName)
-            .withSourceTable(isDBReplication ? "*" : tblName)
-            .withTargetTable(isDBReplication ? "*" : tblName);
-
-        final List<String> command = recipeMerlin.getSubmissionCommand();
+        recipeMerlin.withSourceDb(dbName).withSourceTable(isDBReplication ? "*" : tblName)
+            .withTargetDb(dbName).withTargetTable(isDBReplication ? "*" : tblName);
 
         final long srcReplId = clusterHC.getCurrentNotificationEventId();
         runSql(connection2, "alter database " + dbName + " set dbproperties " +
             "(\"repl.last.id\"=\"" + srcReplId + "\")");
 
+        final List<String> command = recipeMerlin.getSubmissionCommand();
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
 
-        runSql(connection2, "drop table " + tblName);
-        runSql(connection, "insert into table " + tblName
-            + " values('cannot be replicated now')");
+        runSql(connection, "insert into table " + tblName + " values('cannot be replicated now')");
+        final String noReadWritePerm = "d---r-xr-x";
+        LOGGER.info("Setting " + clusterFS2.getUri() + dbPath + " to : " + noReadWritePerm);
+        clusterFS2.setPermission(new Path(dbPath), FsPermission.valueOf(noReadWritePerm));
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.KILLED, EntityType.PROCESS);
 
-        runSql(connection2, "create table " + tblName + "(data string)");
+        final String readWritePerm = "drwxr-xr-x";
+        LOGGER.info("Setting " + clusterFS2.getUri() + dbPath + " to : " + readWritePerm);
+        clusterFS2.setPermission(new Path(dbPath), FsPermission.valueOf(readWritePerm));
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 2,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
