@@ -49,26 +49,17 @@ class HiveObjectCreator {
                               Connection dstConnection, FileSystem dstFs, String dstTable) throws Exception {
         LOGGER.info("Starting bootstrap...");
         final String dumpPath = HDFS_TMP_DIR + srcTable + "/";
-        cleanUpPathQuietly(srcConnection, srcFs, dumpPath);
-        cleanUpPathQuietly(dstConnection, dstFs, dumpPath);
+        HadoopUtil.deleteDirIfExists(dumpPath, srcFs);
+        HadoopUtil.deleteDirIfExists(dumpPath, dstFs);
         runSql(srcConnection, "export table " + srcTable + " to '" + dumpPath + "'" +
             " FOR REPLICATION('ignore')");
         runSqlQuietly(srcConnection, "dfs -chmod -R 777 " + dumpPath);
         FileUtil.copy(srcFs, new Path(dumpPath), dstFs, new Path(dumpPath),
             false, true, new Configuration());
         runSql(dstConnection, "import table " + dstTable + " from '" + dumpPath + "'");
-        cleanUpPathQuietly(srcConnection, srcFs, dumpPath);
-        cleanUpPathQuietly(dstConnection, dstFs, dumpPath);
+        HadoopUtil.deleteDirIfExists(dumpPath, srcFs);
+        HadoopUtil.deleteDirIfExists(dumpPath, dstFs);
         LOGGER.info("Finished bootstrap");
-    }
-
-    private static void cleanUpPathQuietly(Connection connection, FileSystem fs, String path) {
-        runSqlQuietly(connection, "dfs -rmr " + path);
-        try {
-            HadoopUtil.deleteDirIfExists(path, fs);
-        } catch (IOException e) {
-            LOGGER.info("Exception while deleting " + fs.getUri() + path + " : " + e.getMessage());
-        }
     }
 
     /* We need to delete it using hive query as the created directory is owned by hive.*/
@@ -90,7 +81,7 @@ class HiveObjectCreator {
      */
     static void createExternalTable(Connection connection, FileSystem fs, String
         clickDataLocation, String tableName) throws IOException, SQLException {
-        cleanUpPathQuietly(connection, fs, clickDataLocation);
+        HadoopUtil.deleteDirIfExists(clickDataLocation, fs);
         fs.mkdirs(new Path(clickDataLocation));
         fs.setPermission(new Path(clickDataLocation), FsPermission.getDirDefault());
         writeDataForHive(fs, clickDataLocation,
