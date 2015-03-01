@@ -233,7 +233,8 @@ public class HiveAssert {
         final List<String> db2tableNames = hcatClient2.listTableNamesByPattern(db2Name, ".*");
         Collections.sort(db1tableNames);
         Collections.sort(db2tableNames);
-        softAssert.assertEquals(db1tableNames, db2tableNames, "Table names are not the same.");
+        softAssert.assertEquals(db1tableNames, db2tableNames,
+            "Table names are not same. Actual: " + db1tableNames + " Expected: " + db2tableNames);
         for (String tableName : db1tableNames) {
             try {
                 assertTableEqual(cluster1, hcatClient1.getTable(db1Name, tableName),
