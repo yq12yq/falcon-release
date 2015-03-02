@@ -225,11 +225,11 @@ public class HiveDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
+        SoftAssert fromFirstTable = HiveAssert.assertTableEqual(cluster,
+            clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true));
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
-        ).assertAll();
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), new NotifyingAssert(true)
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), fromFirstTable
         ).assertAll();
 
     }
@@ -324,11 +324,11 @@ public class HiveDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipe2Name, 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
+        SoftAssert fromFirstTable = HiveAssert.assertTableEqual(cluster,
+            clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true));
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
-        ).assertAll();
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), new NotifyingAssert(true)
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), fromFirstTable
         ).assertAll();
 
     }
