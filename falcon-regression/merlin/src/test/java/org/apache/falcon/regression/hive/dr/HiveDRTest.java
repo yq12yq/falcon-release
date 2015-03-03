@@ -360,8 +360,7 @@ public class HiveDRTest extends BaseTestClass {
         anAssert.assertNotEquals(clusterHC2.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
             clusterHC.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
             "Source and destination tables should have different value of property EXTERNAL");
-
-
+        anAssert.assertAll();
     }
 
     @Test
