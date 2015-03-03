@@ -135,8 +135,7 @@ public class HiveDbDRTest extends BaseTestClass {
         setUpDb(dbName, connection2);
         bootstrapCopy(connection, clusterFS, tblName,connection2, clusterFS2, tblName);
 
-        recipeMerlin.withSourceDb(dbName).withSourceTable(isDBReplication ? "*" : tblName)
-            .withTargetDb(dbName).withTargetTable(isDBReplication ? "*" : tblName);
+        recipeMerlin.withSourceDb(dbName).withSourceTable(isDBReplication ? "*" : tblName);
 
         final List<String> command = recipeMerlin.getSubmissionCommand();
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");

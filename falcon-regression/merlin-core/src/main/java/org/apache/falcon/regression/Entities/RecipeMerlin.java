@@ -74,18 +74,8 @@ public class RecipeMerlin {
         return this;
     }
 
-    public RecipeMerlin withTargetDb(final String tgtDatabase) {
-        properties.setProperty("targetDatabase", tgtDatabase);
-        return this;
-    }
-
     public RecipeMerlin withSourceTable(final String tgtTable) {
         properties.setProperty("sourceTable", tgtTable);
-        return this;
-    }
-
-    public RecipeMerlin withTargetTable(final String tgtTable) {
-        properties.setProperty("targetTable", tgtTable);
         return this;
     }
 

@@ -116,8 +116,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drPartition() throws Exception {
         final String tblName = "partitionDR";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         runSql(connection,
@@ -162,8 +161,7 @@ public class HiveDRTest extends BaseTestClass {
     public void drInsertOverwritePartition() throws Exception {
         final String tblName = "drInsertOverwritePartition";
         final String hlpTblName = "drInsertOverwritePartitionHelperTbl";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
         runSql(connection, "create table " + hlpTblName + "(comment string)");
         runSql(connection,
@@ -241,8 +239,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drSerDeWithProperties() throws Exception {
         final String tblName = "serdeTable";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         runSql(connection,
@@ -272,8 +269,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drChangeColumn() throws Exception {
         final String tblName = "tableForColumnChange";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command1 = recipeMerlin.getSubmissionCommand();
         final String recipe1Name = recipeMerlin.getName();
         runSql(connection,
@@ -300,13 +296,11 @@ public class HiveDRTest extends BaseTestClass {
     public void drTwoDstTablesTwoRequests() throws Exception {
         final String tblName = "firstTableDR";
         final String tbl2Name = "secondTableDR";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command1 = recipeMerlin.getSubmissionCommand();
         final String recipe1Name = recipeMerlin.getName();
         recipeMerlin.setUniqueName(this.getClass().getSimpleName());
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tbl2Name);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command2 = recipeMerlin.getSubmissionCommand();
         final String recipe2Name = recipeMerlin.getName();
         runSql(connection,
@@ -339,8 +333,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drExternalToNonExternal() throws Exception {
         final String tblName = "externalToNonExternal";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         createExternalTable(connection, clusterFS, baseTestHDFSDir + "click_data/", tblName);
@@ -370,8 +363,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drExtPartitionedToNonExtPartitioned() throws Exception {
         final String tblName = "externalToNonExternal";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         createExternalPartitionedTable(connection, clusterFS,
@@ -420,8 +412,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drChangeCommentAndPropertyTest() throws Exception {
         final String tblName = "myTable";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         runSql(connection, "create table " + tblName + "(field string)");
@@ -528,8 +519,7 @@ public class HiveDRTest extends BaseTestClass {
     @Test
     public void drInsertDropReplaceDynamicPartition() throws Exception {
         final String tblName = "dynamicPartitionDR";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         //disable strict mode to use only dynamic partition
@@ -587,8 +577,7 @@ public class HiveDRTest extends BaseTestClass {
     public void drInsertOverwriteDynamicPartition () throws Exception {
         final String tblName = "drInsertOverwritePartition";
         final String hlpTblName = "drInsertOverwritePartitionHelperTbl";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         //disable strict mode to use only dynamic partition
@@ -647,8 +636,8 @@ public class HiveDRTest extends BaseTestClass {
     public void differentRecipeFrequenciesTest(String frequency) throws Exception {
         LOGGER.info("Testing with frequency: " + frequency);
         String tblName = "myTable";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName).withTargetDb(DB_NAME)
-            .withTargetTable(tblName).withFrequency(new Frequency(frequency));
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
+            .withFrequency(new Frequency(frequency));
         runSql(connection, "create table " + tblName + "(comment string)");
         final List<String> command = recipeMerlin.getSubmissionCommand();
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
