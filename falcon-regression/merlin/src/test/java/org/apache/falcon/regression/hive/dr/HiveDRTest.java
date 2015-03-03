@@ -203,21 +203,25 @@ public class HiveDRTest extends BaseTestClass {
     }
 
     @Test
-    public void drTwoDstTablesOneRequest() throws Exception {
+    public void drTwoTablesOneRequest() throws Exception {
         final String tblName = "firstTableDR";
         final String tbl2Name = "secondTableDR";
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName)
-            .withTargetDb(DB_NAME).withTargetTable(tblName + ',' + tbl2Name);
+        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName + ',' + tbl2Name);
         final List<String> command = recipeMerlin.getSubmissionCommand();
 
         runSql(connection,
             "create table " + tblName + "(comment string)");
+        runSql(connection,
+            "create table " + tbl2Name + "(comment string)");
 
         bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
-        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tbl2Name);
+        bootstrapCopy(connection, clusterFS, tbl2Name, connection2, clusterFS2, tbl2Name);
 
         runSql(connection,
             "insert into table " + tblName + " values"
+                + "('this string has been added post bootstrap - should appear after dr')");
+        runSql(connection,
+            "insert into table " + tbl2Name + " values"
                 + "('this string has been added post bootstrap - should appear after dr')");
 
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
@@ -228,7 +232,7 @@ public class HiveDRTest extends BaseTestClass {
         final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
             cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
-        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tbl2Name),
             cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), anAssert);
         anAssert.assertAll();
 
