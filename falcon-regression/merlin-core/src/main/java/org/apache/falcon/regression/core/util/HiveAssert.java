@@ -155,7 +155,7 @@ public class HiveAssert {
         final Map<String, String> tbl1Props = table1.getTblProps();
         final Map<String, String> tbl2Props = table2.getTblProps();
         final String[] ignoreTblProps = {"transient_lastDdlTime", "repl.last.id",
-            "last_modified_by", "last_modified_time"};
+            "last_modified_by", "last_modified_time", "COLUMN_STATS_ACCURATE"};
         for (String ignoreTblProp : ignoreTblProps) {
             tbl1Props.remove(ignoreTblProp);
             tbl2Props.remove(ignoreTblProp);
