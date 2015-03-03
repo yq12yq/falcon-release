@@ -61,7 +61,7 @@ public class HiveAssert {
         for (int i = 0; i < columns1.size(); ++i) {
             HCatFieldSchema column1 = columns1.get(i);
             HCatFieldSchema column2 = columns2.get(i);
-            softAssert.assertEquals(column1.getComment(), column2.getComment(),
+            softAssert.assertEquals(column2.getComment(), column1.getComment(),
                 "Comments of the columns: " + column1 + " & " + column2 + " is not same");
         }
         return softAssert;
@@ -83,7 +83,7 @@ public class HiveAssert {
             for (int i = 0; i < table1Partitions.size(); i++) {
                 final HCatPartition table1Partition = table1Partitions.get(i);
                 final HCatPartition table2Partition = table2Partitions.get(i);
-                softAssert.assertEquals(table1Partition.getValues(), table2Partition.getValues(),
+                softAssert.assertEquals(table2Partition.getValues(), table1Partition.getValues(),
                     "Partitions don't have same values");
             }
         } catch (Exception e) {
@@ -111,9 +111,9 @@ public class HiveAssert {
     /**
      * Assertion for equality of two tables.
      * @param cluster1 the ColoHelper of first cluster
-     * @param table1 the first table
+     * @param table1 the first table (expected values)
      * @param cluster2 the ColoHelper of second cluster
-     * @param table2 the second table
+     * @param table2 the second table (actual values)
      * @param softAssert object used for performing assertion
      * @return object used for performing assertion
      * @throws java.io.IOException
@@ -128,28 +128,28 @@ public class HiveAssert {
         final String table2FullName = table2.getDbName() + "." + table2.getTableName();
         LOGGER.info("Checking equality of table : " + table1FullName + " & " + table2FullName);
         //table metadata equality
-        softAssert.assertEquals(table1.comment(), table2.comment(),
+        softAssert.assertEquals(table2.comment(), table1.comment(),
             "Table " + table1FullName + " has different comment from " + table2FullName);
-        softAssert.assertEquals(table1.getBucketCols(), table2.getBucketCols(),
+        softAssert.assertEquals(table2.getBucketCols(), table1.getBucketCols(),
             "Table " + table1FullName + " has different bucket columns from " + table2FullName);
         assertColumnListEqual(table1.getCols(), table2.getCols(), softAssert);
-        softAssert.assertEquals(table1.getInputFileFormat(), table2.getInputFileFormat(),
+        softAssert.assertEquals(table2.getInputFileFormat(), table1.getInputFileFormat(),
             "Table " + table1FullName + " has different InputFileFormat from " + table2FullName);
-        softAssert.assertEquals(table1.getNumBuckets(), table2.getNumBuckets(),
+        softAssert.assertEquals(table2.getNumBuckets(), table1.getNumBuckets(),
             "Table " + table1FullName + " has different number of buckets from " + table2FullName);
-        softAssert.assertEquals(table1.getOutputFileFormat(), table2.getOutputFileFormat(),
+        softAssert.assertEquals(table2.getOutputFileFormat(), table1.getOutputFileFormat(),
             "Table " + table1FullName + " has different OutputFileFormat from " + table2FullName);
         assertColumnListEqual(table1.getPartCols(), table2.getPartCols(), softAssert);
-        softAssert.assertEquals(table1.getSerdeLib(), table2.getSerdeLib(),
+        softAssert.assertEquals(table2.getSerdeLib(), table1.getSerdeLib(),
             "Table " + table1FullName + " has different serde from " + table2FullName);
-        softAssert.assertEquals(table1.getSerdeParams(), table2.getSerdeParams(),
+        softAssert.assertEquals(table2.getSerdeParams(), table1.getSerdeParams(),
             "Table " + table1FullName + " has different serde params from " + table2FullName);
-        softAssert.assertEquals(table1.getSortCols(), table2.getSortCols(),
+        softAssert.assertEquals(table2.getSortCols(), table1.getSortCols(),
             "Table " + table1FullName + " has different sort columns from " + table2FullName);
-        softAssert.assertEquals(table1.getStorageHandler(), table2.getStorageHandler(),
+        softAssert.assertEquals(table2.getStorageHandler(), table1.getStorageHandler(),
             "Table " + table1FullName + " has different storage handler from " + table2FullName);
         if (notIgnoreTblTypeAndProps) {
-            softAssert.assertEquals(table1.getTabletype(), table2.getTabletype(),
+            softAssert.assertEquals(table2.getTabletype(), table1.getTabletype(),
                 "Table " + table1FullName + " has different Tabletype from " + table2FullName);
         }
         final Map<String, String> tbl1Props = table1.getTblProps();
@@ -161,7 +161,7 @@ public class HiveAssert {
             tbl2Props.remove(ignoreTblProp);
         }
         if (notIgnoreTblTypeAndProps) {
-            softAssert.assertEquals(tbl1Props, tbl2Props,
+            softAssert.assertEquals(tbl2Props, tbl1Props,
                 "Table " + table1FullName + " has different TblProps from " + table2FullName);
         }
         LOGGER.info("Checking equality of table partitions");
@@ -174,8 +174,8 @@ public class HiveAssert {
         assertPartitionListEqual(table1Partitions, table2Partitions, softAssert);
         if (notIgnoreTblTypeAndProps) {
                 softAssert.assertEquals(
-                cluster1FS.getContentSummary(new Path(table1.getLocation())).getLength(),
                 cluster2FS.getContentSummary(new Path(table2.getLocation())).getLength(),
+                cluster1FS.getContentSummary(new Path(table1.getLocation())).getLength(),
                 "Size of content for table1 and table2 are different");
         }
 
@@ -188,14 +188,14 @@ public class HiveAssert {
             Statement jdbcStmt2 = cluster2.getClusterHelper().getHiveJdbcConnection().createStatement();
             execute1 = jdbcStmt1.execute("select * from " + table1FullName);
             execute2 = jdbcStmt2.execute("select * from " + table2FullName);
-            softAssert.assertEquals(execute1, execute2,
+            softAssert.assertEquals(execute2, execute1,
                 "Table " + table1FullName + " has different result of select * from " + table2FullName);
             if (execute1 && execute2) {
                 final ResultSet resultSet1 = jdbcStmt1.getResultSet();
                 final ResultSet resultSet2 = jdbcStmt2.getResultSet();
                 final List<String> rows1 = HiveUtil.fetchRows(resultSet1);
                 final List<String> rows2 = HiveUtil.fetchRows(resultSet2);
-                softAssert.assertEquals(rows1, rows2,
+                softAssert.assertEquals(rows2, rows1,
                     "Table " + table1FullName + " has different content from " + table2FullName);
             }
         } catch (SQLException e) {
@@ -209,9 +209,9 @@ public class HiveAssert {
     /**
      * Assertion for equality of two dbs.
      * @param cluster1 the ColoHelper of first cluster
-     * @param db1 first database for comparison
+     * @param db1 first database for comparison (expected values)
      * @param cluster2 the ColoHelper of second cluster
-     * @param db2 second database for comparison
+     * @param db2 second database for comparison (actual values)
      * @param softAssert object used for performing assertion
      * @return object used for performing assertion
      * @throws java.io.IOException
@@ -224,16 +224,16 @@ public class HiveAssert {
         //check database name equality
         final String db1Name = db1.getName();
         final String db2Name = db2.getName();
-        softAssert.assertEquals(db1.getComment(), db2.getComment(), "Comment differ for the dbs");
+        softAssert.assertEquals(db2.getComment(), db1.getComment(), "Comment differ for the dbs");
         //check database properties equality
-        softAssert.assertEquals(db1.getProperties(), db2.getProperties(),
+        softAssert.assertEquals(db2.getProperties(), db1.getProperties(),
             "Database " + db1Name + " has different properties from " + db2Name);
         //checking table equality
         final List<String> db1tableNames = hcatClient1.listTableNamesByPattern(db1Name, ".*");
         final List<String> db2tableNames = hcatClient2.listTableNamesByPattern(db2Name, ".*");
         Collections.sort(db1tableNames);
         Collections.sort(db2tableNames);
-        softAssert.assertEquals(db1tableNames, db2tableNames,
+        softAssert.assertEquals(db2tableNames, db1tableNames,
             "Table names are not same. Actual: " + db1tableNames + " Expected: " + db2tableNames);
         for (String tableName : db1tableNames) {
             try {
