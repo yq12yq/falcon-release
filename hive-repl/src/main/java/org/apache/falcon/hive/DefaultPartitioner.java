@@ -19,6 +19,7 @@
 package org.apache.falcon.hive;
 
 import com.google.common.collect.Lists;
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.hive.util.DRStatusStore;
 import org.apache.falcon.hive.util.HiveDRUtils;
 import org.apache.falcon.hive.util.ReplicationStatus;
@@ -63,8 +64,9 @@ public class DefaultPartitioner implements Partitioner {
         }
     }
 
-    public List<ReplicationEvents> partition(final HiveDROptions drOptions, final String dbName,
+    public List<ReplicationEvents> partition(final HiveDROptions drOptions, final String databaseName,
                                              final Iterator<ReplicationTask> taskIter) throws Exception {
+        String dbName = databaseName.toLowerCase();
         // init filtering before partitioning
         this.eventFilter = new EventFilter(drOptions.getSourceMetastoreUri(), drOptions.getTargetMetastoreUri(),
                 drOptions.getJobName(), dbName);
@@ -91,6 +93,9 @@ public class DefaultPartitioner implements Partitioner {
             if (task.isActionable()) {
                 Scope eventScope = task.getEvent().getEventScope();
                 String tableName = task.getEvent().getTableName();
+                if (StringUtils.isNotEmpty(tableName)) {
+                    tableName = tableName.toLowerCase();
+                }
 
                 Iterable<? extends org.apache.hive.hcatalog.api.repl.Command> srcCmds = task.getSrcWhCommands();
                 for(Command cmd : srcCmds) {

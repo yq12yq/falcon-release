@@ -269,7 +269,7 @@ public class MetaStoreEventSourcer implements EventSourcer {
 
         if (!srcReplicationEventList.isEmpty() || !trgReplicationEventList.isEmpty()) {
             LOG.info("processTableReplicationEvents add src and dst events");
-            events = new ReplicationEvents(dbName, tableName, srcReplicationEventList,
+            events = new ReplicationEvents(dbName.toLowerCase(), tableName.toLowerCase(), srcReplicationEventList,
                     trgReplicationEventList);
         }
         if (events != null) {
