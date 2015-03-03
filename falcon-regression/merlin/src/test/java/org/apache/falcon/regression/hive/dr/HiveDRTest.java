@@ -353,7 +353,7 @@ public class HiveDRTest extends BaseTestClass {
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
         ).assertAll();
 
     }
@@ -394,7 +394,7 @@ public class HiveDRTest extends BaseTestClass {
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
         ).assertAll();
 
     }
