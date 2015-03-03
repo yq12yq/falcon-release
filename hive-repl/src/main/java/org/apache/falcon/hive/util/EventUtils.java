@@ -52,15 +52,13 @@ public class EventUtils {
     private Configuration conf = null;
     private String sourceHiveServer2Uri = null;
     private String sourceDatabase = null;
-    private String sourceStagingPath = null;
     private String sourceNN = null;
     private String targetHiveServer2Uri = null;
     private String targetStagingPath = null;
     private String targetNN = null;
-    private String sourceStagingUri = null;
     private String targetStagingUri = null;
-    private List<String> sourceCleanUpList = null;
-    private List<String> targetCleanUpList = null;
+    private List<Path> sourceCleanUpList = null;
+    private List<Path> targetCleanUpList = null;
     private static final Logger LOG = LoggerFactory.getLogger(EventUtils.class);
 
     private FileSystem sourceFileSystem = null;
@@ -76,14 +74,13 @@ public class EventUtils {
         this.conf = conf;
         sourceHiveServer2Uri = conf.get("sourceHiveServer2Uri");
         sourceDatabase = conf.get("sourceDatabase");
-        sourceStagingPath = conf.get("sourceStagingPath");
         sourceNN = conf.get("sourceNN");
 
         targetHiveServer2Uri = conf.get("targetHiveServer2Uri");
         targetStagingPath = conf.get("targetStagingPath");
         targetNN = conf.get("targetNN");
-        sourceCleanUpList = new ArrayList<String>();
-        targetCleanUpList = new ArrayList<String>();
+        sourceCleanUpList = new ArrayList<Path>();
+        targetCleanUpList = new ArrayList<Path>();
     }
 
     public void setupConnection() throws Exception {
@@ -105,7 +102,6 @@ public class EventUtils {
 
     public void initializeFS() throws IOException {
         LOG.info("Initializing staging directory");
-        sourceStagingUri = sourceNN + sourceStagingPath;
         targetStagingUri = targetNN + targetStagingPath;
         sourceFileSystem = FileSystem.get(FileUtils.getConfiguration(sourceNN));
         targetFileSystem = FileSystem.get(FileUtils.getConfiguration(targetNN));
@@ -122,8 +118,9 @@ public class EventUtils {
         if (StringUtils.isNotEmpty(exportEventStr)) {
             LOG.info("Process the export statements");
             processCommands(exportEventStr, dbName, tableName, sourceStatement, sourceCleanUpList, false);
-            //TODO Check srcStagingDirectory is not empty
-            invokeCopy();
+            if (!sourceCleanUpList.isEmpty()) {
+                invokeCopy(sourceCleanUpList);
+            }
         }
 
         if (StringUtils.isNotEmpty(importEventStr)) {
@@ -137,14 +134,15 @@ public class EventUtils {
     }
 
     private void processCommands(String eventStr, String dbName, String tableName, Statement sqlStmt,
-                                 List<String> cleanUpList, boolean isImportStatements)
-        throws SQLException, HiveReplicationException, IOException {
+                                 List<Path> cleanUpList, boolean isImportStatements)
+            throws SQLException, HiveReplicationException, IOException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
             LOG.info(" Hive DR Deserialize : {} :", command);
             try {
                 Command cmd = ReplicationUtils.deserializeCommand(command);
-                cleanUpList.addAll(cmd.cleanupLocationsAfterEvent());
+                List<String> cleanupLocations = cmd.cleanupLocationsAfterEvent();
+                cleanUpList.addAll(getCleanUpPaths(cleanupLocations));
                 LOG.info("Executing command : {} : {} ", cmd.getEventId(), cmd.toString());
                 executeCommand(cmd, dbName, tableName, sqlStmt, isImportStatements, 0);
             } catch (Exception e) {
@@ -159,7 +157,7 @@ public class EventUtils {
 
     private void executeCommand(Command cmd, String dbName, String tableName,
                                 Statement sqlStmt, boolean isImportStatements, int attempt)
-        throws HiveReplicationException, SQLException, IOException {
+            throws HiveReplicationException, SQLException, IOException {
         for (final String stmt : cmd.get()) {
             executeSqlStatement(cmd, dbName, tableName, sqlStmt, stmt, isImportStatements, attempt);
         }
@@ -170,7 +168,7 @@ public class EventUtils {
 
     private void executeSqlStatement(Command cmd, String dbName, String tableName,
                                      Statement sqlStmt, String stmt, boolean isImportStatements, int attempt)
-        throws HiveReplicationException, SQLException, IOException {
+            throws HiveReplicationException, SQLException, IOException {
         try {
             sqlStmt.execute(stmt);
         } catch (SQLException sqeOuter) {
@@ -178,7 +176,7 @@ public class EventUtils {
             if (attempt < RETRY_ATTEMPTS && cmd.isRetriable()) {
                 if (isImportStatements) {
                     try {
-                        cleanupEventLocations(cmd.cleanupLocationsPerRetry(), targetFileSystem);
+                        cleanupEventLocations(getCleanUpPaths(cmd.cleanupLocationsPerRetry()), targetFileSystem);
                     } catch (IOException ioe) {
                         // Clean up failed before retry on target. Update failure status and return
                         addReplicationStatus(ReplicationStatus.Status.FAILURE, dbName,
@@ -186,7 +184,7 @@ public class EventUtils {
                         throw ioe;
                     }
                 } else {
-                    cleanupEventLocations(cmd.cleanupLocationsPerRetry(), sourceFileSystem);
+                    cleanupEventLocations(getCleanUpPaths(cmd.cleanupLocationsPerRetry()), sourceFileSystem);
                 }
                 executeCommand(cmd, dbName, tableName, sqlStmt, isImportStatements, ++attempt);
                 return; // Retry succeeded, return without throwing an exception.
@@ -201,9 +199,17 @@ public class EventUtils {
         }
     }
 
+    private static List<Path> getCleanUpPaths(List<String> cleanupLocations) {
+        List<Path> cleanupLocationPaths = new ArrayList<Path>();
+        for (String cleanupLocation : cleanupLocations) {
+            cleanupLocationPaths.add(new Path(cleanupLocation));
+        }
+        return cleanupLocationPaths;
+    }
+
     private void undoCommand(Command cmd, String dbName,
                              String tableName, Statement sqlStmt, boolean isImportStatements)
-        throws SQLException, HiveReplicationException {
+            throws SQLException, HiveReplicationException {
         if (cmd.isUndoable()) {
             try {
                 List<String> undoCommands = cmd.getUndo();
@@ -225,7 +231,7 @@ public class EventUtils {
     }
 
     private void addReplicationStatus(ReplicationStatus.Status status, String dbName, String tableName, long eventId)
-        throws HiveReplicationException {
+            throws HiveReplicationException {
         try {
             String drJobName = conf.get("drJobName");
             ReplicationStatus rs = new ReplicationStatus(conf.get("sourceCluster"), conf.get("targetCluster"),
@@ -240,34 +246,25 @@ public class EventUtils {
         }
     }
 
-    public void invokeCopy() throws Exception {
-        DistCpOptions options = getDistCpOptions();
+    public void invokeCopy(List<Path> srcStagingPaths) throws Exception {
+        DistCpOptions options = getDistCpOptions(srcStagingPaths);
         DistCp distCp = new DistCp(conf, options);
-        LOG.info("Started DistCp with source Path: {} \ttarget path: ", options.getSourcePaths().toString(),
-                options.getTargetPath());
+        LOG.info("Started DistCp with source Path: {} \ttarget path: ", StringUtils.join(srcStagingPaths.toArray()),
+                targetStagingUri);
         Job distcpJob = distCp.execute();
         LOG.info("Distp Hadoop job: {}", distcpJob.getJobID().toString());
         LOG.info("Completed DistCp");
     }
 
-    public DistCpOptions getDistCpOptions() {
-        String[] paths = (sourceStagingUri).trim().split(",");
-        List<Path> srcPaths = getPaths(paths);
+    public DistCpOptions getDistCpOptions(List<Path> srcStagingPaths) {
+        srcStagingPaths.toArray(new Path[srcStagingPaths.size()]);
 
-        DistCpOptions distcpOptions = new DistCpOptions(srcPaths, new Path(targetStagingUri));
-        distcpOptions.setSyncFolder(true);
+        DistCpOptions distcpOptions = new DistCpOptions(srcStagingPaths, new Path(targetStagingUri));
+        distcpOptions.setSyncFolder(false);
         distcpOptions.setBlocking(true);
         distcpOptions.setMaxMaps(Integer.valueOf(conf.get("maxMaps")));
         distcpOptions.setMapBandwidth(Integer.valueOf(conf.get("mapBandwidth")));
         return distcpOptions;
-    }
-
-    private List<Path> getPaths(String[] paths) {
-        List<Path> listPaths = new ArrayList<Path>();
-        for (String path : paths) {
-            listPaths.add(new Path(path));
-        }
-        return listPaths;
     }
 
     public void cleanEventsDirectory() throws IOException {
@@ -276,11 +273,11 @@ public class EventUtils {
         cleanupEventLocations(targetCleanUpList, targetFileSystem);
     }
 
-    private void cleanupEventLocations(List<String> cleanupList, FileSystem fileSystem)
-        throws IOException {
-        for (String cleanUpPath : cleanupList) {
+    private void cleanupEventLocations(List<Path> cleanupList, FileSystem fileSystem)
+            throws IOException {
+        for (Path cleanUpPath : cleanupList) {
             try {
-                fileSystem.delete(new Path(cleanUpPath), true);
+                fileSystem.delete(cleanUpPath, true);
             } catch (IOException ioe) {
                 LOG.error("Cleaning up of staging directory {} failed {}", cleanUpPath, ioe.toString());
                 throw ioe;
