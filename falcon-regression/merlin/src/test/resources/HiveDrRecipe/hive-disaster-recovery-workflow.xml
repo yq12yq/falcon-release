@@ -49,8 +49,10 @@
             <arg>-Dmapred.job.priority=${jobPriority}</arg>
             <arg>-falconLibPath</arg>
             <arg>${wf:conf("falcon.libpath")}</arg>
-            <arg>-maxMaps</arg>
-            <arg>${maxMaps}</arg>
+            <arg>-replicationMaxMaps</arg>
+            <arg>${replicationMaxMaps}</arg>
+            <arg>-distcpMaxMaps</arg>
+            <arg>${distcpMaxMaps}</arg>
             <arg>-sourceCluster</arg>
             <arg>${sourceCluster}</arg>
             <arg>-sourceMetastoreUri</arg>
