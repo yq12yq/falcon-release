@@ -188,7 +188,7 @@ public class HiveDRTool extends Configured implements Tool {
 
         job.getConfiguration().set(JobContext.MAP_SPECULATIVE, "false");
         job.getConfiguration().set(JobContext.NUM_MAPS,
-                String.valueOf(inputOptions.getMaxMaps()));
+                String.valueOf(inputOptions.getReplicationMaxMaps()));
 
         for (HiveDRArgs args : HiveDRArgs.values()) {
             if (inputOptions.getValue(args) != null) {

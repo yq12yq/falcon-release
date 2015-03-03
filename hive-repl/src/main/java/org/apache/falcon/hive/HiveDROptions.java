@@ -118,8 +118,8 @@ public class HiveDROptions {
         return context.get(HiveDRArgs.TARGET_STAGING_PATH);
     }
 
-    public String getMaxMaps() {
-        return context.get(HiveDRArgs.MAX_MAPS);
+    public String getReplicationMaxMaps() {
+        return context.get(HiveDRArgs.REPLICATION_MAX_MAPS);
     }
 
     public String getMapBandwidth() {

@@ -39,7 +39,7 @@ public class DRTest {
             "-targetRM", "local",
 
             "-maxEvents", "5",
-            "-maxMaps", "1",
+            "-replicationMaxMaps", "1",
             "-mapBandwidth", "4",
         };
         HiveDRTool.main(testArgs);

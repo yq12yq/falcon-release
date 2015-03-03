@@ -108,7 +108,7 @@ public class EventUtils {
     }
 
     public void processEvents(String event) throws Exception {
-        LOG.info("EventUtils processEvents event to process: {}", event);
+        LOG.debug("EventUtils processEvents event to process: {}", event);
         listReplicationStatus = new ArrayList<ReplicationStatus>();
         String[] eventSplit = event.split(DelimiterUtils.FIELD_DELIM);
         String dbName = eventSplit[0];
@@ -116,7 +116,7 @@ public class EventUtils {
         String exportEventStr = eventSplit[2];
         String importEventStr = eventSplit[3];
         if (StringUtils.isNotEmpty(exportEventStr)) {
-            LOG.info("Process the export statements");
+            LOG.info("Process the export statements for db {} table {}", dbName, tableName);
             processCommands(exportEventStr, dbName, tableName, sourceStatement, sourceCleanUpList, false);
             if (!sourceCleanUpList.isEmpty()) {
                 invokeCopy(sourceCleanUpList);
@@ -124,7 +124,7 @@ public class EventUtils {
         }
 
         if (StringUtils.isNotEmpty(importEventStr)) {
-            LOG.info("Process the import statements");
+            LOG.info("Process the import statements for db {} table {}", dbName, tableName);
             processCommands(importEventStr, dbName, tableName, targetStatement, targetCleanUpList, true);
         }
     }
@@ -138,18 +138,18 @@ public class EventUtils {
             throws SQLException, HiveReplicationException, IOException {
         String[] commandList = eventStr.split(DelimiterUtils.STMT_DELIM);
         for (String command : commandList) {
-            LOG.info(" Hive DR Deserialize : {} :", command);
+            LOG.debug(" Hive DR Deserialize : {} :", command);
             try {
                 Command cmd = ReplicationUtils.deserializeCommand(command);
                 List<String> cleanupLocations = cmd.cleanupLocationsAfterEvent();
                 cleanUpList.addAll(getCleanUpPaths(cleanupLocations));
-                LOG.info("Executing command : {} : {} ", cmd.getEventId(), cmd.toString());
+                LOG.debug("Executing command : {} : {} ", cmd.getEventId(), cmd.toString());
                 executeCommand(cmd, dbName, tableName, sqlStmt, isImportStatements, 0);
             } catch (Exception e) {
                 // clean up locations before failing.
                 cleanupEventLocations(sourceCleanUpList, sourceFileSystem);
                 cleanupEventLocations(targetCleanUpList, targetFileSystem);
-                throw new HiveReplicationException("Could not deserialize replication command for "
+                throw new HiveReplicationException("Could not process replication command for "
                         + " DB Name:" + dbName + ", Table Name:" + tableName, e);
             }
         }
@@ -213,7 +213,7 @@ public class EventUtils {
         if (cmd.isUndoable()) {
             try {
                 List<String> undoCommands = cmd.getUndo();
-                LOG.info("Undo command: {}", StringUtils.join(undoCommands.toArray()));
+                LOG.debug("Undo command: {}", StringUtils.join(undoCommands.toArray()));
                 if (undoCommands.size() != 0) {
                     for (final String undoStmt : undoCommands) {
                         sqlStmt.execute(undoStmt);
@@ -266,7 +266,7 @@ public class EventUtils {
 
         distcpOptions.setSyncFolder(false);
         distcpOptions.setBlocking(true);
-        distcpOptions.setMaxMaps(Integer.valueOf(conf.get("maxMaps")));
+        distcpOptions.setMaxMaps(Integer.valueOf(conf.get("distcpMaxMaps")));
         distcpOptions.setMapBandwidth(Integer.valueOf(conf.get("mapBandwidth")));
         return distcpOptions;
     }

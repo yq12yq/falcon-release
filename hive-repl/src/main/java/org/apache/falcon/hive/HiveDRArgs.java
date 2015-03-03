@@ -54,7 +54,8 @@ public enum HiveDRArgs {
     MAX_EVENTS("maxEvents", "number of events to process in this run"),
 
     // tuning params
-    MAX_MAPS("maxMaps", "number of maps", false),
+    REPLICATION_MAX_MAPS("replicationMaxMaps", "number of maps", false),
+    DISTCP_MAX_MAPS("distcpMaxMaps", "number of maps", false),
 
     // Map Bandwidth
     MAP_BANDWIDTH("mapBandwidth", "map bandwidth in mb", false),
