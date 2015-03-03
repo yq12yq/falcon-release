@@ -225,12 +225,12 @@ public class HiveDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
-        SoftAssert fromFirstTable = HiveAssert.assertTableEqual(cluster,
-            clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true));
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), fromFirstTable
-        ).assertAll();
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), anAssert);
+        anAssert.assertAll();
 
     }
 
@@ -324,13 +324,12 @@ public class HiveDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipe2Name, 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
-        SoftAssert fromFirstTable = HiveAssert.assertTableEqual(cluster,
-            clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true));
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), fromFirstTable
-        ).assertAll();
-
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
+        HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
+            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), anAssert);
+        anAssert.assertAll();
     }
 
     @Test
@@ -379,9 +378,9 @@ public class HiveDRTest extends BaseTestClass {
         runSql(connection2, "insert into table " + tblName + " partition (date='2001-01-02') " +
             "values ('click2', '02:02:02')");
 
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true), false
-        ).assertAll();
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert, false);
 
 
         Assert.assertEquals(Bundle.runFalconCLI(command), 0, "Recipe submission failed.");
@@ -394,9 +393,8 @@ public class HiveDRTest extends BaseTestClass {
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
-        ).assertAll();
-
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
+        anAssert.assertAll();
     }
 
     /**
@@ -464,25 +462,25 @@ public class HiveDRTest extends BaseTestClass {
         createExternalPartitionedTable(connection2, clusterFS2,
             baseTestHDFSDir + "click_data2/", "click_data2");
 
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase("hdr_sdb1"),
-            cluster2, clusterHC2.getDatabase("hdr_sdb1"), new NotifyingAssert(true)
-        ).assertAll();
+            cluster2, clusterHC2.getDatabase("hdr_sdb1"), anAssert);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable("hdr_sdb1", "click_data"),
-            cluster2, clusterHC2.getTable("hdr_sdb1", "click_data"), new NotifyingAssert(true)
-        ).assertAll();
+            cluster2, clusterHC2.getTable("hdr_sdb1", "click_data"), anAssert);
+        anAssert.assertAll();
 
     }
 
     @Test(enabled = false)
     public void assertionTest() throws Exception {
+        final SoftAssert anAssert = new SoftAssert();
         HiveAssert.assertTableEqual(
             cluster, clusterHC.getTable("default", "hcatsmoke10546"),
-            cluster2, clusterHC2.getTable("default", "hcatsmoke10548"), new SoftAssert()
-        ).assertAll();
+            cluster2, clusterHC2.getTable("default", "hcatsmoke10548"), anAssert);
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase("default"), cluster2,
-            clusterHC2.getDatabase("default"), new SoftAssert()
-        ).assertAll();
+            clusterHC2.getDatabase("default"), anAssert);
+        anAssert.assertAll();
     }
 
     /**

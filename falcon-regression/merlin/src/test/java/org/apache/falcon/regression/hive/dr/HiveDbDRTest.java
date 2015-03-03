@@ -191,8 +191,9 @@ public class HiveDbDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase(dbName),
-            cluster2, clusterHC2.getDatabase(dbName), new NotifyingAssert(true)).assertAll();
+            cluster2, clusterHC2.getDatabase(dbName), anAssert);
 
         /* For second replication - a dropped tables is added back */
         createVanillaTable(connection, tblToBeDroppedAndAdded);
@@ -201,7 +202,8 @@ public class HiveDbDRTest extends BaseTestClass {
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertDbEqual(cluster, clusterHC.getDatabase(dbName),
-            cluster2, clusterHC2.getDatabase(dbName), new NotifyingAssert(true)).assertAll();
+            cluster2, clusterHC2.getDatabase(dbName), anAssert);
+        anAssert.assertAll();
     }
 
     @Test
