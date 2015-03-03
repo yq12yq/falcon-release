@@ -351,9 +351,16 @@ public class HiveDRTest extends BaseTestClass {
         InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
+        final NotifyingAssert anAssert = new NotifyingAssert(true);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), new NotifyingAssert(true)
-        ).assertAll();
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert, false);
+        anAssert.assertNotEquals(clusterHC2.getTable(DB_NAME, tblName).getTabletype(),
+            clusterHC.getTable(DB_NAME, tblName).getTableName(),
+            "Source and destination tables should have different Tabletype");
+        anAssert.assertNotEquals(clusterHC2.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
+            clusterHC.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
+            "Source and destination tables should have different value of property EXTERNAL");
+
 
     }
 
@@ -393,7 +400,13 @@ public class HiveDRTest extends BaseTestClass {
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
+            cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert, false);
+        anAssert.assertNotEquals(clusterHC2.getTable(DB_NAME, tblName).getTabletype(),
+            clusterHC.getTable(DB_NAME, tblName).getTableName(),
+            "Source and destination tables should have different Tabletype");
+        anAssert.assertNotEquals(clusterHC2.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
+            clusterHC.getTable(DB_NAME, tblName).getTblProps().get("EXTERNAL"),
+            "Source and destination tables should have different value of property EXTERNAL");
         anAssert.assertAll();
     }
 
