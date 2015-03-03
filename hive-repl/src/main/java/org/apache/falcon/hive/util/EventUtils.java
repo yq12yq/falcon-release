@@ -260,6 +260,10 @@ public class EventUtils {
         srcStagingPaths.toArray(new Path[srcStagingPaths.size()]);
 
         DistCpOptions distcpOptions = new DistCpOptions(srcStagingPaths, new Path(targetStagingUri));
+        /* setSyncFolder to false to retain dir structure as in source at the target. If set to true all files will be
+        copied to the same staging sir at target resulting in DuplicateFileException in DistCp.
+        */
+
         distcpOptions.setSyncFolder(false);
         distcpOptions.setBlocking(true);
         distcpOptions.setMaxMaps(Integer.valueOf(conf.get("maxMaps")));
