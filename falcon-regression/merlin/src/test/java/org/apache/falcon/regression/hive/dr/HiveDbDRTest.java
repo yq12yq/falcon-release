@@ -133,7 +133,7 @@ public class HiveDbDRTest extends BaseTestClass {
         setUpDb(dbName, connection);
         runSql(connection, "create table " + tblName + "(data string)");
         setUpDb(dbName, connection2);
-        runSql(connection2, "create table " + tblName + "(data string)");
+        bootstrapCopy(connection, clusterFS, tblName,connection2, clusterFS2, tblName);
 
         recipeMerlin.withSourceDb(dbName).withSourceTable(isDBReplication ? "*" : tblName)
             .withTargetDb(dbName).withTargetTable(isDBReplication ? "*" : tblName);
@@ -153,7 +153,7 @@ public class HiveDbDRTest extends BaseTestClass {
         LOGGER.info("Setting " + clusterFS2.getUri() + dbPath + " to : " + readWritePerm);
         clusterFS2.setPermission(new Path(dbPath), FsPermission.valueOf(readWritePerm));
 
-        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 2,
+        InstanceUtil.waitTillInstanceReachState(clusterOC, recipeMerlin.getName(), 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(dbName, tblName),
