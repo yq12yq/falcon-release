@@ -52,7 +52,7 @@ public class CopyMapper extends Mapper<LongWritable, Text, Text, Text> {
     @Override
     protected void map(LongWritable key, Text value,
                        Context context) throws IOException, InterruptedException {
-        LOG.info("Processing Event value: {}", value.toString());
+        LOG.debug("Processing Event value: {}", value.toString());
 
         try {
             eventUtils.processEvents(value.toString());

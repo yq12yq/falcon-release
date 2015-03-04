@@ -40,18 +40,15 @@ public class DBReplicationStatusTest {
     public DBReplicationStatusTest() {
     }
 
-
     @BeforeClass
     public void prepare() throws Exception {
         dbReplicationStatus = new ReplicationStatus("source", "target", "jobname",
-                "default1", null, ReplicationStatus.Status.FAILURE, 20L);
+                "Default1", null, ReplicationStatus.Status.FAILURE, 20L);
         tableStatus1 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table1", ReplicationStatus.Status.SUCCESS, 20L);
-        tableStatuses.put("table1", tableStatus1);
+                "default1", "Table1", ReplicationStatus.Status.SUCCESS, 20L);
+        tableStatuses.put("Table1", tableStatus1);
 
     }
-
-
 
     public void dBReplicationStatusSerializeTest() throws Exception {
         DBReplicationStatus replicationStatus = new DBReplicationStatus(dbReplicationStatus, tableStatuses);
@@ -72,17 +69,17 @@ public class DBReplicationStatusTest {
 
         String jsonString = "{\"db_status\":{\"sourceUri\":\"source\","
                 + "\"targetUri\":\"target\",\"jobName\":\"jobname\",\"database\":\"default1\",\"status\":\"SUCCESS\","
-                + "\"eventId\":20},\"table_status\":{\"table1\":{\"sourceUri\":\"source\",\"targetUri\":\"target\","
-                + "\"jobName\":\"jobname\",\"database\":\"default1\",\"table\":\"table1\",\"status\":\"SUCCESS\","
+                + "\"eventId\":20},\"table_status\":{\"Table1\":{\"sourceUri\":\"source\",\"targetUri\":\"target\","
+                + "\"jobName\":\"jobname\",\"database\":\"default1\",\"table\":\"Table1\",\"status\":\"SUCCESS\","
                 + "\"eventId\":20},\"table3\":{\"sourceUri\":\"source\",\"targetUri\":\"target\","
-                + "\"jobName\":\"jobname\", \"database\":\"default1\",\"table\":\"table3\",\"status\":\"FAILURE\","
+                + "\"jobName\":\"jobname\", \"database\":\"Default1\",\"table\":\"table3\",\"status\":\"FAILURE\","
                 + "\"eventId\":10}, \"table2\":{\"sourceUri\":\"source\",\"targetUri\":\"target\","
                 + "\"jobName\":\"jobname\", \"database\":\"default1\",\"table\":\"table2\",\"status\":\"INIT\"}}}";
 
         DBReplicationStatus dbStatus = new DBReplicationStatus(jsonString);
-        Assert.assertEquals(dbStatus.getDbReplicationStatus().getDatabase(), "default1");
-        Assert.assertEquals(dbStatus.getDbReplicationStatus().getJobName(), "jobname");
-        Assert.assertEquals(dbStatus.getDbReplicationStatus().getEventId(), 20);
+        Assert.assertEquals(dbStatus.getDatabaseStatus().getDatabase(), "default1");
+        Assert.assertEquals(dbStatus.getDatabaseStatus().getJobName(), "jobname");
+        Assert.assertEquals(dbStatus.getDatabaseStatus().getEventId(), 20);
 
         Assert.assertEquals(dbStatus.getTableStatuses().get("table1").getEventId(), 20);
         Assert.assertEquals(dbStatus.getTableStatuses().get("table1").getStatus(), ReplicationStatus.Status.SUCCESS);
@@ -105,7 +102,7 @@ public class DBReplicationStatusTest {
             Assert.fail();
         } catch (HiveReplicationException e) {
             Assert.assertEquals(e.getMessage(),
-                    "Cannot set status for table default1.table1, It does not belong to DB wrongDb");
+                    "Cannot set status for table default1.table1, It does not belong to DB wrongdb");
         }
 
         String jsonString = "{\n" + "    \"db_status\": {\n"
@@ -138,7 +135,7 @@ public class DBReplicationStatusTest {
             Assert.fail();
         } catch (HiveReplicationException e) {
             Assert.assertEquals(e.getMessage(),
-                    "Cannot update Table Status. TableDB wrongDB does not match current DB default1");
+                    "Cannot update Table Status. TableDB wrongdb does not match current DB default1");
         }
 
         // wrong status test
@@ -163,7 +160,7 @@ public class DBReplicationStatusTest {
             Assert.fail();
         } catch (HiveReplicationException e) {
             Assert.assertEquals(e.getMessage(),
-                    "Cannot update Database Status. StatusDB wrongDB does not match current DB default1");
+                    "Cannot update Database Status. StatusDB wrongdb does not match current DB default1");
         }
 
         // wrong status test
@@ -183,11 +180,11 @@ public class DBReplicationStatusTest {
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table1", ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table2 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table2", ReplicationStatus.Status.INIT, -1L);
+                "Default1", "table2", ReplicationStatus.Status.INIT, -1L);
         ReplicationStatus table3 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table3", ReplicationStatus.Status.FAILURE, 15L);
+                "default1", "Table3", ReplicationStatus.Status.FAILURE, 15L);
         ReplicationStatus table4 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table4", ReplicationStatus.Status.FAILURE, 18L);
+                "Default1", "Table4", ReplicationStatus.Status.FAILURE, 18L);
         Map<String, ReplicationStatus> tables = new HashMap<String, ReplicationStatus>();
 
         tables.put("table1", table1);
@@ -197,23 +194,23 @@ public class DBReplicationStatusTest {
 
         // If there is a failue, last eventId should be lowest eventId of failed tables
         DBReplicationStatus status = new DBReplicationStatus(dbStatus, tables);
-        Assert.assertEquals(status.getDbReplicationStatus().getEventId(), 20);
-        Assert.assertEquals(status.getDbReplicationStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
+        Assert.assertEquals(status.getDatabaseStatus().getEventId(), 20);
+        Assert.assertEquals(status.getDatabaseStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
         status.updateDbStatusFromTableStatuses();
-        Assert.assertEquals(status.getDbReplicationStatus().getEventId(), 15);
-        Assert.assertEquals(status.getDbReplicationStatus().getStatus(), ReplicationStatus.Status.FAILURE);
+        Assert.assertEquals(status.getDatabaseStatus().getEventId(), 15);
+        Assert.assertEquals(status.getDatabaseStatus().getStatus(), ReplicationStatus.Status.FAILURE);
 
         // If all tables succeed, last eventId should be highest eventId of success tables
         table3 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table3", ReplicationStatus.Status.SUCCESS, 25L);
         table4 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table4", ReplicationStatus.Status.SUCCESS, 22L);
-        tables.put("table3", table3);
-        tables.put("table4", table4);
+        tables.put("Table3", table3);
+        tables.put("Table4", table4);
         status = new DBReplicationStatus(dbStatus, tables);
         status.updateDbStatusFromTableStatuses();
-        Assert.assertEquals(status.getDbReplicationStatus().getEventId(), 25);
-        Assert.assertEquals(status.getDbReplicationStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
+        Assert.assertEquals(status.getDatabaseStatus().getEventId(), 25);
+        Assert.assertEquals(status.getDatabaseStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
 
         // Init tables should not change DB status.
         Map<String, ReplicationStatus> initOnlyTables = new HashMap<String, ReplicationStatus>();
@@ -221,11 +218,11 @@ public class DBReplicationStatusTest {
         dbStatus = new ReplicationStatus("source", "target", "jobname",
                 "default1", null, ReplicationStatus.Status.SUCCESS, 20L);
         status = new DBReplicationStatus(dbStatus, initOnlyTables);
-        Assert.assertEquals(status.getDbReplicationStatus().getEventId(), 20);
-        Assert.assertEquals(status.getDbReplicationStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
+        Assert.assertEquals(status.getDatabaseStatus().getEventId(), 20);
+        Assert.assertEquals(status.getDatabaseStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
         status.updateDbStatusFromTableStatuses();
-        Assert.assertEquals(status.getDbReplicationStatus().getEventId(), 20);
-        Assert.assertEquals(status.getDbReplicationStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
+        Assert.assertEquals(status.getDatabaseStatus().getEventId(), 20);
+        Assert.assertEquals(status.getDatabaseStatus().getStatus(), ReplicationStatus.Status.SUCCESS);
 
 
     }

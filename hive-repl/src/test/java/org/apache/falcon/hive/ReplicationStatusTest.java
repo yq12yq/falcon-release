@@ -39,13 +39,13 @@ public class ReplicationStatusTest {
         dbStatus = new ReplicationStatus("source", "target", "jobname",
                 "default1", null, ReplicationStatus.Status.INIT, 0L);
         tableStatus = new ReplicationStatus("source", "target", "jobname",
-                "testDb", "table1", ReplicationStatus.Status.SUCCESS, 0L);
+                "testDb", "Table1", ReplicationStatus.Status.SUCCESS, 0L);
     }
 
     public void replicationStatusSerializeTest() throws Exception {
         String expected = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"jobname\",\n"
-                + "    \"database\": \"testDb\",\n    \"table\": \"table1\",\n"
+                + "    \"database\": \"testdb\",\n    \"table\": \"table1\",\n"
                 + "    \"status\": \"SUCCESS\",\n    \"eventId\": 0\n}";
         String actual = tableStatus.toJsonString();
         Assert.assertEquals(actual, expected);
@@ -60,7 +60,7 @@ public class ReplicationStatusTest {
     public void replicationStatusDeserializeTest() throws Exception {
         String tableInput = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"testJob\",\n"
-                + "    \"database\": \"test1\",\n    \"table\": \"table1\",\n"
+                + "    \"database\": \"Test1\",\n    \"table\": \"table1\",\n"
                 + "    \"status\": \"SUCCESS\",\n    \"eventId\": 0\n}";
         String dbInput = "{ \"sourceUri\": \"source\", \"targetUri\": \"target\",\"jobName\": \"jobname\",\n"
                 + "    \"database\": \"default1\", \"status\": \"FAILURE\","
@@ -84,10 +84,11 @@ public class ReplicationStatusTest {
         // no table, no eventId, no log
         dbInput = "{\n    \"sourceUri\": \"source\",\n"
                 + "    \"targetUri\": \"target\",\n    \"jobName\": \"testJob\",\n"
-                + "    \"database\": \"test1\",\n"
+                + "    \"database\": \"Test1\",\n"
                 + "    \"status\": \"SUCCESS\"\n}";
         newDbStatus = new ReplicationStatus(dbInput);
 
+        Assert.assertEquals(newDbStatus.getDatabase(), "test1");
         Assert.assertEquals(newDbStatus.getTable(), null);
         Assert.assertEquals(newDbStatus.getEventId(), -1);
         Assert.assertEquals(newDbStatus.getLog(), null);

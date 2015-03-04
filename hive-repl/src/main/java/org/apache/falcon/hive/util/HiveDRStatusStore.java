@@ -124,7 +124,7 @@ public class HiveDRStatusStore extends DRStatusStore {
     @Override
     public ReplicationStatus getReplicationStatus(String source, String target, String jobName, String database)
         throws HiveReplicationException {
-        return getDbReplicationStatus(source, target, jobName, database).getDbReplicationStatus();
+        return getReplicationStatus(source, target, jobName, database, null);
     }
 
 
@@ -132,13 +132,9 @@ public class HiveDRStatusStore extends DRStatusStore {
                                                   String jobName, String database,
                                                   String table) throws HiveReplicationException {
         if (StringUtils.isEmpty(table)) {
-            return getReplicationStatus(source, target, jobName, database);
+            return getDbReplicationStatus(source, target, jobName, database).getDatabaseStatus();
         } else {
-            DBReplicationStatus dbReplicationStatus = getDbReplicationStatus(source, target, jobName, database);
-            if (dbReplicationStatus.getTableStatuses().containsKey(table)) {
-                return dbReplicationStatus.getTableStatuses().get(table);
-            }
-            return new ReplicationStatus(source, target, jobName, database, table, ReplicationStatus.Status.INIT, -1);
+            return getDbReplicationStatus(source, target, jobName, database).getTableStatus(table);
         }
     }
 
@@ -194,12 +190,12 @@ public class HiveDRStatusStore extends DRStatusStore {
     }
 
     private Path getStatusDirPath(DBReplicationStatus dbReplicationStatus) {
-        ReplicationStatus status = dbReplicationStatus.getDbReplicationStatus();
+        ReplicationStatus status = dbReplicationStatus.getDatabaseStatus();
         return getStatusDirPath(status.getDatabase(), status.getJobName());
     }
 
     public Path getStatusDirPath(String database, String jobName) {
-        return new Path(DEFAULT_STORE_PATH + "/" + database + "/" + jobName);
+        return new Path(DEFAULT_STORE_PATH + "/" + database.toLowerCase() + "/" + jobName);
     }
 
     private void writeStatusFile(DBReplicationStatus dbReplicationStatus) throws HiveReplicationException {
@@ -273,12 +269,12 @@ public class HiveDRStatusStore extends DRStatusStore {
     public void checkForReplicationConflict(String newSource, String jobName,
                                              String database, String table) throws HiveReplicationException {
         try {
-            Path globPath = new Path(DEFAULT_STORE_PATH + "/" + database + "/*/latest.json");
+            Path globPath = new Path(DEFAULT_STORE_PATH + "/" + database.toLowerCase() + "/*/latest.json");
             FileStatus[] files = fileSystem.globStatus(globPath);
             for(FileStatus file : files) {
                 DBReplicationStatus dbFileStatus = new DBReplicationStatus(IOUtils.toString(
                         fileSystem.open(file.getPath())));
-                ReplicationStatus existingJob = dbFileStatus.getDbReplicationStatus();
+                ReplicationStatus existingJob = dbFileStatus.getDatabaseStatus();
 
                 if (!(newSource.equals(existingJob.getSourceUri()))) {
                     throw new HiveReplicationException("Two different sources are attempting to replicate to same db "
@@ -292,7 +288,7 @@ public class HiveDRStatusStore extends DRStatusStore {
                 if (StringUtils.isEmpty(table)) {
                     // When it is DB level replication, two different jobs cannot replicate to same DB
                     throw new HiveReplicationException("Two different jobs are attempting to replicate to same db "
-                            + database + ". New Job = " + jobName
+                            + database.toLowerCase() + ". New Job = " + jobName
                             + ", Existing Job = " + existingJob.getJobName());
                 }
 

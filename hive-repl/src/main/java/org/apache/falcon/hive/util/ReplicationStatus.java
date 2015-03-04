@@ -164,7 +164,7 @@ public class ReplicationStatus {
 
     public void setDatabase(String database) throws HiveReplicationException {
         validateString(DATABASE, database);
-        this.database = database;
+        this.database = database.toLowerCase();
     }
 
     public String getTable() {
@@ -172,7 +172,7 @@ public class ReplicationStatus {
     }
 
     public void setTable(String table) {
-        this.table = table;
+        this.table = (table == null) ? null : table.toLowerCase();
     }
 
     public Status getStatus() {

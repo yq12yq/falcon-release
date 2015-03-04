@@ -41,10 +41,10 @@ public class DBReplicationStatus {
     private static final String TABLE_STATUS = "table_status";
 
     private Map<String, ReplicationStatus> tableStatuses = new HashMap<String, ReplicationStatus>();
-    private ReplicationStatus dbReplicationStatus;
+    private ReplicationStatus databaseStatus;
 
     public DBReplicationStatus(ReplicationStatus dbStatus) throws HiveReplicationException {
-        setDbReplicationStatus(dbStatus);
+        setDatabaseStatus(dbStatus);
     }
 
     public DBReplicationStatus(ReplicationStatus dbStatus,
@@ -53,7 +53,7 @@ public class DBReplicationStatus {
         The order is important to ensure tables that do not belong to the db
         are not added to this DBReplicationStatus
          */
-        setDbReplicationStatus(dbStatus);
+        setDatabaseStatus(dbStatus);
         setTableStatuses(tableStatuses);
     }
 
@@ -65,7 +65,7 @@ public class DBReplicationStatus {
             for (Map.Entry<String, ReplicationStatus> status : tableStatuses.entrySet()) {
                 tableStatus.put(status.getKey(), status.getValue().toJsonObject());
             }
-            retObject.put(DB_STATUS, dbReplicationStatus.toJsonObject());
+            retObject.put(DB_STATUS, databaseStatus.toJsonObject());
             retObject.put(TABLE_STATUS, tableStatus);
             return retObject.toString(ReplicationStatus.INDENT_FACTOR);
         } catch (JSONException e) {
@@ -78,7 +78,7 @@ public class DBReplicationStatus {
         try {
             JSONObject object = new JSONObject(jsonString);
             ReplicationStatus dbstatus = new ReplicationStatus(object.get(DB_STATUS).toString());
-            setDbReplicationStatus(dbstatus);
+            setDatabaseStatus(dbstatus);
 
             JSONObject tableJson = object.getJSONObject(TABLE_STATUS);
             Iterator keys = tableJson.keys();
@@ -86,7 +86,7 @@ public class DBReplicationStatus {
                 String key = keys.next().toString();
                 ReplicationStatus value = new ReplicationStatus(tableJson.get(key).toString());
                 if (value.getDatabase().equals(dbstatus.getDatabase())) {
-                    tableStatuses.put(key, value);
+                    tableStatuses.put(key.toLowerCase(), value);
                 } else {
                     throw new HiveReplicationException("Unable to create DBReplicationStatus from JsonString. "
                             + "Cannot set status for table " + value.getDatabase() + "." + value.getTable()
@@ -102,6 +102,16 @@ public class DBReplicationStatus {
         return tableStatuses;
     }
 
+    public ReplicationStatus getTableStatus(String tableName) throws HiveReplicationException {
+        tableName = tableName.toLowerCase();
+        if (tableStatuses.containsKey(tableName)) {
+            return tableStatuses.get(tableName);
+        }
+        return new ReplicationStatus(databaseStatus.getSourceUri(), databaseStatus.getTargetUri(),
+                databaseStatus.getJobName(), databaseStatus.getDatabase(),
+                tableName, ReplicationStatus.Status.INIT, -1);
+    }
+
     public Iterator<ReplicationStatus> getTableStatusIterator() {
         List<ReplicationStatus> resultSet = new ArrayList<ReplicationStatus>();
         for (Map.Entry<String, ReplicationStatus> entry : tableStatuses.entrySet()) {
@@ -112,21 +122,22 @@ public class DBReplicationStatus {
 
     private void setTableStatuses(Map<String, ReplicationStatus> tableStatuses) throws HiveReplicationException {
         for (Map.Entry<String, ReplicationStatus> entry : tableStatuses.entrySet()) {
-            if (!entry.getValue().getDatabase().equals(dbReplicationStatus.getDatabase())) {
+            if (!entry.getValue().getDatabase().equals(databaseStatus.getDatabase())) {
                 throw new HiveReplicationException("Cannot set status for table " + entry.getValue().getDatabase()
                         + "." + entry.getValue().getTable() + ", It does not belong to DB "
-                        + dbReplicationStatus.getDatabase());
+                        + databaseStatus.getDatabase());
+            } else {
+                this.tableStatuses.put(entry.getKey().toLowerCase(), entry.getValue());
             }
         }
-        this.tableStatuses = tableStatuses;
     }
 
-    public ReplicationStatus getDbReplicationStatus() {
-        return dbReplicationStatus;
+    public ReplicationStatus getDatabaseStatus() {
+        return databaseStatus;
     }
 
-    private void setDbReplicationStatus(ReplicationStatus dbReplicationStatus) {
-        this.dbReplicationStatus = dbReplicationStatus;
+    private void setDatabaseStatus(ReplicationStatus databaseStatus) {
+        this.databaseStatus = databaseStatus;
     }
 
     /**
@@ -137,8 +148,8 @@ public class DBReplicationStatus {
                 Take the smallest eventId amongst the failed tables and set dbReplStatus as failed.
      */
     public void updateDbStatusFromTableStatuses() throws HiveReplicationException {
-        dbReplicationStatus.setStatus(ReplicationStatus.Status.SUCCESS);
-        long successEventId = dbReplicationStatus.getEventId();
+        databaseStatus.setStatus(ReplicationStatus.Status.SUCCESS);
+        long successEventId = databaseStatus.getEventId();
         long failedEventId = -1;
 
         for (Map.Entry<String, ReplicationStatus> entry : tableStatuses.entrySet()) {
@@ -148,7 +159,7 @@ public class DBReplicationStatus {
                     successEventId = eventId;
                 }
             } else if (entry.getValue().getStatus().equals(ReplicationStatus.Status.FAILURE)) {
-                dbReplicationStatus.setStatus(ReplicationStatus.Status.FAILURE);
+                databaseStatus.setStatus(ReplicationStatus.Status.FAILURE);
                 if (eventId < failedEventId || failedEventId == -1) {
                     failedEventId = eventId;
                 }
@@ -156,13 +167,13 @@ public class DBReplicationStatus {
         }
 
         String info = "Updating DB Status based on table replication status. Status : "
-                + dbReplicationStatus.getStatus().toString() + ", eventId : ";
-        if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.SUCCESS)) {
-            dbReplicationStatus.setEventId(successEventId);
+                + databaseStatus.getStatus().toString() + ", eventId : ";
+        if (databaseStatus.getStatus().equals(ReplicationStatus.Status.SUCCESS)) {
+            databaseStatus.setEventId(successEventId);
             LOG.info(info + String.valueOf(successEventId));
-        } else if (dbReplicationStatus.getStatus().equals(ReplicationStatus.Status.FAILURE)) {
-            dbReplicationStatus.setEventId(failedEventId);
-            LOG.info(info + String.valueOf(failedEventId));
+        } else if (databaseStatus.getStatus().equals(ReplicationStatus.Status.FAILURE)) {
+            databaseStatus.setEventId(failedEventId);
+            LOG.error(info + String.valueOf(failedEventId));
         }
 
     }
@@ -172,12 +183,12 @@ public class DBReplicationStatus {
             throw new HiveReplicationException("Cannot update DB Status. This is table level status.");
         }
 
-        if (this.dbReplicationStatus.getDatabase().equals(status.getDatabase())) {
-            this.dbReplicationStatus = status;
+        if (this.databaseStatus.getDatabase().equals(status.getDatabase())) {
+            this.databaseStatus = status;
         } else {
             throw new HiveReplicationException("Cannot update Database Status. StatusDB "
                     + status.getDatabase() + " does not match current DB "
-                    +  this.dbReplicationStatus.getDatabase());
+                    +  this.databaseStatus.getDatabase());
         }
     }
 
@@ -186,12 +197,12 @@ public class DBReplicationStatus {
             throw new HiveReplicationException("Cannot update Table Status. Table name is empty.");
         }
 
-        if (this.dbReplicationStatus.getDatabase().equals(status.getDatabase())) {
+        if (this.databaseStatus.getDatabase().equals(status.getDatabase())) {
             this.tableStatuses.put(status.getTable(), status);
         } else {
             throw new HiveReplicationException("Cannot update Table Status. TableDB "
                     + status.getDatabase() + " does not match current DB "
-                    +  this.dbReplicationStatus.getDatabase());
+                    +  this.databaseStatus.getDatabase());
         }
     }
 }

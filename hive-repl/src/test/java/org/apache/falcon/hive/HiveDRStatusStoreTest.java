@@ -68,13 +68,13 @@ public class HiveDRStatusStoreTest {
     @BeforeClass
     public  void updateReplicationStatusTest() throws Exception {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "jobname",
-                "default1", null, ReplicationStatus.Status.SUCCESS, 20L);
+                "Default1", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table1", ReplicationStatus.Status.SUCCESS, 20L);
+                "Default1", "table1", ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table2 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table2", ReplicationStatus.Status.INIT, -1L);
+                "default1", "Table2", ReplicationStatus.Status.INIT, -1L);
         ReplicationStatus table3 = new ReplicationStatus("source", "target", "jobname",
-                "default1", "table3", ReplicationStatus.Status.FAILURE, 15L);
+                "Default1", "Table3", ReplicationStatus.Status.FAILURE, 15L);
         ReplicationStatus table4 = new ReplicationStatus("source", "target", "jobname",
                 "default1", "table4", ReplicationStatus.Status.FAILURE, 18L);
         ArrayList<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
@@ -90,13 +90,13 @@ public class HiveDRStatusStoreTest {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "jobname2",
                 "default2", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "jobname2",
-                "default2", "table1", ReplicationStatus.Status.SUCCESS, 20L);
+                "Default2", "table1", ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table2 = new ReplicationStatus("source", "target", "jobname2",
-                "default2", "table2", ReplicationStatus.Status.INIT, -1L);
+                "default2", "Table2", ReplicationStatus.Status.INIT, -1L);
         ReplicationStatus table3 = new ReplicationStatus("source", "target", "jobname2",
                 "default2", "table3", ReplicationStatus.Status.FAILURE, 15L);
         ReplicationStatus table4 = new ReplicationStatus("source", "target", "jobname2",
-                "default2", "table4", ReplicationStatus.Status.FAILURE, 18L);
+                "Default2", "Table4", ReplicationStatus.Status.FAILURE, 18L);
         ArrayList<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
         replicationStatusList.add(table1);
         replicationStatusList.add(table2);
@@ -124,11 +124,11 @@ public class HiveDRStatusStoreTest {
         table3 = new ReplicationStatus("source", "target", "jobname2",
                 "default2", "table3", ReplicationStatus.Status.SUCCESS, 25L);
         table4 = new ReplicationStatus("source", "target", "jobname2",
-                "default2", "table4", ReplicationStatus.Status.SUCCESS, 22L);
+                "Default2", "table4", ReplicationStatus.Status.SUCCESS, 22L);
         ReplicationStatus table5 = new ReplicationStatus("source", "target", "jobname2",
-                "default2", "table5", ReplicationStatus.Status.SUCCESS, 18L);
+                "default2", "Table5", ReplicationStatus.Status.SUCCESS, 18L);
         ReplicationStatus db1table1 = new ReplicationStatus("source", "target", "jobname2",
-                "default1", "table1", ReplicationStatus.Status.SUCCESS, 18L);
+                "Default1", "Table1", ReplicationStatus.Status.SUCCESS, 18L);
         replicationStatusList = new ArrayList<ReplicationStatus>();
         replicationStatusList.add(table5);
         replicationStatusList.add(table3);
@@ -155,7 +155,7 @@ public class HiveDRStatusStoreTest {
     }
 
     public void getReplicationStatusDBTest() throws HiveReplicationException {
-        ReplicationStatus status = drStatusStore.getReplicationStatus("source", "target", "jobname", "default1");
+        ReplicationStatus status = drStatusStore.getReplicationStatus("source", "target", "jobname", "Default1");
         Assert.assertEquals(status.getEventId(), 15);
         Assert.assertEquals(status.getStatus(), ReplicationStatus.Status.FAILURE);
         Assert.assertEquals(status.getJobName(), "jobname");
@@ -221,7 +221,7 @@ public class HiveDRStatusStoreTest {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "deleteJob",
                 "deleteDB", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "deleteJob",
-                "deleteDB", "table1", ReplicationStatus.Status.SUCCESS, 20L);
+                "deleteDB", "Table1", ReplicationStatus.Status.SUCCESS, 20L);
         ArrayList<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
         replicationStatusList.add(table1);
         replicationStatusList.add(dbStatus);
@@ -243,13 +243,13 @@ public class HiveDRStatusStoreTest {
         Assert.assertEquals(status.getTable(), "table1");
 
         status = drStatusStore.getReplicationStatus("source", "target",
-                "jobname", "default1", "table2");
+                "jobname", "Default1", "Table2");
         Assert.assertEquals(status.getEventId(), -1);
         Assert.assertEquals(status.getStatus(), ReplicationStatus.Status.INIT);
         Assert.assertEquals(status.getTable(), "table2");
 
         status = drStatusStore.getReplicationStatus("source", "target",
-                "jobname", "default1", "table3");
+                "jobname", "default1", "Table3");
         Assert.assertEquals(status.getEventId(), 15);
         Assert.assertEquals(status.getStatus(), ReplicationStatus.Status.FAILURE);
         Assert.assertEquals(status.getTable(), "table3");
@@ -263,7 +263,7 @@ public class HiveDRStatusStoreTest {
 
     public void getTableReplicationStatusesInDbTest() throws HiveReplicationException {
         Iterator<ReplicationStatus> iter = drStatusStore.getTableReplicationStatusesInDb("source", "target",
-                "jobname", "default1");
+                "jobname", "Default1");
         int size = 0;
         while(iter.hasNext()) {
             size++;
@@ -279,9 +279,9 @@ public class HiveDRStatusStoreTest {
 
     public void fileRotationTest() throws Exception {
         ReplicationStatus dbStatus = new ReplicationStatus("source", "target", "jobname3",
-                "default3", null, ReplicationStatus.Status.SUCCESS, 20L);
+                "Default3", null, ReplicationStatus.Status.SUCCESS, 20L);
         ReplicationStatus table1 = new ReplicationStatus("source", "target", "jobname3",
-                "default3", "table1", ReplicationStatus.Status.SUCCESS, 20L);
+                "default3", "Table1", ReplicationStatus.Status.SUCCESS, 20L);
         ArrayList<ReplicationStatus> replicationStatusList = new ArrayList<ReplicationStatus>();
         replicationStatusList.add(table1);
         replicationStatusList.add(dbStatus);
