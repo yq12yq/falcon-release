@@ -69,8 +69,10 @@ public class HiveDRTest extends BaseTestClass {
     private static final String DB_NAME = "hdr_sdb1";
     private final ColoHelper cluster = servers.get(0);
     private final ColoHelper cluster2 = servers.get(1);
+    private final ColoHelper cluster3 = servers.get(2);
     private final FileSystem clusterFS = serverFS.get(0);
     private final FileSystem clusterFS2 = serverFS.get(1);
+    private final FileSystem clusterFS3 = serverFS.get(2);
     private final OozieClient clusterOC = serverOC.get(0);
     private final OozieClient clusterOC2 = serverOC.get(1);
     private final String baseTestHDFSDir = baseHDFSDir + "/HiveDR/";
@@ -294,20 +296,27 @@ public class HiveDRTest extends BaseTestClass {
 
     @Test
     public void drTwoDstTablesTwoRequests() throws Exception {
-        final String tblName = "firstTableDR";
-        final String tbl2Name = "secondTableDR";
+        final HCatClient clusterHC3 = cluster3.getClusterHelper().getHCatClient();
+        final Connection connection3 = cluster3.getClusterHelper().getHiveJdbcConnection();
+        runSql(connection3, "drop database if exists hdr_sdb1 cascade");
+        runSql(connection3, "create database hdr_sdb1");
+        runSql(connection3, "use hdr_sdb1");
+
+        final String tblName = "vanillaTable";
         recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
-        final List<String> command1 = recipeMerlin.getSubmissionCommand();
         final String recipe1Name = recipeMerlin.getName();
+        final List<String> command1 = recipeMerlin.getSubmissionCommand();
+
+        recipeMerlin.withTargetCluster(new Bundle(bundles[0], cluster3).getClusterElement());
         recipeMerlin.setUniqueName(this.getClass().getSimpleName());
-        recipeMerlin.withSourceDb(DB_NAME).withSourceTable(tblName);
+
         final List<String> command2 = recipeMerlin.getSubmissionCommand();
         final String recipe2Name = recipeMerlin.getName();
-        runSql(connection,
-            "create table " + tblName + "(comment string)");
+
+        runSql(connection, "create table " + tblName + "(comment string)");
 
         bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tblName);
-        bootstrapCopy(connection, clusterFS, tblName, connection2, clusterFS2, tbl2Name);
+        bootstrapCopy(connection, clusterFS, tblName, connection3, clusterFS3, tblName);
 
         runSql(connection,
             "insert into table " + tblName + " values"
@@ -326,7 +335,7 @@ public class HiveDRTest extends BaseTestClass {
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
             cluster2, clusterHC2.getTable(DB_NAME, tblName), anAssert);
         HiveAssert.assertTableEqual(cluster, clusterHC.getTable(DB_NAME, tblName),
-            cluster2, clusterHC2.getTable(DB_NAME, tbl2Name), anAssert);
+            cluster3, clusterHC3.getTable(DB_NAME, tblName), anAssert);
         anAssert.assertAll();
     }
 
