@@ -39,7 +39,7 @@ import java.util.List;
 
 public class LogUtil {
     private static final Logger logger = Logger.getLogger(LogUtil.class);
-    private static final char nl = '\n';
+    private static final String nl = System.getProperty("line.separator");
     private static final String hr = StringUtils.repeat("-", 80);
     private static final String hr2 = StringUtils.repeat("-", 120);
     private static final String hr3 = StringUtils.repeat("-", 160);

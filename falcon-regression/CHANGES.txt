@@ -147,6 +147,8 @@ Trunk (Unreleased)
    FALCON-681 delete duplicate feed retention test from falcon regression (SamarthG)
 
   BUG FIXES
+   FALCON-1072 Dumping of Oozie info should use os specific newline (Raghav Kumar Gautam)
+
    FALCON-895 Fix intermittent failures in ProcessInstanceStatus and KillsTest classes.
    (Paul Isaychuk via Raghav Kumar Gautam)
 
