@@ -106,6 +106,7 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
         Arrays.asList(Job.Status.SUSPENDED, Job.Status.PREPSUSPENDED);
     private static final String FALCON_INSTANCE_ACTION_CLUSTERS = "falcon.instance.action.clusters";
     private static final String FALCON_INSTANCE_SOURCE_CLUSTERS = "falcon.instance.source.clusters";
+    private static final String FALCON_SKIP_DRYRUN = "falcon.skip.dryrun";
 
     private static final List<String> PARENT_WF_ACTION_NAMES = Arrays.asList(
             "pre-processing",
@@ -158,8 +159,11 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
                     continue;
                 }
 
-                //Do dryRun of coords before schedule as schedule is asynchronous
-                dryRunInternal(cluster, new Path(properties.getProperty(OozieEntityBuilder.ENTITY_PATH)));
+                String skipDryRun = RuntimeProperties.get().getProperty(FALCON_SKIP_DRYRUN, "false").toLowerCase();
+                if (!Boolean.valueOf(skipDryRun)) {
+                    //Do dryRun of coords before schedule as schedule is asynchronous
+                    dryRunInternal(cluster, new Path(properties.getProperty(OozieEntityBuilder.ENTITY_PATH)));
+                }
                 scheduleEntity(clusterName, properties, entity);
             }
         }
@@ -1192,9 +1196,11 @@ public class OozieWorkflowEngine extends AbstractWorkflowEngine {
 
         Date effectiveTime = getEffectiveTime(cluster, newEntity, inEffectiveTime);
         LOG.info("Effective time " + effectiveTime);
-
-        //Validate that new entity can be scheduled
-        dryRunForUpdate(cluster, newEntity, effectiveTime);
+        String skipDryRun = RuntimeProperties.get().getProperty(FALCON_SKIP_DRYRUN, "false").toLowerCase();
+        if (!Boolean.valueOf(skipDryRun)) {
+            //Validate that new entity can be scheduled
+            dryRunForUpdate(cluster, newEntity, effectiveTime);
+        }
 
         boolean suspended = BUNDLE_SUSPENDED_STATUS.contains(oldBundle.getStatus());
 
