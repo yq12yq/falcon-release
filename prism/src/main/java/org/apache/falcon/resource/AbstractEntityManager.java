@@ -1023,7 +1023,7 @@ public abstract class AbstractEntityManager {
             // /data/cas and /data/cas/ should be treated as same.
             String instancePathWithSlash = instancePathWithoutSlash + "/";
             FeedLocationStore store = FeedLocationStore.get();
-            Collection<FeedLookupResult.FeedProperties> feeds = new ArrayList<>();
+            Collection<FeedLookupResult.FeedProperties> feeds = new ArrayList<FeedLookupResult.FeedProperties>();
             Collection<FeedLookupResult.FeedProperties> res = store.reverseLookup(instancePathWithoutSlash);
             if (res != null) {
                 feeds.addAll(res);

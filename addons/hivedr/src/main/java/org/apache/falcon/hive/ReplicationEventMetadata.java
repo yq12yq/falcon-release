@@ -26,7 +26,7 @@ import java.util.HashMap;
  */
 public class ReplicationEventMetadata {
 
-    private Map<String, String> eventFileMetadata = new HashMap<>();
+    private Map<String, String> eventFileMetadata = new HashMap<String, String>();
 
     public Map<String, String> getEventFileMetadata() {
         return eventFileMetadata;

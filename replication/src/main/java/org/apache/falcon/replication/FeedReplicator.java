@@ -155,7 +155,7 @@ public class FeedReplicator extends Configured implements Tool {
     }
 
     private List<Path> getPaths(String[] paths) {
-        List<Path> listPaths = new ArrayList<>();
+        List<Path> listPaths = new ArrayList<Path>();
         for (String path : paths) {
             listPaths.add(new Path(path));
         }

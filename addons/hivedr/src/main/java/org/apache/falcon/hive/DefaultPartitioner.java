@@ -64,7 +64,7 @@ public class DefaultPartitioner implements Partitioner {
 
         public EventFilter(String sourceMetastoreUri, String targetMetastoreUri, String jobName,
                            String database) throws Exception {
-            eventFilterMap = new HashMap<>();
+            eventFilterMap = new HashMap<String, Long>();
             Iterator<ReplicationStatus> replStatusIter = drStore.getTableReplicationStatusesInDb(sourceMetastoreUri,
                     targetMetastoreUri, jobName, database);
             while (replStatusIter.hasNext()) {
@@ -88,9 +88,9 @@ public class DefaultPartitioner implements Partitioner {
         List<Command> dbTgtEventList = Lists.newArrayList();
 
         Map<String, List<String>> eventMetaFileMap =
-                new HashMap<>();
+                new HashMap<String, List<String>>();
         Map<String, List<OutputStream>> outputStreamMap =
-                new HashMap<>();
+                new HashMap<String, List<OutputStream>>();
 
 
         String srcFilename = null;
