@@ -48,7 +48,7 @@ public enum RecipeToolOptions {
     private final String description;
     private final boolean isRequired;
 
-    public static final Map<String, RecipeToolOptions> OPTIONSMAP = new HashMap<>();
+    public static final Map<String, RecipeToolOptions> OPTIONSMAP = new HashMap<String, RecipeToolOptions>();
     static {
         for (RecipeToolOptions c : RecipeToolOptions.values()) {
             OPTIONSMAP.put(c.getName(), c);

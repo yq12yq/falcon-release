@@ -204,7 +204,7 @@ public final class RecipeProcessBuilderUtils {
 
     private static void bindCustomProperties(final org.apache.falcon.entity.v0.process.Properties customProperties,
                                              final Properties recipeProperties) {
-        List<Property> propertyList = new ArrayList<>();
+        List<Property> propertyList = new ArrayList<Property>();
 
         for (Map.Entry<Object, Object> recipeProperty : recipeProperties.entrySet()) {
             if (RecipeToolOptions.OPTIONSMAP.get(recipeProperty.getKey().toString()) == null) {
