@@ -92,8 +92,8 @@ public class MetadataMappingServiceTest {
 
     private Cluster clusterEntity;
     private Cluster anotherCluster;
-    private List<Feed> inputFeeds = new ArrayList<>();
-    private List<Feed> outputFeeds = new ArrayList<>();
+    private List<Feed> inputFeeds = new ArrayList<Feed>();
+    private List<Feed> outputFeeds = new ArrayList<Feed>();
     private Process processEntity;
 
     @BeforeClass
@@ -478,7 +478,7 @@ public class MetadataMappingServiceTest {
         Assert.assertEquals(edge.getVertex(Direction.IN).getProperty("name"), "data-warehouse");
 
         // new cluster
-        List<String> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<String>();
         for (Edge clusterEdge : feedVertex.getEdges(Direction.OUT, RelationshipLabel.FEED_CLUSTER_EDGE.getName())) {
             actual.add(clusterEdge.getVertex(Direction.IN).<String>getProperty("name"));
         }
@@ -732,7 +732,7 @@ public class MetadataMappingServiceTest {
                 "Critical", RelationshipType.TAGS.getName());
 
         // verify edges to inputs
-        List<String> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<String>();
         for (Edge edge : processVertex.getEdges(Direction.IN,
                 RelationshipLabel.FEED_PROCESS_EDGE.getName())) {
             Vertex outVertex = edge.getVertex(Direction.OUT);
@@ -806,7 +806,7 @@ public class MetadataMappingServiceTest {
                 .has(RelationshipProperty.NAME.getName(), FALCON_USER)
                 .has(RelationshipProperty.TYPE.getName(), RelationshipType.USER.getName());
 
-        List<String> feedNames = new ArrayList<>();
+        List<String> feedNames = new ArrayList<String>();
         for (Vertex userVertex : userQuery.vertices()) {
             for (Vertex feed : userVertex.getVertices(Direction.IN, RelationshipLabel.USER.getName())) {
                 if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
@@ -824,7 +824,7 @@ public class MetadataMappingServiceTest {
                 .has(RelationshipProperty.NAME.getName(), "Secure")
                 .has(RelationshipProperty.TYPE.getName(), RelationshipType.TAGS.getName());
 
-        List<String> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<String>();
         for (Vertex feedVertex : classQuery.vertices()) {
             for (Vertex feed : feedVertex.getVertices(Direction.BOTH, "classified-as")) {
                 if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
@@ -839,7 +839,7 @@ public class MetadataMappingServiceTest {
 
     private void verifyFeedsOwnedByUserAndClassification(String feedType, String classification,
                                                          List<String> expected) {
-        List<String> actual = new ArrayList<>();
+        List<String> actual = new ArrayList<String>();
         Vertex userVertex = getEntityVertex(FALCON_USER, RelationshipType.USER);
         for (Vertex feed : userVertex.getVertices(Direction.IN, RelationshipLabel.USER.getName())) {
             if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
