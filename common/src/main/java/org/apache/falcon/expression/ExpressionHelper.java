@@ -21,12 +21,15 @@ package org.apache.falcon.expression;
 import org.apache.commons.el.ExpressionEvaluatorImpl;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.common.FeedDataPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.jsp.el.ELException;
 import javax.servlet.jsp.el.ExpressionEvaluator;
 import javax.servlet.jsp.el.FunctionMapper;
 import javax.servlet.jsp.el.VariableResolver;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Properties;
@@ -40,14 +43,24 @@ import java.util.regex.Pattern;
  */
 public final class ExpressionHelper implements FunctionMapper, VariableResolver {
 
+    private static final Logger LOG = LoggerFactory.getLogger(ExpressionHelper.class);
     private static final ExpressionHelper INSTANCE = new ExpressionHelper();
 
-    private ThreadLocal<Properties> threadVariables = new ThreadLocal<Properties>();
+    private static final ThreadLocal<Properties> THREAD_VARIABLES = new ThreadLocal<Properties>();
 
     private static final Pattern SYS_PROPERTY_PATTERN = Pattern.compile("\\$\\{[A-Za-z0-9_.]+\\}");
 
     private static final ExpressionEvaluator EVALUATOR = new ExpressionEvaluatorImpl();
     private static final ExpressionHelper RESOLVER = ExpressionHelper.get();
+
+    public static final ThreadLocal<SimpleDateFormat> FORMATTER = new ThreadLocal<SimpleDateFormat>() {
+        @Override
+        protected SimpleDateFormat initialValue() {
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
+            format.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return format;
+        }
+    };
 
     public static ExpressionHelper get() {
         return INSTANCE;
@@ -84,18 +97,20 @@ public final class ExpressionHelper implements FunctionMapper, VariableResolver 
     }
 
     public void setPropertiesForVariable(Properties properties) {
-        threadVariables.set(properties);
+        THREAD_VARIABLES.set(properties);
     }
 
     @Override
     public Object resolveVariable(String field) {
-        return threadVariables.get().get(field);
+        return THREAD_VARIABLES.get().get(field);
     }
 
     private static ThreadLocal<Date> referenceDate = new ThreadLocal<Date>();
 
     public static void setReferenceDate(Date date) {
         referenceDate.set(date);
+        Properties variables = getTimeVariables(date, TimeZone.getTimeZone("UTC"));
+        THREAD_VARIABLES.set(variables);
     }
 
     public static Properties getTimeVariables(Date date, TimeZone tz) {
@@ -113,6 +128,8 @@ public final class ExpressionHelper implements FunctionMapper, VariableResolver 
     private static int getDayOffset(String weekDayName) {
         int day;
         Calendar nominalTime = Calendar.getInstance();
+        nominalTime.setTimeZone(TimeZone.getTimeZone("UTC"));
+        nominalTime.setTime(referenceDate.get());
         int currentWeekDay = nominalTime.get(Calendar.DAY_OF_WEEK);
         int weekDay = DayOfWeek.valueOf(weekDayName).ordinal() + 1; //to map to Calendar.SUNDAY ...
         day = weekDay - currentWeekDay;
@@ -174,12 +191,12 @@ public final class ExpressionHelper implements FunctionMapper, VariableResolver 
 
     public static Date currentWeek(String weekDay, int hour, int minute) {
         int day = getDayOffset(weekDay);
-        return getRelative(referenceDate.get(), Calendar.MONTH, 0, day, hour, minute);
+        return getRelative(referenceDate.get(), Calendar.DAY_OF_MONTH, 0, day, hour, minute);
     }
 
     public static Date lastWeek(String weekDay, int hour, int minute) {
         int day = getDayOffset(weekDay);
-        return getRelative(referenceDate.get(), Calendar.MONTH, -1, day, hour, minute);
+        return getRelative(referenceDate.get(), Calendar.DAY_OF_MONTH, 0, day - 7, hour, minute);
     }
 
     public static Date currentYear(int month, int day, int hour, int minute) {

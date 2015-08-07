@@ -18,13 +18,14 @@
 
 package org.apache.falcon.regression.core.util;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.regression.core.bundle.Bundle;
-import org.apache.falcon.regression.core.response.APIResult;
-import org.apache.falcon.regression.core.response.InstancesResult;
 import org.apache.falcon.regression.core.response.ServiceResponse;
 import org.apache.falcon.regression.core.supportClasses.ExecResult;
+import org.apache.falcon.resource.APIResult;
+import org.apache.falcon.resource.InstancesResult;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +37,7 @@ import org.testng.Assert;
 
 import javax.xml.bind.JAXBException;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -162,7 +164,7 @@ public final class AssertUtil {
         Assert.assertNotNull(apiResult.getMessage(), "Status message is null");
         Assert.assertEquals(apiResult.getStatus(), APIResult.Status.SUCCEEDED,
             "Status should be SUCCEEDED. Message: " + apiResult.getMessage());
-        Assert.assertEquals(apiResult.getStatusCode(), 200,
+        Assert.assertEquals(response.getCode(), 200,
             "Status code should be 200. Message: " + apiResult.getMessage());
     }
 
@@ -180,7 +182,7 @@ public final class AssertUtil {
             return false;
         }
         return apiResult.getStatus() == APIResult.Status.SUCCEEDED
-            && apiResult.getStatusCode() == 200
+            && response.getCode() == 200
             && apiResult.getMessage() != null;
     }
 
@@ -208,7 +210,7 @@ public final class AssertUtil {
     }
 
     /**
-     * Assert that command executed unsuccessfully
+     * Assert that command executed unsuccessfully.
      *
      * @param execResult ExecResult of the command execution
      */
@@ -216,7 +218,7 @@ public final class AssertUtil {
         Assert.assertFalse(execResult.hasSuceeded(),
                 "Unexpectedly succeeded execResult: " + execResult);
         Assert.assertTrue(execResult.getError().contains(expectedMessage),
-                "Expected error: " + expectedMessage +  " in execResult: " + execResult);
+            "Expected error: " + expectedMessage + " in execResult: " + execResult);
     }
 
     /**
@@ -232,8 +234,7 @@ public final class AssertUtil {
         Assert.assertNotEquals(response.getMessage(), "null", "response message should not be null");
         Assert.assertEquals(Util.parseResponse(response).getStatus(),
             APIResult.Status.FAILED, message);
-        Assert.assertEquals(Util.parseResponse(response).getStatusCode(), statusCode,
-            message);
+        Assert.assertEquals(response.getCode(), statusCode, message);
         Assert.assertNotNull(Util.parseResponse(response).getRequestId(), "RequestId is null");
     }
 
@@ -245,7 +246,7 @@ public final class AssertUtil {
      */
     public static void assertPartial(ServiceResponse response) throws JAXBException {
         Assert.assertEquals(Util.parseResponse(response).getStatus(), APIResult.Status.PARTIAL);
-        Assert.assertEquals(Util.parseResponse(response).getStatusCode(), 400);
+        Assert.assertEquals(response.getCode(), 400);
         Assert.assertNotNull(Util.parseResponse(response).getMessage());
     }
 
@@ -256,10 +257,11 @@ public final class AssertUtil {
      * @throws JAXBException
      */
     public static void assertFailed(ServiceResponse response) throws JAXBException {
-        Assert.assertNotEquals(response.getMessage(), "null", "response message should not be null");
+        Assert.assertNotEquals(response.getMessage(), "null",
+            "response message should not be null");
 
         Assert.assertEquals(Util.parseResponse(response).getStatus(), APIResult.Status.FAILED);
-        Assert.assertEquals(Util.parseResponse(response).getStatusCode(), 400);
+        Assert.assertEquals(response.getCode(), 400);
     }
 
     /**
@@ -272,7 +274,7 @@ public final class AssertUtil {
         Assert.assertNotEquals(response.getMessage(), "null", "response message should not be null");
 
         Assert.assertEquals(Util.parseResponse(response).getStatus(), APIResult.Status.FAILED);
-        Assert.assertEquals(Util.parseResponse(response).getStatusCode(), 403);
+        Assert.assertEquals(response.getCode(), 403);
     }
     /**
      * Checks that status of some entity job is equal to expected. Method can wait
@@ -388,5 +390,23 @@ public final class AssertUtil {
     public static void fail(Exception e) {
         LOGGER.info("Got exception: " + ExceptionUtils.getStackTrace(e));
         Assert.fail("Failing because of exception.");
+    }
+
+    public static void assertEmpty(String str, String message) {
+        if (StringUtils.isNotEmpty(str)) {
+            Assert.fail(String.format("%s expected [empty string/null] found [%s]", message, str));
+        }
+    }
+
+    public static <E> void assertEmpty(Collection<E> collection, String message) {
+        if (!collection.isEmpty()) {
+            Assert.fail(
+                String.format("%s expected [empty collection] found [%s]", message, collection));
+        }
+    }
+    public static void assertNotEmpty(String str, String message) {
+        if (StringUtils.isEmpty(str)) {
+            Assert.fail(String.format("%s expected non-empty string found [%s]", message, str));
+        }
     }
 }

@@ -31,7 +31,11 @@
             <!-- HCatalog jars -->
             <property>
                 <name>oozie.action.sharelib.for.java</name>
-                <value>hcatalog</value>
+                <value>hcatalog,hive</value>
+            </property>
+            <property>
+                <name>oozie.launcher.oozie.libpath</name>
+                <value>${wf:conf("falcon.libpath")}</value>
             </property>
         </configuration>
         <main-class>org.apache.falcon.retention.FeedEvictor</main-class>

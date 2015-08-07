@@ -18,7 +18,7 @@
 
 package org.apache.falcon.resource;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.process.Input;
@@ -37,6 +37,9 @@ import java.util.List;
 @edu.umd.cs.findbugs.annotations.SuppressWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class EntityList {
 
+    @XmlElement
+    private int totalResults;
+
     @XmlElement(name = "entity")
     private final EntityElement[] elements;
 
@@ -44,14 +47,14 @@ public class EntityList {
      * List of fields returned by RestAPI.
      */
     public static enum EntityFieldList {
-        TYPE, NAME, STATUS, TAGS, PIPELINES
+        TYPE, NAME, STATUS, TAGS, PIPELINES, CLUSTERS
     }
 
     /**
      * Filter by these Fields is supported by RestAPI.
      */
     public static enum EntityFilterByFields {
-        TYPE, NAME, STATUS, PIPELINES, CLUSTER
+        TYPE, NAME, STATUS, PIPELINES, CLUSTER, TAGS
     }
 
     /**
@@ -65,10 +68,13 @@ public class EntityList {
         public String name;
         @XmlElement
         public String status;
-        @XmlElementWrapper(name = "list")
+        @XmlElementWrapper(name = "tags")
         public List<String> tag;
-        @XmlElementWrapper(name = "list")
-        public List<String> pipelines;
+        @XmlElementWrapper(name = "pipelines")
+        public List<String> pipeline;
+        @XmlElementWrapper(name = "clusters")
+        public List<String> cluster;
+
         //RESUME CHECKSTYLE CHECK VisibilityModifierCheck
 
         @Override
@@ -82,9 +88,14 @@ public class EntityList {
                 outString += " - " + tag.toString();
             }
 
-            if (pipelines != null && !pipelines.isEmpty()) {
-                outString += " - " + pipelines.toString();
+            if (pipeline != null && !pipeline.isEmpty()) {
+                outString += " - " + pipeline.toString();
             }
+
+            if (cluster != null && !cluster.isEmpty()) {
+                outString += " - " + cluster.toString();
+            }
+
             outString += "\n";
             return outString;
         }
@@ -93,13 +104,16 @@ public class EntityList {
     //For JAXB
     public EntityList() {
         this.elements = null;
+        this.totalResults = 0;
     }
 
-    public EntityList(EntityElement[] elements) {
+    public EntityList(EntityElement[] elements, int totalResults) {
+        this.totalResults = totalResults;
         this.elements = elements;
     }
 
-    public EntityList(Entity[] elements) {
+    public EntityList(Entity[] elements, int totalResults) {
+        this.totalResults = totalResults;
         int len = elements.length;
         EntityElement[] items = new EntityElement[len];
         for (int i = 0; i < len; i++) {
@@ -114,7 +128,8 @@ public class EntityList {
         element.name = e.getName();
         element.status = null;
         element.tag = new ArrayList<String>();
-        element.pipelines = new ArrayList<String>();
+        element.pipeline = new ArrayList<String>();
+        element.cluster = new ArrayList<String>();
         return element;
     }
 
@@ -140,6 +155,7 @@ public class EntityList {
     @Override
     public String toString() {
         StringBuilder buffer = new StringBuilder();
+        buffer.append(totalResults + "\n");
         for (EntityElement element : elements) {
             buffer.append(element.toString());
         }

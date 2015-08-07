@@ -20,6 +20,7 @@ package org.apache.falcon.lifecycle;
 
 import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.InstancesResult;
 import org.apache.falcon.resource.TestContext;
@@ -96,7 +97,7 @@ public class FileSystemFeedReplicationIT {
     private void copyLibsToHDFS(Cluster cluster) throws IOException {
         // set up kahadb to be sent as part of workflows
         StartupProperties.get().setProperty("libext.paths", "./target/libext");
-        String libext = ClusterHelper.getLocation(cluster, "working") + "/libext";
+        String libext = ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath() + "/libext";
         String targetStorageUrl = ClusterHelper.getStorageUrl(cluster);
         FSUtils.copyOozieShareLibsToHDFS("./target/libext", targetStorageUrl + libext);
     }
@@ -124,17 +125,17 @@ public class FileSystemFeedReplicationIT {
     public void testFSReplicationSingleSourceToTarget() throws Exception {
         final Map<String, String> overlay = sourceContext.getUniqueOverlay();
         String filePath = TestContext.overlayParametersOverTemplate("/table/primary-cluster.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/bcp-cluster.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         // verify if the partition on the source exists - precondition
         FileSystem sourceFS = FileSystem.get(ClusterHelper.getConfiguration(sourceContext.getCluster().getCluster()));
         Assert.assertTrue(sourceFS.exists(new Path(SOURCE_LOCATION + PARTITION_VALUE)));
 
         filePath = TestContext.overlayParametersOverTemplate("/table/customer-fs-replicating-feed.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath), 0);
 
         // wait until the workflow job completes
         final String feedName = "customer-fs-replicating-feed";
@@ -162,23 +163,23 @@ public class FileSystemFeedReplicationIT {
     public void testFSReplicationSingleSourceToMultipleTargets() throws Exception {
         final Map<String, String> overlay = sourceContext.getUniqueOverlay();
         String filePath = TestContext.overlayParametersOverTemplate("/table/primary-cluster.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/target-cluster-alpha.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/target-cluster-beta.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/target-cluster-gamma.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         // verify if the partition on the source exists - precondition
         FileSystem sourceFS = FileSystem.get(ClusterHelper.getConfiguration(sourceContext.getCluster().getCluster()));
         Assert.assertTrue(sourceFS.exists(new Path(SOURCE_LOCATION + PARTITION_VALUE)));
 
         filePath = TestContext.overlayParametersOverTemplate("/table/multiple-targets-replicating-feed.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath), 0);
 
         // wait until the workflow job completes
         final String feedName = "multiple-targets-replicating-feed";
@@ -227,19 +228,19 @@ public class FileSystemFeedReplicationIT {
 
         final Map<String, String> overlay = sourceContext.getUniqueOverlay();
         String filePath = TestContext.overlayParametersOverTemplate("/table/primary-cluster.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/target-cluster-alpha.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/target-cluster-beta.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         // verify if the partition on the source exists - precondition
         Assert.assertTrue(sourceFS.exists(sourcePath));
 
         filePath = TestContext.overlayParametersOverTemplate("/table/complex-replicating-feed.xml", overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath), 0);
 
         // wait until the workflow job completes
         final String feedName = "complex-replicating-feed";

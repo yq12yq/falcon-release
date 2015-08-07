@@ -27,21 +27,19 @@ import org.apache.falcon.regression.Entities.FeedMerlin;
 import org.apache.falcon.regression.Entities.ProcessMerlin;
 import org.apache.falcon.regression.core.bundle.Bundle;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
-import org.apache.falcon.regression.core.interfaces.IEntityManagerHelper;
-import org.apache.falcon.regression.core.response.InstancesResult;
+import org.apache.falcon.regression.core.helpers.entity.AbstractEntityHelper;
 import org.apache.falcon.regression.core.util.AssertUtil;
 import org.apache.falcon.regression.core.util.BundleUtil;
-import org.apache.falcon.regression.core.util.CleanupUtil;
 import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.falcon.regression.core.util.InstanceUtil;
 import org.apache.falcon.regression.core.util.OSUtil;
 import org.apache.falcon.regression.core.util.OozieUtil;
 import org.apache.falcon.regression.core.util.TimeUtil;
 import org.apache.falcon.regression.core.util.Util;
-import org.apache.falcon.regression.core.util.XmlUtil;
 import org.apache.falcon.regression.testHelper.BaseTestClass;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.EntitySummaryResult;
+import org.apache.falcon.resource.InstancesResult;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.authentication.client.AuthenticationException;
 import org.apache.log4j.Logger;
@@ -68,12 +66,10 @@ import java.util.List;
 public class EntitySummaryTest extends BaseTestClass {
     private static final Logger LOGGER = Logger.getLogger(EntitySummaryTest.class);
     private ColoHelper cluster1 = servers.get(0);
-    private ColoHelper cluster2 = servers.get(1);
     private OozieClient cluster1OC = serverOC.get(0);
     private OozieClient cluster2OC = serverOC.get(1);
     private FileSystem cluster1FS = serverFS.get(0);
-    private String testDir = "/EntitySummaryTest";
-    private String baseTestHDFSDir = baseHDFSDir + testDir;
+    private String baseTestHDFSDir = cleanAndGetTestDir();
     private String aggregateWorkflowDir = baseTestHDFSDir + "/aggregator";
     private String sourcePath = baseTestHDFSDir + "/source";
     private String feedDataLocation = baseTestHDFSDir + "/source" + MINUTE_DATE_PATTERN;
@@ -88,7 +84,7 @@ public class EntitySummaryTest extends BaseTestClass {
         Bundle bundle = BundleUtil.readELBundle();
         for (int i = 0; i <= 1; i++) {
             bundles[i] = new Bundle(bundle, servers.get(i));
-            bundles[i].generateUniqueBundle();
+            bundles[i].generateUniqueBundle(this);
             bundles[i].setProcessWorkflow(aggregateWorkflowDir);
             bundles[i].setInputFeedDataPath(feedDataLocation);
         }
@@ -100,8 +96,8 @@ public class EntitySummaryTest extends BaseTestClass {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws IOException {
-        cleanTestDirs();
-        CleanupUtil.cleanAllEntities(prism);
+        cleanTestsDirs();
+        removeTestClassEntities();
     }
 
     /**
@@ -115,7 +111,7 @@ public class EntitySummaryTest extends BaseTestClass {
         bundles[0].submitClusters(prism);
         bundles[0].submitFeeds(prism);
         String clusterName = Util.readEntityName(bundles[0].getClusters().get(0));
-        List<String> processes = scheduleEntityValidateWaitingInstances(cluster1,
+        List<String> processes = scheduleEntityValidateWaitingInstances(cluster1OC,
             bundles[0].getProcessData(), EntityType.PROCESS, clusterName);
 
         //create data for processes to run and wait some time for instances to make progress
@@ -141,20 +137,22 @@ public class EntitySummaryTest extends BaseTestClass {
         String cluster1Def = bundles[0].getClusters().get(0);
         String cluster2Def = bundles[1].getClusters().get(0);
         //erase all clusters from feed definition
-        feed = InstanceUtil.setFeedCluster(feed,
-            XmlUtil.createValidity("2012-10-01T12:00Z", "2010-01-01T00:00Z"),
-            XmlUtil.createRetention("days(1000000)", ActionType.DELETE), null,
-            ClusterType.SOURCE, null);
+        feed = FeedMerlin.fromString(feed).clearFeedClusters().toString();
         //set cluster1 as source
-        feed = InstanceUtil.setFeedCluster(feed,
-            XmlUtil.createValidity(startTime, endTime),
-            XmlUtil.createRetention("days(1000000)", ActionType.DELETE),
-            Util.readEntityName(cluster1Def), ClusterType.SOURCE, null);
+        feed = FeedMerlin.fromString(feed).addFeedCluster(
+            new FeedMerlin.FeedClusterBuilder(Util.readEntityName(cluster1Def))
+                .withRetention("days(1000000)", ActionType.DELETE)
+                .withValidity(startTime, endTime)
+                .withClusterType(ClusterType.SOURCE)
+                .build()).toString();
         //set cluster2 as target
-        feed = InstanceUtil.setFeedCluster(feed,
-            XmlUtil.createValidity(startTime, endTime),
-            XmlUtil.createRetention("days(1000000)", ActionType.DELETE),
-            Util.readEntityName(cluster2Def), ClusterType.TARGET, null, targetDataLocation);
+        feed = FeedMerlin.fromString(feed).addFeedCluster(
+            new FeedMerlin.FeedClusterBuilder(Util.readEntityName(cluster2Def))
+                .withRetention("days(1000000)", ActionType.DELETE)
+                .withValidity(startTime, endTime)
+                .withClusterType(ClusterType.TARGET)
+                .withDataLocation(targetDataLocation)
+                .build()).toString();
         String clusterName = Util.readEntityName(cluster2Def);
 
         //submit clusters
@@ -162,8 +160,7 @@ public class EntitySummaryTest extends BaseTestClass {
         AssertUtil.assertSucceeded(prism.getClusterHelper().submitEntity(cluster2Def));
 
         //submit and schedule 7 feeds, check that 7 waiting instances are present for each feed
-        List<String> feeds = scheduleEntityValidateWaitingInstances(cluster2, feed,
-            EntityType.FEED, clusterName);
+        List<String> feeds = scheduleEntityValidateWaitingInstances(cluster2OC, feed, EntityType.FEED, clusterName);
 
         //create data for processes to run and wait some time for instances to make progress
         List<String> folders = TimeUtil.getMinuteDatesOnEitherSide(TimeUtil.oozieDateToDate(
@@ -181,14 +178,13 @@ public class EntitySummaryTest extends BaseTestClass {
      * Schedules 7 entities and checks that summary reflects info about the most recent 7
      * instances of each of them.
      */
-    private List<String> scheduleEntityValidateWaitingInstances(ColoHelper cluster, String entity,
-                                                                EntityType entityType,
-                                                                String clusterName)
-            throws AuthenticationException, IOException, URISyntaxException, JAXBException,
-            OozieClientException, InterruptedException {
+    private List<String> scheduleEntityValidateWaitingInstances(OozieClient oozieClient, String entity,
+                                                                EntityType entityType, String clusterName)
+        throws AuthenticationException, IOException, URISyntaxException, JAXBException,
+        OozieClientException, InterruptedException {
         String entityName = Util.readEntityName(entity);
-        IEntityManagerHelper helper;
-        List<String> names = new ArrayList<String>();
+        AbstractEntityHelper helper;
+        List<String> names = new ArrayList<>();
         for (int i = 1; i <= 7; i++) {
             String uniqueName = entityName + i;
             names.add(uniqueName);
@@ -204,8 +200,8 @@ public class EntitySummaryTest extends BaseTestClass {
             }
             entity = entityMerlin.toString();
             AssertUtil.assertSucceeded(helper.submitAndSchedule(entity));
-            InstanceUtil.waitTillInstancesAreCreated(cluster, entity, 0);
-            InstanceUtil.waitTillInstanceReachState(cluster.getClusterHelper().getOozieClient(),
+            InstanceUtil.waitTillInstancesAreCreated(oozieClient, entity, 0);
+            InstanceUtil.waitTillInstanceReachState(oozieClient,
                 uniqueName, 7, CoordinatorAction.Status.WAITING, entityType);
 
             //check that summary shows recent (i) number of feeds and their instances
@@ -242,9 +238,9 @@ public class EntitySummaryTest extends BaseTestClass {
      */
     private void validateProgressingInstances(List<String> names, EntityType entityType,
                                               String clusterName)
-            throws AuthenticationException, IOException, URISyntaxException, InterruptedException {
+        throws AuthenticationException, IOException, URISyntaxException, InterruptedException {
         InstancesResult r;
-        IEntityManagerHelper helper;
+        AbstractEntityHelper helper;
         if (entityType == EntityType.FEED) {
             helper = prism.getFeedHelper();
         } else {
@@ -318,15 +314,15 @@ public class EntitySummaryTest extends BaseTestClass {
      */
     @Test
     public void getSummaryFilterBy()
-            throws URISyntaxException, IOException, AuthenticationException, JAXBException,
-            InterruptedException {
+        throws URISyntaxException, IOException, AuthenticationException, JAXBException,
+        InterruptedException {
         //prepare process template
         bundles[0].setProcessValidity(startTime, endTime);
         bundles[0].submitClusters(prism);
         bundles[0].submitFeeds(prism);
         String clusterName = Util.readEntityName(bundles[0].getClusters().get(0));
         String originName = bundles[0].getProcessName();
-        List<String> pNames = new ArrayList<String>();
+        List<String> pNames = new ArrayList<>();
         //schedule 3 processes with different pipelines. 1st and 3d processes have same tag value.
         for (int i = 1; i <= 3; i++) {
             String uniqueName = originName + "-" + i;

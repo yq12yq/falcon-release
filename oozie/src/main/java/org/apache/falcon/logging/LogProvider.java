@@ -17,7 +17,7 @@
  */
 package org.apache.falcon.logging;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.EntityUtil;
@@ -33,7 +33,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.oozie.client.OozieClientException;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,11 +80,11 @@ public final class LogProvider {
                     EntityUtil.getLogPath(cluster, entity) + "/job-"
                             + EntityUtil.fromUTCtoURIDate(instance.instance) + "/*");
 
-            FileStatus[] runs = fs.globStatus(jobPath);
-            if (runs.length > 0) {
-                // this is the latest run, dirs are sorted in increasing
-                // order of runs
-                return runs[runs.length - 1].getPath().getName();
+            //Assumption here is - Each wf run will have a directory
+            //the corresponding job logs are stored within the respective dir
+            Path maxRunPath = findMaxRunIdPath(fs, jobPath);
+            if (maxRunPath != null) {
+                return maxRunPath.getName();
             } else {
                 LOG.warn("No run dirs are available in logs dir: {}", jobPath);
                 return "-";
@@ -98,7 +97,7 @@ public final class LogProvider {
             if (fs.exists(jobPath)) {
                 return getFormatedRunId(runId);
             } else {
-                Log.warn("No run dirs are available in logs dir:" + jobPath);
+                LOG.warn("No run dirs are available in logs dir:" + jobPath);
                 return "-";
             }
         }
@@ -114,7 +113,7 @@ public final class LogProvider {
                         + EntityUtil.fromUTCtoURIDate(instance.instance) + "/"
                         + formattedRunId + "/*");
         FileStatus[] actions = fs.globStatus(actionPaths);
-        InstanceAction[] instanceActions = new InstanceAction[actions.length - 1];
+        InstanceAction[] instanceActions = new InstanceAction[actions.length > 0 ? actions.length - 1 : 0];
         instance.actions = instanceActions;
         int i = 0;
         for (FileStatus file : actions) {
@@ -145,7 +144,7 @@ public final class LogProvider {
     }
 
     private String getActionStatus(String fileName) {
-        return fileName.contains("_SUCCEEDED.log") ? "SUCCEEDED" : "FAILED";
+        return fileName.matches("(.*)SUCCEEDED(.*).log") ? "SUCCEEDED" : "FAILED";
     }
 
     private String getDFSbrowserUrl(String hdfsPath, String logPath,
@@ -158,5 +157,17 @@ public final class LogProvider {
 
     private String getFormatedRunId(String runId) {
         return String.format("%03d", Integer.parseInt(runId));
+    }
+
+    private Path findMaxRunIdPath(FileSystem fs, Path jobLogPath) throws IOException{
+        // In case of multiple runs, dirs are sorted in increasing
+        // order of runs. If runId is not specified, return the max runId (whose dir exists)
+        Path maxRunIdPath = null;
+        for (FileStatus fileStatus : fs.globStatus(jobLogPath)) {
+            if (fs.isDirectory(fileStatus.getPath())) {
+                maxRunIdPath = fileStatus.getPath();
+            }
+        }
+        return maxRunIdPath;
     }
 }

@@ -140,6 +140,7 @@ public class MetadataMappingService
         makeKeyIndex(RelationshipProperty.TYPE.getName());
         makeKeyIndex(RelationshipProperty.TIMESTAMP.getName());
         makeKeyIndex(RelationshipProperty.VERSION.getName());
+        makeLongKey("BYTESCOPIED");
     }
 
     private void makeNameKeyIndex() {
@@ -155,6 +156,14 @@ public class MetadataMappingService
     private void makeKeyIndex(String key) {
         getTitanGraph().makeKey(key)
                 .dataType(String.class)
+                .indexed(Vertex.class)
+                .make();
+        getTitanGraph().commit();
+    }
+
+    private void makeLongKey(String key) {
+        getTitanGraph().makeKey(key)
+                .dataType(Long.class)
                 .indexed(Vertex.class)
                 .make();
         getTitanGraph().commit();
@@ -250,8 +259,7 @@ public class MetadataMappingService
 
     @Override
     public void onReload(Entity entity) throws FalconException {
-        // do nothing since entities are being loaded from store into memory and
-        // are already added to the graph
+        onAdd(entity);
     }
 
     @Override

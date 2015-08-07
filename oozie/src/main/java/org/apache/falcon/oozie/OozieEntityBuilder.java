@@ -19,11 +19,10 @@
 package org.apache.falcon.oozie;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.CatalogStorage;
 import org.apache.falcon.entity.ClusterHelper;
-import org.apache.falcon.entity.ProcessHelper;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.cluster.Property;
@@ -36,6 +35,7 @@ import org.apache.falcon.oozie.process.ProcessBundleBuilder;
 import org.apache.falcon.security.SecurityUtil;
 import org.apache.falcon.service.FalconPathFilter;
 import org.apache.falcon.service.SharedLibraryHostingService;
+import org.apache.falcon.util.RuntimeProperties;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -72,10 +72,13 @@ public abstract class OozieEntityBuilder<T extends Entity> {
     public static final String ENTITY_PATH = "ENTITY_PATH";
     public static final String ENTITY_NAME = "ENTITY_NAME";
 
+    private static final String WORKFLOW_PATH_SIZE_LIMIT = "workflow.path.size.limit";
+
     private static final FalconPathFilter FALCON_JAR_FILTER = new FalconPathFilter() {
         @Override
         public boolean accept(Path path) {
-            return path.getName().startsWith("falcon");
+            String fileName = path.getName();
+            return fileName.startsWith("falcon");
         }
 
         @Override
@@ -128,6 +131,9 @@ public abstract class OozieEntityBuilder<T extends Entity> {
 
     protected Path marshal(Cluster cluster, JAXBElement<?> jaxbElement,
                            JAXBContext jaxbContext, Path outPath) throws FalconException {
+        FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(
+                outPath.toUri(), ClusterHelper.getConfiguration(cluster));
+        verifyOozieEntityPath(fs, outPath, jaxbElement.getDeclaredType());
         try {
             Marshaller marshaller = jaxbContext.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
@@ -139,8 +145,6 @@ public abstract class OozieEntityBuilder<T extends Entity> {
                 LOG.debug(writer.getBuffer().toString());
             }
 
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(
-                    outPath.toUri(), ClusterHelper.getConfiguration(cluster));
             OutputStream out = fs.create(outPath);
             try {
                 marshaller.marshal(jaxbElement, out);
@@ -295,16 +299,21 @@ public abstract class OozieEntityBuilder<T extends Entity> {
         }
     }
 
-    protected Path getLibPath(Cluster cluster, Path buildPath) throws FalconException {
-        switch (entity.getEntityType()) {
-        case PROCESS:
-            return ProcessHelper.getUserLibPath((Process) entity, cluster, buildPath);
-
-        case FEED:
-            return new Path(buildPath, "lib");
-
-        default:
+    private void verifyOozieEntityPath(FileSystem fs, Path path, Class type) throws FalconException {
+        int oozieIdSizeLimit;
+        String fullPath = fs.getUri().toString() + "/" + path.toUri().toString();
+        try {
+            String oozieIdSizeLimitString = RuntimeProperties.get().getProperty(WORKFLOW_PATH_SIZE_LIMIT, "255");
+            oozieIdSizeLimit = Integer.parseInt(oozieIdSizeLimitString);
+            int pathLength = fullPath.length();
+            if (pathLength > oozieIdSizeLimit) {
+                throw new FalconException("Length of app-path " + "\"" + fullPath + "\" of type "
+                        + type + " is " + pathLength
+                        + ". This exceeds limit allowed by workflow engine " + oozieIdSizeLimit);
+            }
+        } catch (NumberFormatException ne) {
+            throw new FalconException("Invalid value provided for runtime property \""
+                    + WORKFLOW_PATH_SIZE_LIMIT + "\". Please provide an integer value.");
         }
-        throw new IllegalArgumentException("Unhandled type " + entity.getEntityType());
     }
 }

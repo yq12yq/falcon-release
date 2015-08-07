@@ -20,11 +20,24 @@ package org.apache.falcon.regression.Entities;
 
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
+import org.apache.falcon.regression.core.enumsAndConstants.MerlinConstants;
+import org.apache.log4j.Logger;
+import org.testng.Assert;
 
 import javax.xml.bind.Unmarshaller;
 import java.io.StringReader;
+import java.util.UUID;
 
-class TestEntityUtil {
+/**
+ * Util class for merlin entities.
+ */
+final class TestEntityUtil {
+
+    private static final Logger LOGGER = Logger.getLogger(TestEntityUtil.class);
+    private TestEntityUtil() {
+        throw new AssertionError("Instantiating utility class...");
+    }
+
     public static Entity fromString(EntityType type, String str) {
         try {
             Unmarshaller unmarshaller = type.getUnmarshaller();
@@ -35,4 +48,17 @@ class TestEntityUtil {
         }
     }
 
+    /*
+    Deprecating entity name if its length >= 30 and is_deprecate is set.
+    Useful when oozie uses embedded database(derby)
+     */
+    public static String generateUniqueName(String prefix, String oldName) {
+        Assert.assertNotNull(prefix, "name prefix shouldn't be null!");
+        String name=prefix + '-' + oldName + '-' + UUID.randomUUID().toString().split("-")[0];
+        if (name.length()>=30 && MerlinConstants.IS_DEPRECATE) {
+            LOGGER.warn("Entity name " + name + " length exceeds 30 character");
+            name=oldName + '-' + UUID.randomUUID().toString().split("-")[0];
+        }
+        return name;
+    }
 }

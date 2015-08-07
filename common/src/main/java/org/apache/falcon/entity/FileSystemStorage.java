@@ -18,7 +18,7 @@
 
 package org.apache.falcon.entity;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.Pair;
 import org.apache.falcon.entity.common.FeedDataPath;
@@ -77,7 +77,7 @@ public class FileSystemStorage extends Configured implements Storage {
     private final String storageUrl;
     private final List<Location> locations;
 
-    protected FileSystemStorage(Feed feed) {
+    public FileSystemStorage(Feed feed) {
         this(FILE_SYSTEM_URL, feed.getLocations());
     }
 
@@ -199,7 +199,7 @@ public class FileSystemStorage extends Configured implements Storage {
             }
         }
 
-        if (locationForType == null) {
+        if (locationForType == null || StringUtils.isEmpty(locationForType.getPath())) {
             return null;
         }
 
@@ -260,16 +260,6 @@ public class FileSystemStorage extends Configured implements Storage {
         return null;
     }
 
-    public static Properties getFeedProperties(Feed feed) {
-        Properties feedProperties = new Properties();
-        if (feed.getProperties() != null) {
-            for (org.apache.falcon.entity.v0.feed.Property property : feed.getProperties().getProperties()) {
-                feedProperties.put(property.getName(), property.getValue());
-            }
-        }
-        return feedProperties;
-    }
-
     @Override
     public void validateACL(AccessControlList acl) throws FalconException {
         try {
@@ -304,9 +294,10 @@ public class FileSystemStorage extends Configured implements Storage {
 
     @Override
     public StringBuilder evict(String retentionLimit, String timeZone, Path logFilePath) throws FalconException {
+        TimeZone tz = TimeZone.getTimeZone(timeZone);
         try{
             for (Location location : getLocations()) {
-                fileSystemEvictor(getUriTemplate(location.getType()), retentionLimit, timeZone, logFilePath);
+                fileSystemEvictor(getUriTemplate(location.getType()), retentionLimit, tz, logFilePath);
             }
             EvictedInstanceSerDe.serializeEvictedInstancePaths(
                     HadoopClientFactory.get().createProxiedFileSystem(logFilePath.toUri(), getConf()),
@@ -320,36 +311,34 @@ public class FileSystemStorage extends Configured implements Storage {
         return instanceDates;
     }
 
-    private void fileSystemEvictor(String feedPath, String retentionLimit,
-                                   String timeZone, Path logFilePath) throws IOException, ELException, FalconException {
+    private void fileSystemEvictor(String feedPath, String retentionLimit, TimeZone timeZone,
+                                   Path logFilePath) throws IOException, ELException, FalconException {
         Path normalizedPath = new Path(feedPath);
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(normalizedPath.toUri());
         feedPath = normalizedPath.toUri().getPath();
         LOG.info("Normalized path: {}", feedPath);
 
         Pair<Date, Date> range = EvictionHelper.getDateRange(retentionLimit);
-        String dateMask = FeedHelper.getDateFormatInPath(feedPath);
 
-        List<Path> toBeDeleted = discoverInstanceToDelete(feedPath, timeZone, dateMask, range.first, fs);
+        List<Path> toBeDeleted = discoverInstanceToDelete(feedPath, timeZone, range.first, fs);
         if (toBeDeleted.isEmpty()) {
             LOG.info("No instances to delete.");
             return;
         }
 
         DateFormat dateFormat = new SimpleDateFormat(FeedHelper.FORMAT);
-        dateFormat.setTimeZone(TimeZone.getTimeZone(timeZone));
-        Path feedBasePath = FeedHelper.getFeedBasePath(feedPath);
+        dateFormat.setTimeZone(timeZone);
+        Path feedBasePath = fs.makeQualified(FeedHelper.getFeedBasePath(feedPath));
         for (Path path : toBeDeleted) {
             deleteInstance(fs, path, feedBasePath);
-            Date date = FeedHelper.getDate(new Path(path.toUri().getPath()), feedPath, dateMask, timeZone);
+            Date date = FeedHelper.getDate(feedPath, new Path(path.toUri().getPath()), timeZone);
             instanceDates.append(dateFormat.format(date)).append(',');
             instancePaths.append(path).append(EvictedInstanceSerDe.INSTANCEPATH_SEPARATOR);
         }
     }
 
-    private List<Path> discoverInstanceToDelete(String inPath, String timeZone, String dateMask,
-                                                      Date start, FileSystem fs) throws IOException {
-
+    private List<Path> discoverInstanceToDelete(String inPath, TimeZone timeZone, Date start, FileSystem fs)
+        throws IOException {
         FileStatus[] files = findFilesForFeed(fs, inPath);
         if (files == null || files.length == 0) {
             return Collections.emptyList();
@@ -357,8 +346,7 @@ public class FileSystemStorage extends Configured implements Storage {
 
         List<Path> toBeDeleted = new ArrayList<Path>();
         for (FileStatus file : files) {
-            Date date = FeedHelper.getDate(new Path(file.getPath().toUri().getPath()),
-                    inPath, dateMask, timeZone);
+            Date date = FeedHelper.getDate(inPath, new Path(file.getPath().toUri().getPath()), timeZone);
             LOG.debug("Considering {}", file.getPath().toUri().getPath());
             LOG.debug("Date: {}", date);
             if (date != null && !isDateInRange(date, start)) {
@@ -436,8 +424,8 @@ public class FileSystemStorage extends Configured implements Storage {
                 String feedInstancePath = ExpressionHelper.substitute(basePath, allProperties);
                 FileStatus fileStatus = getFileStatus(fileSystem, new Path(feedInstancePath));
                 FeedInstanceStatus instance = new FeedInstanceStatus(feedInstancePath);
-                String dateMask = FeedHelper.getDateFormatInPath(basePath);
-                Date date = FeedHelper.getDate(new Path(feedInstancePath), basePath, dateMask, tz.getID());
+
+                Date date = FeedHelper.getDate(basePath, new Path(feedInstancePath), tz);
                 instance.setInstance(SchemaHelper.formatDateUTC(date));
                 if (fileStatus != null) {
                     instance.setCreationTime(fileStatus.getModificationTime());

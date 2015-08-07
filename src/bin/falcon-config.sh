@@ -55,7 +55,9 @@ fi
 
 # default the heap size to 1GB
 DEFAULT_JAVA_HEAP_MAX=-Xmx1024m
-FALCON_OPTS="$DEFAULT_JAVA_HEAP_MAX $FALCON_OPTS"
+# setting -noverify option to skip bytecode verification due to JDK 1.7 (FALCON-774)
+NOVERIFY=-noverify
+FALCON_OPTS="$DEFAULT_JAVA_HEAP_MAX $NOVERIFY $FALCON_OPTS"
 
 type="$1"
 shift
@@ -80,12 +82,12 @@ case $type in
     fi
     FALCONCPPATH="$FALCON_CONF" 
     HADOOPDIR=`which hadoop`
-    if [ "$HADOOPDIR" != "" ]; then
-      echo "Hadoop is installed, adding hadoop classpath to falcon classpath"
-      FALCONCPPATH="${FALCONCPPATH}:`hadoop classpath`"
-    elif [ "$HADOOP_HOME" != "" ]; then
+    if [ "$HADOOP_HOME" != "" ]; then
       echo "Hadoop home is set, adding libraries from '${HADOOP_HOME}/bin/hadoop classpath' into falcon classpath"
       FALCONCPPATH="${FALCONCPPATH}:`${HADOOP_HOME}/bin/hadoop classpath`"
+    elif [ "$HADOOPDIR" != "" ]; then
+      echo "Hadoop is installed, adding hadoop classpath to falcon classpath"
+      FALCONCPPATH="${FALCONCPPATH}:`hadoop classpath`"
     else
       echo "Could not find installed hadoop and HADOOP_HOME is not set."
       echo "Using the default jars bundled in ${BASEDIR}/hadooplibs/"

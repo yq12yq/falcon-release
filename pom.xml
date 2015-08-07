@@ -16,7 +16,7 @@
    limitations under the License.
   -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <parent>
         <groupId>org.apache</groupId>
@@ -27,11 +27,11 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.falcon</groupId>
     <artifactId>falcon-main</artifactId>
-    <version>0.6-incubating-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
     <description>Data Management and Processing Platform over Hadoop</description>
     <name>Apache Falcon</name>
     <packaging>pom</packaging>
-    <url>http://falcon.incubator.apache.org/</url>
+    <url>http://falcon.apache.org/</url>
 
     <licenses>
         <license>
@@ -82,17 +82,17 @@
     </mailingLists>
 
     <scm>
-        <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-falcon.git</connection>
-        <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-falcon.git</developerConnection>
-        <url>https://git-wip-us.apache.org/repos/asf/incubator-falcon.git</url>
+        <connection>scm:git:https://git-wip-us.apache.org/repos/asf/falcon.git</connection>
+        <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/falcon.git</developerConnection>
+        <url>https://git-wip-us.apache.org/repos/asf/falcon.git</url>
     </scm>
 
     <distributionManagement>
-      <repository>
-         <id>${repoid}</id>
-         <name>${reponame}</name>
-         <url>${repourl}</url>
-      </repository>
+        <repository>
+            <id>${repoid}</id>
+            <name>${reponame}</name>
+            <url>${repourl}</url>
+        </repository>
     </distributionManagement>
 
     <properties>
@@ -103,16 +103,17 @@
         <include.prism>true</include.prism>
 
         <slf4j.version>1.7.5</slf4j.version>
-        <oozie.version>4.1.0.2.2.0.0-1796</oozie.version>
+        <oozie.version>4.1.0</oozie.version>
         <oozie.buildversion>${oozie.version}</oozie.buildversion>
         <oozie.forcebuild>false</oozie.forcebuild>
         <activemq.version>5.4.3</activemq.version>
-        <hive.version>0.14.0.2.2.0.0-1796</hive.version>
-        <hcatalog.version>0.14.0.2.2.0.0-1796</hcatalog.version>
+        <hive.version>1.2.0</hive.version>
+        <hcatalog.version>1.2.0</hcatalog.version>
         <jetty.version>6.1.26</jetty.version>
         <jersey.version>1.9</jersey.version>
         <internal.maven.repo>file:///tmp/falcontemprepo</internal.maven.repo>
         <excluded.test.groups>exhaustive</excluded.test.groups>
+        <local_url>http://public-repo-1.hortonworks.com/ARTIFACTS/</local_url>
     </properties>
 
     <profiles>
@@ -122,16 +123,16 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <hadoop.version>2.5.0</hadoop.version>
+                <hadoop.version>2.6.0</hadoop.version>
             </properties>
             <dependencyManagement>
                 <dependencies>
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-client</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-client</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
-		                <exclusions>
+                        <exclusions>
                             <exclusion>
                                 <groupId>com.sun.jersey</groupId>
                                 <artifactId>jersey-server</artifactId>
@@ -152,12 +153,12 @@
                                 <groupId>org.apache.hadoop</groupId>
                                 <artifactId>hadoop-annotations</artifactId>
                             </exclusion>
-		                </exclusions>
-		            </dependency>
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-hdfs</artifactId>
-		                <version>${hadoop.version}</version>
+                        </exclusions>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-hdfs</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -167,10 +168,10 @@
                         </exclusions>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-common</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-common</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -180,10 +181,10 @@
                         </exclusions>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-mapreduce-client-common</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-common</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -193,11 +194,11 @@
                         </exclusions>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-hdfs</artifactId>
-		                <version>${hadoop.version}</version>
-		                <classifier>tests</classifier>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-hdfs</artifactId>
+                        <version>${hadoop.version}</version>
+                        <classifier>tests</classifier>
                         <exclusions>
                             <exclusion>
                                 <groupId>org.apache.hadoop</groupId>
@@ -207,11 +208,11 @@
                         <scope>test</scope>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-common</artifactId>
-		                <version>${hadoop.version}</version>
-		                <classifier>tests</classifier>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-common</artifactId>
+                        <version>${hadoop.version}</version>
+                        <classifier>tests</classifier>
                         <exclusions>
                             <exclusion>
                                 <groupId>org.apache.hadoop</groupId>
@@ -221,10 +222,10 @@
                         <scope>test</scope>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -234,10 +235,10 @@
                         </exclusions>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-yarn-server-nodemanager</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-yarn-server-nodemanager</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -247,10 +248,10 @@
                         </exclusions>
                     </dependency>
 
-		            <dependency>
-		                <groupId>org.apache.hadoop</groupId>
-		                <artifactId>hadoop-auth</artifactId>
-		                <version>${hadoop.version}</version>
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-auth</artifactId>
+                        <version>${hadoop.version}</version>
                         <scope>provided</scope>
                         <exclusions>
                             <exclusion>
@@ -258,7 +259,7 @@
                                 <artifactId>hadoop-annotations</artifactId>
                             </exclusion>
                         </exclusions>
-		            </dependency>
+                    </dependency>
 
                     <dependency>
                         <groupId>org.apache.hadoop</groupId>
@@ -272,8 +273,22 @@
                             </exclusion>
                         </exclusions>
                     </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-distcp</artifactId>
+                        <version>${hadoop.version}</version>
+                        <scope>provided</scope>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-core</artifactId>
+                        <version>${hadoop.version}</version>
+                        <scope>provided</scope>
+                    </dependency>
                 </dependencies>
-          </dependencyManagement>
+            </dependencyManagement>
         </profile>
 
         <profile>
@@ -307,6 +322,8 @@
                             <useEclipseDefaultExcludes>true</useEclipseDefaultExcludes>
                             <excludeSubProjects>true</excludeSubProjects>
                             <excludes>
+                                <exclude>*.json</exclude>
+                                <exclude>**/*.json</exclude>
                                 <exclude>*.txt</exclude>
                                 <exclude>**/*.txt</exclude>
                                 <exclude>.git/**</exclude>
@@ -362,6 +379,7 @@
                                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                                     <configLocation>falcon/checkstyle.xml</configLocation>
                                     <headerLocation>falcon/checkstyle-java-header.txt</headerLocation>
+                                    <suppressionsLocation>falcon/checkstyle-suppressions.xml</suppressionsLocation>
                                     <failOnViolation>true</failOnViolation>
                                 </configuration>
                             </execution>
@@ -374,7 +392,7 @@
                         <configuration>
                             <!--debug>true</debug -->
                             <xmlOutput>true</xmlOutput>
-                            <excludeFilterFile>${basedir}/../checkstyle/src/main/resources/falcon/findbugs-exclude.xml</excludeFilterFile>
+                            <excludeFilterFile>checkstyle/src/main/resources/falcon/findbugs-exclude.xml</excludeFilterFile>
                             <failOnError>true</failOnError>
                         </configuration>
                         <executions>
@@ -397,16 +415,50 @@
             <properties>
                 <excluded.test.groups/>
             </properties>
-         </profile>
-         <profile>
-		<id>windows</id>
-		<modules>
-			<module>winpkg</module>
-		</modules>
-	 </profile>
+        </profile>
+        <profile>
+            <id>windows</id>
+            <modules>
+                <module>winpkg</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>hivedr</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>1.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>enforce-property</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireProperty>
+                                            <property>hive.version</property>
+                                            <regex>^(1.2.*)</regex>
+                                            <regexMessage>HiveDR only supports hive version >= 1.2.0 </regexMessage>
+                                        </requireProperty>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+            <modules>
+                <module>addons/hivedr</module>
+            </modules>
+        </profile>
     </profiles>
 
     <modules>
+        <module>falcon-ui</module>
         <module>checkstyle</module>
         <module>build-tools</module>
         <module>client</module>
@@ -414,7 +466,7 @@
         <module>common</module>
         <module>test-util</module>
         <module>hadoop-dependencies</module>
-        <module>hadoop-webapp</module>
+        <module>test-tools</module>
         <module>messaging</module>
         <module>oozie-el-extensions</module>
         <module>oozie</module>
@@ -500,9 +552,9 @@
             </dependency>
 
             <dependency>
-                <groupId>commons-lang</groupId>
-                <artifactId>commons-lang</artifactId>
-                <version>2.6</version>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.4</version>
             </dependency>
 
             <dependency>
@@ -660,6 +712,12 @@
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-jms</artifactId>
                 <version>3.0.3.RELEASE</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.tinkerpop.gremlin</groupId>
+                <artifactId>gremlin-java</artifactId>
+                <version>2.6.0</version>
             </dependency>
 
             <dependency>
@@ -971,9 +1029,9 @@
             </dependency>
 
             <dependency>
-                <groupId>net.sourceforge.findbugs</groupId>
-                <artifactId>annotations</artifactId>
-                <version>1.3.2</version>
+                <groupId>com.github.stephenc.findbugs</groupId>
+                <artifactId>findbugs-annotations</artifactId>
+                <version>1.3.9-1</version>
             </dependency>
 
             <dependency>
@@ -1104,7 +1162,7 @@
                     <version>2.8.1</version>
                 </plugin>
 
-               <plugin>
+                <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>2.16</version>
@@ -1167,31 +1225,31 @@
         </pluginManagement>
 
         <plugins>
-<!--
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <version>1.3.1</version>
-                <executions>
-                    <execution>
-                        <id>enforce-property</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireProperty>
-                                    <property>oozie.version</property>
-                                    <regex>^(4.*)</regex>
-                                    <regexMessage>Oozie version 3.* is not supported. Use a higher version of oozie</regexMessage>
-                                </requireProperty>
-                            </rules>
-                            <fail>true</fail>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
--->
+            <!--
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-enforcer-plugin</artifactId>
+                            <version>1.3.1</version>
+                            <executions>
+                                <execution>
+                                    <id>enforce-property</id>
+                                    <goals>
+                                        <goal>enforce</goal>
+                                    </goals>
+                                    <configuration>
+                                        <rules>
+                                            <requireProperty>
+                                                <property>oozie.version</property>
+                                                <regex>^(4.*)</regex>
+                                                <regexMessage>Oozie version 3.* is not supported. Use a higher version of oozie</regexMessage>
+                                            </requireProperty>
+                                        </rules>
+                                        <fail>true</fail>
+                                    </configuration>
+                                </execution>
+                            </executions>
+                        </plugin>
+            -->
 
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -1215,8 +1273,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
 
@@ -1245,7 +1303,7 @@
                             <goal>javadoc</goal>
                             <goal>jar</goal>
                         </goals>
-                     </execution>
+                    </execution>
                 </executions>
             </plugin>
 
@@ -1329,28 +1387,28 @@
                 <artifactId>maven-release-plugin</artifactId>
                 <version>2.4.1</version>
             </plugin>
-	    <plugin>
-         	<groupId>com.google.code.maven-replacer-plugin</groupId>
-         	<artifactId>replacer</artifactId>
-         	<version>1.5.2</version>
-         	<executions>
-             		<execution>
-                       	 <goals>
-                             <goal>replace</goal>
-                         </goals>
-                     	</execution>
-                 </executions>
-                 <configuration>
-                     <includes>
-                         <include>winpkg/src/scripts/*</include>
-                     </includes>
-                     <replacements>
-                         <replacement>
-                             <token>@falcon.version@</token>
-                             <value>${project.version}</value>
-                         </replacement>
-                     </replacements>
-                 </configuration>
+            <plugin>
+                <groupId>com.google.code.maven-replacer-plugin</groupId>
+                <artifactId>replacer</artifactId>
+                <version>1.5.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>replace</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>winpkg/src/scripts/*</include>
+                    </includes>
+                    <replacements>
+                        <replacement>
+                            <token>@falcon.version@</token>
+                            <value>${project.version}</value>
+                        </replacement>
+                    </replacements>
+                </configuration>
             </plugin>
         </plugins>
     </build>

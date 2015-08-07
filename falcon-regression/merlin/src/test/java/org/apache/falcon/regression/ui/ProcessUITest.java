@@ -28,7 +28,6 @@ import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.regression.core.helpers.ColoHelper;
 import org.apache.falcon.regression.core.util.AssertUtil;
 import org.apache.falcon.regression.core.util.BundleUtil;
-import org.apache.falcon.regression.core.util.CleanupUtil;
 import org.apache.falcon.regression.core.util.Generator;
 import org.apache.falcon.regression.core.util.HadoopUtil;
 import org.apache.falcon.regression.core.util.InstanceUtil;
@@ -39,6 +38,7 @@ import org.apache.falcon.regression.core.util.Util;
 import org.apache.falcon.regression.lineage.LineageApiTest;
 import org.apache.falcon.regression.testHelper.BaseUITestClass;
 import org.apache.falcon.regression.ui.pages.EntitiesPage;
+import org.apache.falcon.regression.ui.pages.Page;
 import org.apache.falcon.regression.ui.pages.ProcessPage;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.authentication.client.AuthenticationException;
@@ -47,49 +47,49 @@ import org.apache.oozie.client.CoordinatorAction;
 import org.apache.oozie.client.OozieClient;
 import org.apache.oozie.client.OozieClientException;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 
 import javax.xml.bind.JAXBException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+/**
+ * UI tests with submitted/scheduled process.
+ */
 @Test(groups = "lineage-ui")
 public class ProcessUITest extends BaseUITestClass {
 
     private ColoHelper cluster = servers.get(0);
-    private String baseTestDir = baseHDFSDir + "/TestProcessUI";
+    private String baseTestDir = cleanAndGetTestDir();
     private String aggregateWorkflowDir = baseTestDir + "/aggregator";
-    private static final Logger logger = Logger.getLogger(ProcessUITest.class);
-    String feedInputPath = baseTestDir + "/input";
-    final String feedOutputPath = baseTestDir + "/output";
+    private static final Logger LOGGER = Logger.getLogger(ProcessUITest.class);
+    private final String feedInputPath = baseTestDir + "/input";
+    private final String feedOutputPath = baseTestDir + "/output";
     private FileSystem clusterFS = serverFS.get(0);
     private OozieClient clusterOC = serverOC.get(0);
     private SoftAssert softAssert = new SoftAssert();
 
-    @BeforeMethod
+    @BeforeClass
     public void setUp()
-            throws IOException, JAXBException, NoSuchMethodException, IllegalAccessException,
-            InvocationTargetException, URISyntaxException, AuthenticationException,
-            InterruptedException {
-        CleanupUtil.cleanAllEntities(prism);
+        throws IOException, JAXBException, NoSuchMethodException, IllegalAccessException,
+        InvocationTargetException, URISyntaxException, AuthenticationException,
+        InterruptedException {
         uploadDirToClusters(aggregateWorkflowDir, OSUtil.RESOURCES_OOZIE);
         openBrowser();
         bundles[0] = BundleUtil.readELBundle();
         bundles[0] = new Bundle(bundles[0], cluster);
-        bundles[0].generateUniqueBundle();
+        bundles[0].generateUniqueBundle(this);
         bundles[0].setProcessWorkflow(aggregateWorkflowDir);
         String startTime = TimeUtil.getTimeWrtSystemTime(0);
         String endTime = TimeUtil.addMinsToTime(startTime, 5);
-        logger.info("Start time: " + startTime + "\tEnd time: " + endTime);
+        LOGGER.info("Start time: " + startTime + "\tEnd time: " + endTime);
 
         //prepare process definition
         bundles[0].setProcessValidity(startTime, endTime);
@@ -110,7 +110,7 @@ public class ProcessUITest extends BaseUITestClass {
         bundles[0].setProcessData(process.toString());
 
         //provide necessary data for first 3 instances to run
-        logger.info("Creating necessary data...");
+        LOGGER.info("Creating necessary data...");
         String prefix = bundles[0].getFeedDataPathPrefix();
         HadoopUtil.deleteDirIfExists(prefix.substring(1), clusterFS);
         List<String> dataDates = TimeUtil.getMinuteDatesOnEitherSide(
@@ -129,27 +129,29 @@ public class ProcessUITest extends BaseUITestClass {
                 prefix + "_00" + k + "/", dataDates);
         }
 
-        logger.info("Process data: " + Util.prettyPrintXml(bundles[0].getProcessData()));
+        LOGGER.info("Process data: " + Util.prettyPrintXml(bundles[0].getProcessData()));
         FeedMerlin[] inputFeeds;
         FeedMerlin[] outputFeeds;
         final FeedMerlin inputMerlin = new FeedMerlin(bundles[0].getInputFeedFromBundle());
         final FeedMerlin outputMerlin = new FeedMerlin(bundles[0].getOutputFeedFromBundle());
 
-
+        String namePrefix = this.getClass().getSimpleName() + '-';
         inputFeeds = LineageApiTest.generateFeeds(numInputFeeds, inputMerlin,
-                Generator.getNameGenerator("infeed", inputMerlin.getName()),
+                Generator.getNameGenerator(namePrefix + "infeed",
+                    inputMerlin.getName().replace(namePrefix, "")),
                 Generator.getHadoopPathGenerator(feedInputPath, MINUTE_DATE_PATTERN));
         int j = 0;
         for (FeedMerlin feed : inputFeeds) {
-            bundles[0].addInputFeedToBundle("inputFeed" + j, feed.toString(), j++);
+            bundles[0].addInputFeedToBundle("inputFeed" + j++, feed);
         }
 
         outputFeeds = LineageApiTest.generateFeeds(numOutputFeeds, outputMerlin,
-                Generator.getNameGenerator("outfeed", outputMerlin.getName()),
+                Generator.getNameGenerator(namePrefix + "outfeed",
+                    inputMerlin.getName().replace(namePrefix, "")),
                 Generator.getHadoopPathGenerator(feedOutputPath, MINUTE_DATE_PATTERN));
         j = 0;
         for (FeedMerlin feed : outputFeeds) {
-            bundles[0].addOutputFeedToBundle("outputFeed" + j, feed.toString(), j++);
+            bundles[0].addOutputFeedToBundle("outputFeed" + j++, feed);
         }
 
         AssertUtil.assertSucceeded(bundles[0].submitBundle(prism));
@@ -157,50 +159,50 @@ public class ProcessUITest extends BaseUITestClass {
     }
 
 
-    @AfterMethod(alwaysRun = true)
-    public void tearDown(Method method) throws IOException {
+    @AfterClass(alwaysRun = true)
+    public void tearDown() throws IOException {
         closeBrowser();
-        removeBundles();
+        removeTestClassEntities();
     }
 
     /**
      * Test checks that UI show expected statuses of submitted Process (SUBMITTED and RUNNING)
      * then checks instances icons to be relevant to statuses of oozie actions
-     * and checks that Lineage links are available only for SUCCEEDED instances
+     * and checks that Lineage links are available only for SUCCEEDED instances.
      */
     @Test
     public void testProcessUI()
-            throws URISyntaxException, IOException, AuthenticationException, JAXBException,
-            OozieClientException, InterruptedException {
+        throws URISyntaxException, IOException, AuthenticationException, JAXBException,
+        OozieClientException, InterruptedException {
 
         //check Process statuses via UI
-        EntitiesPage page = new EntitiesPage(DRIVER, cluster, EntityType.PROCESS);
+        EntitiesPage page = new EntitiesPage(getDriver(), cluster, EntityType.PROCESS);
         page.navigateTo();
         String process = bundles[0].getProcessData();
         String processName = Util.readEntityName(process);
         softAssert.assertEquals(page.getEntityStatus(processName),
-                EntitiesPage.EntityStatus.SUBMITTED, "Process status should be SUBMITTED");
+                Page.EntityStatus.SUBMITTED, "Process status should be SUBMITTED");
         prism.getProcessHelper().schedule(process);
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, processName, 1,
             CoordinatorAction.Status.RUNNING, EntityType.PROCESS);
 
         softAssert.assertEquals(page.getEntityStatus(processName),
-                EntitiesPage.EntityStatus.RUNNING, "Process status should be RUNNING");
+                Page.EntityStatus.RUNNING, "Process status should be RUNNING");
 
-        ProcessPage processPage = new ProcessPage(DRIVER, cluster, processName);
+        ProcessPage processPage = new ProcessPage(getDriver(), cluster, processName);
         processPage.navigateTo();
 
-        String bundleID = InstanceUtil.getLatestBundleID(cluster, processName, EntityType.PROCESS);
-        Map<Date, CoordinatorAction.Status> actions = OozieUtil.getActionsNominalTimeAndStatus(prism, bundleID,
-                EntityType.PROCESS);
+        String bundleID = OozieUtil.getLatestBundleID(clusterOC, processName, EntityType.PROCESS);
+        Map<Date, CoordinatorAction.Status> actions = OozieUtil.getActionsNominalTimeAndStatus(
+            clusterOC, bundleID,   EntityType.PROCESS);
         checkActions(actions, processPage);
 
         InstanceUtil.waitTillInstanceReachState(clusterOC, processName, 1,
             CoordinatorAction.Status.SUCCEEDED, EntityType.PROCESS);
 
         processPage.refresh();
-        actions = OozieUtil.getActionsNominalTimeAndStatus(prism, bundleID, EntityType.PROCESS);
+        actions = OozieUtil.getActionsNominalTimeAndStatus(clusterOC, bundleID, EntityType.PROCESS);
         checkActions(actions, processPage);
 
         softAssert.assertAll();
@@ -217,16 +219,11 @@ public class ProcessUITest extends BaseUITestClass {
 
             //check that Lineage links are available only for SUCCEEDED instances
             boolean isPresent = page.isLineageLinkPresent(oozieDate);
-            if(actions.get(date) == CoordinatorAction.Status.SUCCEEDED) {
+            if (actions.get(date) == CoordinatorAction.Status.SUCCEEDED) {
                 softAssert.assertTrue(isPresent, "Lineage button should be present for instance: " + oozieDate);
             } else {
                 softAssert.assertFalse(isPresent, "Lineage button should not be present for instance: " + oozieDate);
             }
         }
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tearDownClass() throws IOException {
-        cleanTestDirs();
     }
 }

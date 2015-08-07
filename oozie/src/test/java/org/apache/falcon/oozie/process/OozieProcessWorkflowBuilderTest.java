@@ -32,6 +32,7 @@ import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.Frequency;
 import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.entity.v0.cluster.Interfacetype;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.feed.LocationType;
@@ -123,7 +124,8 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         ClusterHelper.getInterface(cluster, Interfacetype.WRITE).setEndpoint(hdfsUrl);
         ClusterHelper.getInterface(cluster, Interfacetype.REGISTRY).setEndpoint("thrift://localhost:49083");
         fs = new Path(hdfsUrl).getFileSystem(EmbeddedCluster.newConfiguration());
-        fs.create(new Path(ClusterHelper.getLocation(cluster, "working"), "libext/PROCESS/ext.jar")).close();
+        fs.create(new Path(ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath(),
+                "libext/PROCESS/ext.jar")).close();
 
         Process process = store.get(EntityType.PROCESS, "clicksummary");
         Path wfpath = new Path(process.getWorkflow().getPath());
@@ -235,7 +237,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         ACTION pigActionNode = getAction(parentWorkflow, "user-action");
 
         final PIG pigAction = pigActionNode.getPig();
-        Assert.assertEquals(pigAction.getScript(), "${nameNode}/falcon/staging/workflows/pig-process/user/id.pig");
+        Assert.assertEquals(pigAction.getScript(), "${nameNode}/apps/pig/id.pig");
         Assert.assertNotNull(pigAction.getPrepare());
         Assert.assertEquals(1, pigAction.getPrepare().getDelete().size());
         Assert.assertFalse(pigAction.getParam().isEmpty());
@@ -306,8 +308,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         JAXBElement<org.apache.falcon.oozie.hive.ACTION> actionJaxbElement = OozieUtils.unMarshalHiveAction(hiveNode);
         org.apache.falcon.oozie.hive.ACTION hiveAction = actionJaxbElement.getValue();
 
-        Assert.assertEquals(hiveAction.getScript(),
-                "${nameNode}/falcon/staging/workflows/hive-process/user/script.hql");
+        Assert.assertEquals(hiveAction.getScript(), "${nameNode}/apps/hive/script.hql");
         Assert.assertEquals(hiveAction.getJobXml(), "${wf:appPath()}/conf/hive-site.xml");
         Assert.assertNull(hiveAction.getPrepare());
         Assert.assertEquals(Collections.EMPTY_LIST, hiveAction.getArchive());
@@ -361,8 +362,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         JAXBElement<org.apache.falcon.oozie.hive.ACTION> actionJaxbElement = OozieUtils.unMarshalHiveAction(hiveNode);
         org.apache.falcon.oozie.hive.ACTION hiveAction = actionJaxbElement.getValue();
 
-        Assert.assertEquals(hiveAction.getScript(),
-                "${nameNode}/falcon/staging/workflows/hive-process/user/script.hql");
+        Assert.assertEquals(hiveAction.getScript(), "${nameNode}/apps/hive/script.hql");
         Assert.assertEquals(hiveAction.getJobXml(), "${wf:appPath()}/conf/hive-site.xml");
         Assert.assertNull(hiveAction.getPrepare());
         Assert.assertEquals(Collections.EMPTY_LIST, hiveAction.getArchive());
@@ -416,8 +416,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         JAXBElement<org.apache.falcon.oozie.hive.ACTION> actionJaxbElement = OozieUtils.unMarshalHiveAction(hiveNode);
         org.apache.falcon.oozie.hive.ACTION hiveAction = actionJaxbElement.getValue();
 
-        Assert.assertEquals(hiveAction.getScript(),
-                "${nameNode}/falcon/staging/workflows/hive-process/user/script.hql");
+        Assert.assertEquals(hiveAction.getScript(), "${nameNode}/apps/hive/script.hql");
         Assert.assertEquals(hiveAction.getJobXml(), "${wf:appPath()}/conf/hive-site.xml");
         Assert.assertNotNull(hiveAction.getPrepare());
         Assert.assertEquals(Collections.EMPTY_LIST, hiveAction.getArchive());
@@ -467,8 +466,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
                 hiveNode);
         org.apache.falcon.oozie.hive.ACTION hiveAction = actionJaxbElement.getValue();
 
-        Assert.assertEquals(hiveAction.getScript(),
-                "${nameNode}/falcon/staging/workflows/hive-process/user/script.hql");
+        Assert.assertEquals(hiveAction.getScript(), "${nameNode}/apps/hive/script.hql");
         Assert.assertEquals(hiveAction.getJobXml(), "${wf:appPath()}/conf/hive-site.xml");
         Assert.assertNull(hiveAction.getPrepare());
         Assert.assertEquals(Collections.EMPTY_LIST, hiveAction.getArchive());
@@ -635,8 +633,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         List<CONFIGURATION.Property> props = bundle.getCoordinator().get(0).getConfiguration().getProperty();
         for (CONFIGURATION.Property prop : props) {
             if (prop.getName().equals("oozie.libpath")) {
-                Assert.assertEquals(prop.getValue().replace("${nameNode}", ""), new Path(bundlePath,
-                    "userlib").toString());
+                Assert.assertEquals(prop.getValue().replace("${nameNode}", ""), process.getWorkflow().getLib());
             }
         }
 
@@ -734,7 +731,7 @@ public class OozieProcessWorkflowBuilderTest extends AbstractTestBase {
         verifyBrokerProperties(cluster, props);
 
         Assert.assertEquals(props.get(WorkflowExecutionArgs.INPUT_FEED_NAMES.getName()), "clicks");
-        Assert.assertEquals(props.get(WorkflowExecutionArgs.OUTPUT_FEED_NAMES.getName()), "NONE");
+        Assert.assertEquals(props.get(WorkflowExecutionArgs.OUTPUT_FEED_NAMES.getName()), "IGNORE");
     }
 
     @Test

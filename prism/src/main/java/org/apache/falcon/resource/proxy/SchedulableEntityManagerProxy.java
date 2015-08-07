@@ -18,6 +18,7 @@
 
 package org.apache.falcon.resource.proxy;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.FalconRuntimException;
 import org.apache.falcon.FalconWebException;
@@ -25,14 +26,17 @@ import org.apache.falcon.entity.EntityNotRegisteredException;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
+import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.monitors.Dimension;
 import org.apache.falcon.monitors.Monitored;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.AbstractSchedulableEntityManager;
 import org.apache.falcon.resource.EntityList;
 import org.apache.falcon.resource.EntitySummaryResult;
+import org.apache.falcon.resource.FeedLookupResult;
 import org.apache.falcon.resource.channel.Channel;
 import org.apache.falcon.resource.channel.ChannelFactory;
+
 import org.apache.falcon.util.DeploymentUtil;
 
 import javax.servlet.http.HttpServletRequest;
@@ -40,6 +44,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -110,10 +115,13 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
 
         final HttpServletRequest bufferedRequest = getBufferedRequest(request);
 
-        final String entity = getEntity(bufferedRequest, type).getName();
+        final Entity entity = getEntity(bufferedRequest, type);
         Map<String, APIResult> results = new HashMap<String, APIResult>();
-        final Set<String> colos = getApplicableColos(type, getEntity(bufferedRequest, type));
-        results.put(FALCON_TAG, new EntityProxy(type, entity) {
+        final Set<String> colos = getApplicableColos(type, entity);
+
+        validateEntity(entity, colos);
+
+        results.put(FALCON_TAG, new EntityProxy(type, entity.getName()) {
             @Override
             protected Set<String> getColosToApply() {
                 return colos;
@@ -131,10 +139,22 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
         return consolidateResult(results, APIResult.class);
     }
 
+    private void validateEntity(Entity entity, Set<String> applicableColos) {
+        if (entity.getEntityType() != EntityType.CLUSTER || embeddedMode) {
+            return;
+        }
+        // If the submitted entity is a cluster, ensure its spec. has one of the valid colos
+        String colo = ((Cluster) entity).getColo();
+        if (!applicableColos.contains(colo)) {
+            throw FalconWebException.newException("The colo mentioned in the cluster specification, "
+                    + colo + ", is not listed in Prism runtime.", Response.Status.BAD_REQUEST);
+        }
+    }
+
     private Entity getEntity(HttpServletRequest request, String type) {
         try {
             request.getInputStream().reset();
-            Entity entity = deserializeEntity(request, EntityType.valueOf(type.toUpperCase()));
+            Entity entity = deserializeEntity(request, EntityType.getEnum(type));
             request.getInputStream().reset();
             return entity;
         } catch (Exception e) {
@@ -147,8 +167,27 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
     @Consumes({MediaType.TEXT_XML, MediaType.TEXT_PLAIN})
     @Produces({MediaType.TEXT_XML, MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     @Override
-    public APIResult validate(@Context HttpServletRequest request, @PathParam("type") String type) {
-        return super.validate(request, type);
+    public APIResult validate(@Context final HttpServletRequest request, @PathParam("type") final String type) {
+        final HttpServletRequest bufferedRequest = getBufferedRequest(request);
+        EntityType entityType = EntityType.getEnum(type);
+        final Entity entity;
+        try {
+            entity = deserializeEntity(bufferedRequest, entityType);
+            bufferedRequest.getInputStream().reset();
+        } catch (Exception e) {
+            throw FalconWebException.newException("Unable to parse the request", Response.Status.BAD_REQUEST);
+        }
+        return new EntityProxy(type, entity.getName()) {
+            @Override
+            protected Set<String> getColosToApply() {
+                return getApplicableColos(type, entity);
+            }
+
+            @Override
+            protected APIResult doExecute(String colo) throws FalconException {
+                return getEntityManager(colo).invoke("validate", bufferedRequest, type);
+            }
+        }.execute();
     }
 
     @DELETE
@@ -171,7 +210,8 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
                     EntityUtil.getEntity(type, entity);
                     return super.execute();
                 } catch (EntityNotRegisteredException e) {
-                    return new APIResult(APIResult.Status.SUCCEEDED, entity + "(" + type + ") removed successfully");
+                    return new APIResult(APIResult.Status.SUCCEEDED,
+                            entity + "(" + type + ") doesn't exist. Nothing to do");
                 } catch (FalconException e) {
                     throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
                 }
@@ -197,8 +237,7 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
     public APIResult update(
             @Context HttpServletRequest request, @Dimension("entityType") @PathParam("type") final String type,
             @Dimension("entityName") @PathParam("entity") final String entityName,
-            @Dimension("colo") @QueryParam("colo") String ignore,
-            @Dimension("effective") @DefaultValue("") @QueryParam("effective") final String effectiveTime) {
+            @Dimension("colo") @QueryParam("colo") String ignore) {
 
         final HttpServletRequest bufferedRequest = new BufferedRequest(request);
         final Set<String> oldColos = getApplicableColos(type, entityName);
@@ -233,8 +272,7 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
 
                 @Override
                 protected APIResult doExecute(String colo) throws FalconException {
-                    return getConfigSyncChannel(colo).invoke("update", bufferedRequest, type, entityName, colo,
-                            effectiveTime);
+                    return getConfigSyncChannel(colo).invoke("update", bufferedRequest, type, entityName, colo);
                 }
             }.execute());
         }
@@ -254,10 +292,33 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
         }
 
         if (!embeddedMode) {
-            results.put(PRISM_TAG, super.update(bufferedRequest, type, entityName, currentColo, effectiveTime));
+            results.put(PRISM_TAG, super.update(bufferedRequest, type, entityName, currentColo));
         }
 
         return consolidateResult(results, APIResult.class);
+    }
+
+    @POST
+    @Path("touch/{type}/{entity}")
+    @Produces({MediaType.TEXT_XML, MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
+    @Monitored(event = "touch")
+    @Override
+    public APIResult touch(
+            @Dimension("entityType") @PathParam("type") final String type,
+            @Dimension("entityName") @PathParam("entity") final String entityName,
+            @Dimension("colo") @QueryParam("colo") final String coloExpr) {
+        final Set<String> colosFromExp = getColosFromExpression(coloExpr, type, entityName);
+        return new EntityProxy(type, entityName) {
+            @Override
+            protected Set<String> getColosToApply() {
+                return colosFromExp;
+            }
+
+            @Override
+            protected APIResult doExecute(String colo) throws FalconException {
+                return getEntityManager(colo).invoke("touch", type, entityName, colo);
+            }
+        }.execute();
     }
 
     @GET
@@ -390,19 +451,26 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
 
     //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
     @GET
-    @Path("list/{type}")
+    @Path("list{type : (/[^/]+)?}")
     @Produces({MediaType.TEXT_XML, MediaType.APPLICATION_JSON})
+    @Monitored(event = "list")
     @Override
     public EntityList getEntityList(@PathParam("type") String type,
                                     @DefaultValue("") @QueryParam("fields") String fields,
-                                    @DefaultValue("") @QueryParam("filterBy") String filterBy,
+                                    @DefaultValue("") @QueryParam("nameseq") String nameSubsequence,
+                                    @DefaultValue("") @QueryParam("tagkeys") String tagKeywords,
                                     @DefaultValue("") @QueryParam("tags") String tags,
+                                    @DefaultValue("") @QueryParam("filterBy") String filterBy,
                                     @DefaultValue("") @QueryParam("orderBy") String orderBy,
                                     @DefaultValue("asc") @QueryParam("sortOrder") String sortOrder,
                                     @DefaultValue("0") @QueryParam("offset") Integer offset,
                                     @DefaultValue(DEFAULT_NUM_RESULTS)
                                     @QueryParam("numResults") Integer resultsPerPage) {
-        return super.getEntityList(type, fields, filterBy, tags, orderBy, sortOrder, offset, resultsPerPage);
+        if (StringUtils.isNotEmpty(type)) {
+            type = type.substring(1);
+        }
+        return super.getEntityList(fields, nameSubsequence, tagKeywords, type, tags, filterBy,
+                orderBy, sortOrder, offset, resultsPerPage);
     }
 
     @GET
@@ -426,31 +494,70 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
         return super.getEntitySummary(type, cluster, startStr, endStr, entityFields, entityFilter,
                 entityTags, entityOrderBy, entitySortOrder, entityOffset, numEntities, numInstanceResults);
     }
+
+    @GET
+    @Path("lookup/{type}")
+    @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN})
+    @Monitored(event = "reverse-lookup")
+    public FeedLookupResult reverseLookup(
+            @Dimension("type") @PathParam("type") final String type,
+            @Dimension("path") @QueryParam("path") final String path) {
+        String entity = "DummyEntity"; // A dummy entity name to get around
+        return new EntityProxy<FeedLookupResult>(type, entity, FeedLookupResult.class) {
+            @Override
+            protected Set<String> getColosToApply() {
+                return getAllColos();
+            }
+
+            @Override
+            protected FeedLookupResult doExecute(String colo) throws FalconException {
+                return getEntityManager(colo).invoke("reverseLookup", type, path);
+            }
+        }.execute();
+
+    }
     //RESUME CHECKSTYLE CHECK ParameterNumberCheck
 
-    private abstract class EntityProxy {
+    private abstract class EntityProxy<T extends APIResult> {
+        private final Class<T> clazz;
         private String type;
         private String name;
 
-        public EntityProxy(String type, String name) {
+        public EntityProxy(String type, String name, Class<T> resultClazz) {
+            this.clazz = resultClazz;
             this.type = type;
             this.name = name;
         }
 
-        public APIResult execute() {
+
+        private T getResultInstance(APIResult.Status status, String message) {
+            try {
+                Constructor<T> constructor = clazz.getConstructor(APIResult.Status.class, String.class);
+                return constructor.newInstance(status, message);
+            } catch (Exception e) {
+                throw new FalconRuntimException("Unable to consolidate result.", e);
+            }
+        }
+
+        public EntityProxy(String type, String name) {
+            this(type, name, (Class<T>) APIResult.class);
+        }
+
+        public T execute() {
             Set<String> colos = getColosToApply();
 
-            Map<String, APIResult> results = new HashMap<String, APIResult>();
+            Map<String, T> results = new HashMap();
 
             for (String colo : colos) {
                 try {
                     results.put(colo, doExecute(colo));
                 } catch (FalconException e) {
-                    results.put(colo,
-                            new APIResult(APIResult.Status.FAILED, e.getClass().getName() + "::" + e.getMessage()));
+                    results.put(colo, getResultInstance(APIResult.Status.FAILED, e.getClass().getName() + "::"
+                            + e.getMessage()));
                 }
             }
-            APIResult finalResult = consolidateResult(results, APIResult.class);
+
+            T finalResult = consolidateResult(results, clazz);
             if (finalResult.getStatus() != APIResult.Status.SUCCEEDED) {
                 throw FalconWebException.newException(finalResult, Response.Status.BAD_REQUEST);
             } else {
@@ -462,6 +569,6 @@ public class SchedulableEntityManagerProxy extends AbstractSchedulableEntityMana
             return getApplicableColos(type, name);
         }
 
-        protected abstract APIResult doExecute(String colo) throws FalconException;
+        protected abstract T doExecute(String colo) throws FalconException;
     }
 }

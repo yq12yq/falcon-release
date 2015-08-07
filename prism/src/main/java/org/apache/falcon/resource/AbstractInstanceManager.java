@@ -18,7 +18,7 @@
 
 package org.apache.falcon.resource;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.*;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.FeedHelper;
@@ -49,13 +49,14 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
     private static final long HOUR_IN_MILLIS = 3600000L;
     protected static final long DAY_IN_MILLIS = 86400000L;
     private static final long MONTH_IN_MILLIS = 2592000000L;
+    protected static final String DEFAULT_NUM_RESULTS = "10";
 
     protected EntityType checkType(String type) {
         if (StringUtils.isEmpty(type)) {
             throw FalconWebException.newInstanceException("entity type is empty",
                     Response.Status.BAD_REQUEST);
         } else {
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             if (entityType == EntityType.CLUSTER) {
                 throw FalconWebException.newInstanceException(
                         "Instance management functions don't apply to Cluster entities",
@@ -68,7 +69,7 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
 
     protected List<LifeCycle> checkAndUpdateLifeCycle(List<LifeCycle> lifeCycleValues,
                                                       String type) throws FalconException {
-        EntityType entityType = EntityType.valueOf(type.toUpperCase().trim());
+        EntityType entityType = EntityType.getEnum(type);
         if (lifeCycleValues == null || lifeCycleValues.isEmpty()) {
             List<LifeCycle> lifeCycles = new ArrayList<LifeCycle>();
             if (entityType == EntityType.PROCESS) {
@@ -145,7 +146,7 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
             validateParams(type, entity);
             validateInstanceFilterByClause(filterBy);
             Entity entityObject = EntityUtil.getEntity(type, entity);
-            Pair<Date, Date> startAndEndDate = getStartAndEndDate(entityObject, startStr, endStr);
+            Pair<Date, Date> startAndEndDate = getStartAndEndDate(entityObject, startStr, endStr, numResults);
 
             // LifeCycle lifeCycleObject = EntityUtil.getLifeCycle(lifeCycle);
             AbstractWorkflowEngine wfEngine = getWorkflowEngine();
@@ -199,6 +200,8 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
                     Response.Status.BAD_REQUEST);
         }
     }
+
+    //RESUME CHECKSTYLE CHECK ParameterNumberCheck
 
     private InstancesResult getInstanceResultSubset(InstancesResult resultSet, String filterBy,
                                                     String orderBy, String sortOrder, Integer offset,
@@ -330,8 +333,6 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
         return instanceSet;
     }
 
-    //RESUME CHECKSTYLE CHECK ParameterNumberCheck
-
     public FeedInstanceResult getListing(String type, String entity, String startStr,
                                          String endStr, String colo) {
         checkColo(colo);
@@ -365,9 +366,11 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
             validateParams(type, entity);
             Entity entityObject = EntityUtil.getEntity(type, entity);
             Pair<Date, Date> startAndEndDate = getStartAndEndDate(entityObject, startTime, null);
-
+            Date start = startAndEndDate.first;
+            Date end = EntityUtil.getNextInstanceTime(start, EntityUtil.getFrequency(entityObject),
+                    EntityUtil.getTimeZone(entityObject), 1);
             AbstractWorkflowEngine wfEngine = getWorkflowEngine();
-            return wfEngine.getInstanceParams(entityObject, startAndEndDate.first, startAndEndDate.second, lifeCycles);
+            return wfEngine.getInstanceParams(entityObject, start, end, lifeCycles);
         } catch (Throwable e) {
             LOG.error("Failed to display params of an instance", e);
             throw FalconWebException.newInstanceException(e, Response.Status.BAD_REQUEST);
@@ -443,9 +446,10 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
         }
     }
 
+    //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
     public InstancesResult reRunInstance(String type, String entity, String startStr,
                                          String endStr, HttpServletRequest request,
-                                         String colo, List<LifeCycle> lifeCycles) {
+                                         String colo, List<LifeCycle> lifeCycles, Boolean isForced) {
         checkColo(colo);
         checkType(type);
         try {
@@ -458,12 +462,13 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
             Properties props = getProperties(request);
             AbstractWorkflowEngine wfEngine = getWorkflowEngine();
             return wfEngine.reRunInstances(entityObject,
-                    startAndEndDate.first, startAndEndDate.second, props, lifeCycles);
+                    startAndEndDate.first, startAndEndDate.second, props, lifeCycles, isForced);
         } catch (Exception e) {
             LOG.error("Failed to rerun instances", e);
             throw FalconWebException.newInstanceException(e, Response.Status.BAD_REQUEST);
         }
     }
+    //RESUME CHECKSTYLE CHECK ParameterNumberCheck
 
     private Properties getProperties(HttpServletRequest request) throws IOException {
         Properties props = new Properties();
@@ -490,10 +495,15 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
 
     private Pair<Date, Date> getStartAndEndDate(Entity entityObject, String startStr, String endStr)
         throws FalconException {
+        return getStartAndEndDate(entityObject, startStr, endStr, Integer.parseInt(DEFAULT_NUM_RESULTS));
+    }
+
+    private Pair<Date, Date> getStartAndEndDate(Entity entityObject, String startStr, String endStr, int numResults)
+        throws FalconException {
         Pair<Date, Date> clusterStartEndDates = EntityUtil.getEntityStartEndDates(entityObject);
         Frequency frequency = EntityUtil.getFrequency(entityObject);
-        Date endDate = getEndDate(endStr, clusterStartEndDates.second);
-        Date startDate = getStartDate(startStr, endDate, clusterStartEndDates.first, frequency);
+        Date endDate = getEndDate(startStr, endStr, clusterStartEndDates.second, frequency, numResults);
+        Date startDate = getStartDate(startStr, endDate, clusterStartEndDates.first, frequency, numResults);
 
         if (startDate.after(endDate)) {
             throw new FalconException("Specified End date " + SchemaHelper.getDateFormat().format(endDate)
@@ -502,20 +512,32 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
         return new Pair<Date, Date>(startDate, endDate);
     }
 
-    private Date getEndDate(String endStr, Date clusterEndDate) throws FalconException {
-        Date endDate = StringUtils.isEmpty(endStr) ? new Date() : EntityUtil.parseDateUTC(endStr);
+    private Date getEndDate(String startStr, String endStr, Date clusterEndDate,
+                            Frequency frequency, final int numResults) throws FalconException {
+        Date endDate;
+        if (StringUtils.isEmpty(endStr)) {
+            if (!StringUtils.isEmpty(startStr)) {
+                // set endDate to startDate + numResults times frequency
+                endDate = EntityUtil.getNextInstanceTime(EntityUtil.parseDateUTC(startStr),
+                        frequency, null, numResults);
+            } else {
+                // set endDate to currentTime
+                endDate = new Date();
+            }
+        } else {
+            endDate = EntityUtil.parseDateUTC(endStr);
+        }
         if (endDate.after(clusterEndDate)) {
             endDate = clusterEndDate;
         }
         return endDate;
     }
 
-    private Date getStartDate(String startStr, Date end,
-                              Date clusterStartDate, Frequency frequency) throws FalconException {
+    private Date getStartDate(String startStr, Date end, Date clusterStartDate,
+                              Frequency frequency, final int dateMultiplier) throws FalconException {
         Date start;
-        final int dateMultiplier = 10;
         if (StringUtils.isEmpty(startStr)) {
-            // set startDate to endDate - 10 times frequency
+            // set startDate to endDate - dateMultiplier times frequency
             long startMillis = end.getTime();
 
             switch (frequency.getTimeUnit().getCalendarUnit()){

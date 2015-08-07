@@ -18,6 +18,7 @@
 
 package org.apache.falcon.resource;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.monitors.Dimension;
 import org.apache.falcon.monitors.Monitored;
 
@@ -55,20 +56,26 @@ public class SchedulableEntityManager extends AbstractSchedulableEntityManager {
 
     //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
     @GET
-    @Path("list/{type}")
+    @Path("list{type : (/[^/]+)?}")
     @Produces({MediaType.TEXT_XML, MediaType.APPLICATION_JSON})
-    @Monitored(event = "dependencies")
+    @Monitored(event = "list")
     @Override
     public EntityList getEntityList(@Dimension("type") @PathParam("type") String type,
                                     @DefaultValue("") @QueryParam("fields") String fields,
-                                    @DefaultValue("") @QueryParam("filterBy") String filterBy,
+                                    @DefaultValue("") @QueryParam("nameseq") String nameSubsequence,
+                                    @DefaultValue("") @QueryParam("tagkeys") String tagKeywords,
                                     @DefaultValue("") @QueryParam("tags") String tags,
+                                    @DefaultValue("") @QueryParam("filterBy") String filterBy,
                                     @DefaultValue("") @QueryParam("orderBy") String orderBy,
                                     @DefaultValue("asc") @QueryParam("sortOrder") String sortOrder,
                                     @DefaultValue("0") @QueryParam("offset") Integer offset,
                                     @DefaultValue(DEFAULT_NUM_RESULTS)
                                     @QueryParam("numResults") Integer resultsPerPage) {
-        return super.getEntityList(type, fields, filterBy, tags, orderBy, sortOrder, offset, resultsPerPage);
+        if (StringUtils.isNotEmpty(type)) {
+            type = type.substring(1);
+        }
+        return super.getEntityList(fields, nameSubsequence, tagKeywords, type, tags, filterBy,
+                orderBy, sortOrder, offset, resultsPerPage);
     }
 
     @GET
@@ -139,4 +146,36 @@ public class SchedulableEntityManager extends AbstractSchedulableEntityManager {
                             @Dimension("colo") @QueryParam("colo") String colo) {
         return super.resume(request, type, entity, colo);
     }
+
+    @POST
+    @Path("validate/{type}")
+    @Consumes({MediaType.TEXT_XML, MediaType.TEXT_PLAIN})
+    @Produces({MediaType.TEXT_XML, MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
+    @Monitored(event = "validate")
+    @Override
+    public APIResult validate(@Context HttpServletRequest request, @PathParam("type") String type) {
+        return super.validate(request, type);
+    }
+
+    @POST
+    @Path("touch/{type}/{entity}")
+    @Produces({MediaType.TEXT_XML, MediaType.TEXT_PLAIN})
+    @Monitored(event = "touch")
+    @Override
+    public APIResult touch(@Dimension("entityType") @PathParam("type") String type,
+                           @Dimension("entityName") @PathParam("entity") String entityName,
+                           @Dimension("colo") @QueryParam("colo") String colo) {
+        return super.touch(type, entityName, colo);
+    }
+
+    @GET
+    @Path("lookup/{type}/")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Monitored(event = "reverse-lookup")
+    public FeedLookupResult reverseLookup(
+            @Dimension("type") @PathParam("type") String type,
+            @Dimension("path") @QueryParam("path") String instancePath) {
+        return super.reverseLookup(type, instancePath);
+    }
+
 }

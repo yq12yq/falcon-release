@@ -20,19 +20,24 @@ package org.apache.falcon.resource;
 
 import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.FalconRuntimException;
 import org.apache.falcon.FalconWebException;
 import org.apache.falcon.Pair;
 import org.apache.falcon.entity.EntityNotRegisteredException;
 import org.apache.falcon.entity.EntityUtil;
+import org.apache.falcon.entity.lock.MemoryLocks;
 import org.apache.falcon.entity.parser.EntityParser;
 import org.apache.falcon.entity.parser.EntityParserFactory;
 import org.apache.falcon.entity.parser.ValidationException;
 import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.store.EntityAlreadyExistsException;
-import org.apache.falcon.entity.v0.*;
+import org.apache.falcon.entity.store.FeedLocationStore;
+import org.apache.falcon.entity.v0.Entity;
+import org.apache.falcon.entity.v0.EntityGraph;
+import org.apache.falcon.entity.v0.EntityIntegrityChecker;
+import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.resource.APIResult.Status;
 import org.apache.falcon.resource.EntityList.EntityElement;
@@ -51,16 +56,29 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * A base class for managing Entity operations.
  */
 public abstract class AbstractEntityManager {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractEntityManager.class);
+    private static MemoryLocks memoryLocks = MemoryLocks.getInstance();
 
     protected static final int XML_DEBUG_LEN = 10 * 1024;
     protected static final String DEFAULT_NUM_RESULTS = "10";
+    protected static final int MAX_RESULTS = getMaxResultsPerPage();
 
     private AbstractWorkflowEngine workflowEngine;
     protected ConfigurationStore configStore = ConfigurationStore.get();
@@ -71,6 +89,18 @@ public abstract class AbstractEntityManager {
         } catch (FalconException e) {
             throw new FalconRuntimException(e);
         }
+    }
+
+    private static int getMaxResultsPerPage() {
+        Integer result = 100;
+        final String key = "webservices.default.max.results.per.page";
+        String value = RuntimeProperties.get().getProperty(key, result.toString());
+        try {
+            result = Integer.valueOf(value);
+        } catch (NumberFormatException e) {
+            LOG.warn("Invalid value:{} for key:{} in runtime.properties", value, key);
+        }
+        return result;
     }
 
     protected void checkColo(String colo) {
@@ -86,15 +116,23 @@ public abstract class AbstractEntityManager {
             return DeploymentUtil.getDefaultColos();
         }
         String[] colos = RuntimeProperties.get().getProperty("all.colos", DeploymentUtil.getDefaultColo()).split(",");
+        for (int i = 0; i < colos.length; i++) {
+            colos[i] = colos[i].trim();
+        }
         return new HashSet<String>(Arrays.asList(colos));
     }
 
     protected Set<String> getColosFromExpression(String coloExpr, String type, String entity) {
         Set<String> colos;
+        final Set<String> applicableColos = getApplicableColos(type, entity);
         if (coloExpr == null || coloExpr.equals("*") || coloExpr.isEmpty()) {
-            colos = getApplicableColos(type, entity);
+            colos = applicableColos;
         } else {
             colos = new HashSet<String>(Arrays.asList(coloExpr.split(",")));
+            if (!applicableColos.containsAll(colos)) {
+                throw FalconWebException.newException("Given colos not applicable for entity operation",
+                        Response.Status.BAD_REQUEST);
+            }
         }
         return colos;
     }
@@ -105,7 +143,7 @@ public abstract class AbstractEntityManager {
                 return DeploymentUtil.getDefaultColos();
             }
 
-            if (EntityType.valueOf(type.toUpperCase()) == EntityType.CLUSTER) {
+            if (EntityType.getEnum(type) == EntityType.CLUSTER) {
                 return getAllColos();
             }
 
@@ -121,7 +159,7 @@ public abstract class AbstractEntityManager {
                 return DeploymentUtil.getDefaultColos();
             }
 
-            if (EntityType.valueOf(type.toUpperCase()) == EntityType.CLUSTER) {
+            if (EntityType.getEnum(type) == EntityType.CLUSTER) {
                 return getAllColos();
             }
 
@@ -171,7 +209,7 @@ public abstract class AbstractEntityManager {
      */
     public APIResult validate(HttpServletRequest request, String type) {
         try {
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             Entity entity = deserializeEntity(request, entityType);
             validate(entity);
 
@@ -205,7 +243,7 @@ public abstract class AbstractEntityManager {
     public APIResult delete(HttpServletRequest request, String type, String entity, String colo) {
         checkColo(colo);
         try {
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             String removedFromEngine = "";
             try {
                 Entity entityObj = EntityUtil.getEntity(type, entity);
@@ -230,13 +268,11 @@ public abstract class AbstractEntityManager {
         }
     }
 
-    // Parallel update can get very clumsy if two feeds are updated which
-    // are referred by a single process. Sequencing them.
-    public synchronized APIResult update(HttpServletRequest request, String type, String entityName,
-                                         String colo, String effectiveTimeStr) {
+    public APIResult update(HttpServletRequest request, String type, String entityName, String colo) {
         checkColo(colo);
+        List<Entity> tokenList = null;
         try {
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             Entity oldEntity = EntityUtil.getEntity(type, entityName);
             Entity newEntity = deserializeEntity(request, entityType);
             // KLUDGE - Until ACL is mandated entity passed should be decorated for equals check to pass
@@ -246,8 +282,8 @@ public abstract class AbstractEntityManager {
             validateUpdate(oldEntity, newEntity);
             configStore.initiateUpdate(newEntity);
 
-            Date effectiveTime =
-                StringUtils.isEmpty(effectiveTimeStr) ? null : EntityUtil.parseDateUTC(effectiveTimeStr);
+            tokenList = obtainUpdateEntityLocks(oldEntity);
+
             StringBuilder result = new StringBuilder("Updated successfully");
             //Update in workflow engine
             if (!DeploymentUtil.isPrism()) {
@@ -257,8 +293,7 @@ public abstract class AbstractEntityManager {
                 oldClusters.removeAll(newClusters); //deleted clusters
 
                 for (String cluster : newClusters) {
-                    Date myEffectiveTime = validateEffectiveTime(newEntity, cluster, effectiveTime);
-                    result.append(getWorkflowEngine().update(oldEntity, newEntity, cluster, myEffectiveTime));
+                    result.append(getWorkflowEngine().update(oldEntity, newEntity, cluster));
                 }
                 for (String cluster : oldClusters) {
                     getWorkflowEngine().delete(oldEntity, cluster);
@@ -273,16 +308,46 @@ public abstract class AbstractEntityManager {
             throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
         } finally {
             ConfigurationStore.get().cleanupUpdateInit();
+            releaseUpdateEntityLocks(entityName, tokenList);
         }
     }
 
-    private Date validateEffectiveTime(Entity entity, String cluster, Date effectiveTime) {
-        Date start = EntityUtil.getStartTime(entity, cluster);
-        Date end = EntityUtil.getEndTime(entity, cluster);
-        if (effectiveTime == null || effectiveTime.before(start) || effectiveTime.after(end)) {
-            return null;
+    private List<Entity> obtainUpdateEntityLocks(Entity entity)
+        throws FalconException {
+        List<Entity> tokenList = new ArrayList<Entity>();
+
+        //first obtain lock for the entity for which update is issued.
+        if (memoryLocks.acquireLock(entity)) {
+            tokenList.add(entity);
+        } else {
+            throw new FalconException("Looks like an update command is already issued for " + entity.toShortString());
         }
-        return effectiveTime;
+
+        //now obtain locks for all dependent entities.
+        Set<Entity> affectedEntities = EntityGraph.get().getDependents(entity);
+        for (Entity e : affectedEntities) {
+            if (memoryLocks.acquireLock(e)) {
+                tokenList.add(e);
+            } else {
+                LOG.error("Error while trying to acquire lock for {}. Releasing already obtained locks",
+                        e.toShortString());
+                throw new FalconException("There are multiple update commands running for dependent entity "
+                        + e.toShortString());
+            }
+        }
+        return tokenList;
+    }
+
+    private void releaseUpdateEntityLocks(String entityName, List<Entity> tokenList) {
+        if (tokenList != null && !tokenList.isEmpty()) {
+            for (Entity entity : tokenList) {
+                memoryLocks.releaseLock(entity);
+            }
+            LOG.info("All update locks released for {}", entityName);
+        } else {
+            LOG.info("No locks to release for " + entityName);
+        }
+
     }
 
     private void validateUpdate(Entity oldEntity, Entity newEntity) throws FalconException {
@@ -326,7 +391,7 @@ public abstract class AbstractEntityManager {
     protected synchronized Entity submitInternal(HttpServletRequest request, String type)
         throws IOException, FalconException {
 
-        EntityType entityType = EntityType.valueOf(type.toUpperCase());
+        EntityType entityType = EntityType.getEnum(type);
         Entity entity = deserializeEntity(request, entityType);
         // KLUDGE - Until ACL is mandated entity passed should be decorated for equals check to pass
         decorateEntityWithACL(entity);
@@ -342,21 +407,11 @@ public abstract class AbstractEntityManager {
                             + "Can't be submitted again. Try removing before submitting.");
         }
 
-        tryProxy(entity); // proxy before validating since FS/Oozie needs to be proxied
+        SecurityUtil.tryProxy(entity); // proxy before validating since FS/Oozie needs to be proxied
         validate(entity);
         configStore.publish(entityType, entity);
         LOG.info("Submit successful: ({}): {}", type, entity.getName());
         return entity;
-    }
-
-    private void tryProxy(Entity entity) throws IOException, FalconException {
-        final String aclOwner = entity.getACL().getOwner();
-        final String aclGroup = entity.getACL().getGroup();
-        if (SecurityUtil.isAuthorizationEnabled()
-                && SecurityUtil.getAuthorizationProvider().shouldProxy(
-                    CurrentUser.getAuthenticatedUGI(), aclOwner, aclGroup)) {
-            CurrentUser.proxy(aclOwner, aclGroup);
-        }
     }
 
     /**
@@ -456,7 +511,7 @@ public abstract class AbstractEntityManager {
         Entity entityObj;
         try {
             entityObj = EntityUtil.getEntity(type, entity);
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             EntityStatus status = getStatus(entityObj, entityType);
             return new APIResult(Status.SUCCEEDED, status.name());
         } catch (FalconWebException e) {
@@ -509,37 +564,79 @@ public abstract class AbstractEntityManager {
 
     //SUSPEND CHECKSTYLE CHECK ParameterNumberCheck
     /**
-     * Returns the list of entities registered of a given type.
+     * Returns the list of filtered entities as well as the total number of results.
      *
-     * @param type           Only return entities of this type
-     * @param fieldStr       fields that the query is interested in, separated by comma
-     * @param filterBy       filter by a specific field.
-     * @param filterTags     filter by these tags.
-     * @param orderBy        order result by these fields.
-     * @param offset         Pagination offset.
-     * @param resultsPerPage Number of results that should be returned starting at the offset.
+     * @param fieldStr          Fields that the query is interested in, separated by comma
+     * @param nameSubsequence   Name subsequence to match
+     * @param tagKeywords       Tag keywords to match, separated by commma
+     * @param filterType        Only return entities of this type
+     * @param filterTags        Full tag matching, separated by comma
+     * @param filterBy          Specific fields to match (i.e. TYPE, NAME, STATUS, PIPELINES, CLUSTER)
+     * @param orderBy           Order result by these fields.
+     * @param sortOrder         Valid options are "asc" and “desc”
+     * @param offset            Pagination offset.
+     * @param resultsPerPage    Number of results that should be returned starting at the offset.
      * @return EntityList
      */
-    public EntityList getEntityList(String type, String fieldStr, String filterBy, String filterTags,
+    public EntityList getEntityList(String fieldStr, String nameSubsequence, String tagKeywords,
+                                    String filterType, String filterTags, String filterBy,
                                     String orderBy, String sortOrder, Integer offset, Integer resultsPerPage) {
 
-        HashSet<String> fields = new HashSet<String>(Arrays.asList(fieldStr.toLowerCase().split(",")));
-        validateEntityFilterByClause(filterBy);
-        List<Entity> entities;
+        HashSet<String> fields = new HashSet<String>(Arrays.asList(fieldStr.toUpperCase().split(",")));
+        Map<String, String> filterByFieldsValues = getFilterByFieldsValues(filterBy);
+        validateEntityFilterByClause(filterByFieldsValues);
+        if (StringUtils.isNotEmpty(filterTags)) {
+            filterByFieldsValues.put(EntityList.EntityFilterByFields.TAGS.name(), filterTags);
+        }
+
+        // get filtered entities
+        List<Entity> entities = new ArrayList<Entity>();
         try {
-            entities = getEntities(type, "", "", "", filterBy, filterTags, orderBy, sortOrder, offset, resultsPerPage);
+            if (StringUtils.isEmpty(filterType)) {
+                // return entities of all types if no entity type specified
+                for (EntityType entityType : EntityType.values()) {
+                    entities.addAll(getFilteredEntities(
+                            entityType, nameSubsequence, tagKeywords, filterByFieldsValues, "", "", ""));
+                }
+            } else {
+                String[] types = filterType.split(",");
+                for (String type : types) {
+                    EntityType entityType = EntityType.getEnum(type);
+                    entities.addAll(getFilteredEntities(
+                            entityType, nameSubsequence, tagKeywords, filterByFieldsValues, "", "", ""));
+                }
+            }
         } catch (Exception e) {
             LOG.error("Failed to get entity list", e);
             throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
         }
 
-        return entities.size() == 0
-                ? new EntityList(new Entity[]{})
-                : new EntityList(buildEntityElements(fields, entities));
+        // sort entities and pagination
+        List<Entity> entitiesReturn = sortEntitiesPagination(entities, orderBy, sortOrder, offset, resultsPerPage);
+
+        // add total number of results
+        EntityList entityList = entitiesReturn.size() == 0
+                ? new EntityList(new Entity[]{}, 0)
+                : new EntityList(buildEntityElements(new HashSet<String>(fields), entitiesReturn), entities.size());
+        return entityList;
     }
 
-    protected void validateEntityFilterByClause(String entityFilterByClause) {
-        Map<String, String> filterByFieldsValues = getFilterByFieldsValues(entityFilterByClause);
+    protected List<Entity> sortEntitiesPagination(List<Entity> entities, String orderBy, String sortOrder,
+                                                  Integer offset, Integer resultsPerPage) {
+        // sort entities
+        entities = sortEntities(entities, orderBy, sortOrder);
+
+        // pagination
+        int pageCount = getRequiredNumberOfResults(entities.size(), offset, resultsPerPage);
+        List<Entity> entitiesReturn = new ArrayList<Entity>();
+        if (pageCount > 0) {
+            entitiesReturn.addAll(entities.subList(offset, (offset + pageCount)));
+        }
+
+        return entitiesReturn;
+    }
+
+    protected Map<String, String> validateEntityFilterByClause(Map<String, String> filterByFieldsValues) {
         for (Map.Entry<String, String> entry : filterByFieldsValues.entrySet()) {
             try {
                 EntityList.EntityFilterByFields.valueOf(entry.getKey().toUpperCase());
@@ -548,21 +645,25 @@ public abstract class AbstractEntityManager {
                         "Invalid filter key: " + entry.getKey(), Response.Status.BAD_REQUEST);
             }
         }
+        return filterByFieldsValues;
     }
 
-    protected List<Entity> getEntities(String type, String startDate, String endDate, String cluster,
-                                       String filterBy, String filterTags, String orderBy, String sortOrder,
-                                       int offset, int resultsPerPage) throws FalconException, IOException {
-        final Map<String, String> filterByFieldsValues = getFilterByFieldsValues(filterBy);
-        final List<String> filterByTags = getFilterByTags(filterTags);
+    protected Map<String, String> validateEntityFilterByClause(String entityFilterByClause) {
+        Map<String, String> filterByFieldsValues = getFilterByFieldsValues(entityFilterByClause);
+        return validateEntityFilterByClause(filterByFieldsValues);
+    }
 
-        EntityType entityType = EntityType.valueOf(type.toUpperCase());
+    protected List<Entity> getFilteredEntities(
+            EntityType entityType, String nameSeq, String tagKey, Map<String, String> filterByFieldsValues,
+            String startDate, String endDate, String cluster) throws FalconException, IOException {
         Collection<String> entityNames = configStore.getEntities(entityType);
         if (entityNames.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Entity> entities = new ArrayList<Entity>();
+        char[] subsequence = nameSeq.toLowerCase().toCharArray();
+        final List<String> tagKeywords = getFilterByTags(tagKey.toLowerCase());
         for (String entityName : entityNames) {
             Entity entity;
             try {
@@ -571,40 +672,76 @@ public abstract class AbstractEntityManager {
                     continue;
                 }
             } catch (FalconException e1) {
-                LOG.error("Unable to get list for entities for ({})", type, e1);
+                LOG.error("Unable to get list for entities for ({})", entityType.getEntityClass().getSimpleName(), e1);
                 throw FalconWebException.newException(e1, Response.Status.BAD_REQUEST);
             }
 
-            if (SecurityUtil.isAuthorizationEnabled() && !isEntityAuthorized(entity)
-                || filterEntityByDatesAndCluster(entity, startDate, endDate, cluster)) {
+            if (SecurityUtil.isAuthorizationEnabled() && !isEntityAuthorized(entity)) {
                 // the user who requested list query has no permission to access this entity. Skip this entity
                 continue;
             }
-            tryProxy(entity);
-
-            List<String> tags = EntityUtil.getTags(entity);
-            List<String> pipelines = EntityUtil.getPipelines(entity);
-            String entityStatus = getStatusString(entity);
-
-            if (filterEntity(entity, entityStatus,
-                    filterByFieldsValues, filterByTags, tags, pipelines)) {
+            if (isFilteredByDatesAndCluster(entity, startDate, endDate, cluster)) {
+                // this is for entity summary
                 continue;
             }
+            SecurityUtil.tryProxy(entity);
+
+            // filter by fields
+            if (isFilteredByFields(entity, filterByFieldsValues)) {
+                continue;
+            }
+
+            // filter by subsequence of name
+            if (subsequence.length > 0 && !matchesNameSubsequence(subsequence, entityName.toLowerCase())) {
+                continue;
+            }
+
+            // filter by tag keywords
+            if (!matchTagKeywords(tagKeywords, entity.getTags())) {
+                continue;
+            }
+
             entities.add(entity);
         }
-        // Sort entities before returning a subset of entity elements.
-        entities = sortEntities(entities, orderBy, sortOrder);
 
-        int pageCount = getRequiredNumberOfResults(entities.size(), offset, resultsPerPage);
-        if (pageCount == 0) {  // handle pagination
-            return new ArrayList<Entity>();
-        }
-
-        return new ArrayList<Entity>(entities.subList(offset, (offset + pageCount)));
+        return entities;
     }
+
     //RESUME CHECKSTYLE CHECK ParameterNumberCheck
 
-    private boolean filterEntityByDatesAndCluster(Entity entity, String startDate, String endDate, String cluster)
+    private boolean matchesNameSubsequence(char[] subsequence, String name) {
+        int currentIndex = 0; // current index in pattern which is to be matched
+        for (Character c : name.toCharArray()) {
+            if (currentIndex < subsequence.length && c == subsequence[currentIndex]) {
+                currentIndex++;
+            }
+            if (currentIndex == subsequence.length) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean matchTagKeywords(List<String> tagKeywords, String tags) {
+        if (tagKeywords.isEmpty()) {
+            return true;
+        }
+
+        if (StringUtils.isEmpty(tags)) {
+            return false;
+        }
+
+        tags = tags.toLowerCase();
+        for (String keyword : tagKeywords) {
+            if (tags.indexOf(keyword) == -1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isFilteredByDatesAndCluster(Entity entity, String startDate, String endDate, String cluster)
         throws FalconException {
         if (StringUtils.isEmpty(cluster)) {
             return false; // no filtering necessary on cluster
@@ -614,13 +751,13 @@ public abstract class AbstractEntityManager {
             return true; // entity does not have this cluster
         }
 
-        if (!StringUtils.isEmpty(startDate)) {
+        if (StringUtils.isNotEmpty(startDate)) {
             Date parsedDate = EntityUtil.parseDateUTC(startDate);
             if (parsedDate.after(EntityUtil.getEndTime(entity, cluster))) {
                 return true;
             }
         }
-        if (!StringUtils.isEmpty(endDate)) {
+        if (StringUtils.isNotEmpty(endDate)) {
             Date parseDate = EntityUtil.parseDateUTC(endDate);
             if (parseDate.before(EntityUtil.getStartTime(entity, cluster))) {
                 return true;
@@ -633,7 +770,7 @@ public abstract class AbstractEntityManager {
     protected static Map<String, String> getFilterByFieldsValues(String filterBy) {
         // Filter the results by specific field:value, eliminate empty values
         Map<String, String> filterByFieldValues = new HashMap<String, String>();
-        if (!StringUtils.isEmpty(filterBy)) {
+        if (StringUtils.isNotEmpty(filterBy)) {
             String[] fieldValueArray = filterBy.split(",");
             for (String fieldValue : fieldValueArray) {
                 String[] splits = fieldValue.split(":", 2);
@@ -649,7 +786,7 @@ public abstract class AbstractEntityManager {
 
     private static List<String> getFilterByTags(String filterTags) {
         ArrayList<String> filterTagsList = new ArrayList<String>();
-        if (!StringUtils.isEmpty(filterTags)) {
+        if (StringUtils.isNotEmpty(filterTags)) {
             String[] splits = filterTags.split(",");
             for (String tag : splits) {
                 filterTagsList.add(tag.trim());
@@ -669,13 +806,6 @@ public abstract class AbstractEntityManager {
         return statusString;
     }
 
-    private boolean filterEntity(Entity entity, String entityStatus,
-                                 Map<String, String> filterByFieldsValues, List<String> filterByTags,
-                                 List<String> tags, List<String> pipelines) {
-        return filterEntityByTags(filterByTags, tags)
-                || filterEntityByFields(entity, filterByFieldsValues, entityStatus, pipelines);
-    }
-
     protected boolean isEntityAuthorized(Entity entity) {
         try {
             SecurityUtil.getAuthorizationProvider().authorizeEntity(entity.getName(),
@@ -690,7 +820,7 @@ public abstract class AbstractEntityManager {
         return true;
     }
 
-    private boolean filterEntityByTags(List<String> filterTagsList, List<String> tags) {
+    private boolean isFilteredByTags(List<String> filterTagsList, List<String> tags) {
         if (filterTagsList.isEmpty()) {
             return false;
         } else if (tags.isEmpty()) {
@@ -706,8 +836,7 @@ public abstract class AbstractEntityManager {
         return false;
     }
 
-    private boolean filterEntityByFields(Entity entity, Map<String, String> filterKeyVals,
-                                         String status, List<String> pipelines) {
+    private boolean isFilteredByFields(Entity entity, Map<String, String> filterKeyVals) {
         if (filterKeyVals.isEmpty()) {
             return false;
         }
@@ -715,7 +844,7 @@ public abstract class AbstractEntityManager {
         for (Map.Entry<String, String> pair : filterKeyVals.entrySet()) {
             EntityList.EntityFilterByFields filter =
                     EntityList.EntityFilterByFields.valueOf(pair.getKey().toUpperCase());
-            if (isEntityFiltered(entity, filter, pair, status, pipelines)) {
+            if (isEntityFiltered(entity, filter, pair)) {
                 return true;
             }
         }
@@ -724,8 +853,7 @@ public abstract class AbstractEntityManager {
     }
 
     private boolean isEntityFiltered(Entity entity, EntityList.EntityFilterByFields filter,
-                                     Map.Entry<String, String> pair,
-                                     String status, List<String> pipelines) {
+                                     Map.Entry<String, String> pair) {
         switch (filter) {
         case TYPE:
             return !entity.getEntityType().toString().equalsIgnoreCase(pair.getValue());
@@ -734,7 +862,7 @@ public abstract class AbstractEntityManager {
             return !entity.getName().equalsIgnoreCase(pair.getValue());
 
         case STATUS:
-            return !status.equalsIgnoreCase(pair.getValue());
+            return !getStatusString(entity).equalsIgnoreCase(pair.getValue());
 
         case PIPELINES:
             if (!entity.getEntityType().equals(EntityType.PROCESS)) {
@@ -742,10 +870,13 @@ public abstract class AbstractEntityManager {
                         "Invalid filterBy key for non process entities " + pair.getKey(),
                         Response.Status.BAD_REQUEST);
             }
-            return !pipelines.contains(pair.getValue());
+            return !EntityUtil.getPipelines(entity).contains(pair.getValue());
 
         case CLUSTER:
             return !EntityUtil.getClustersDefined(entity).contains(pair.getValue());
+
+        case TAGS:
+            return isFilteredByTags(getFilterByTags(pair.getValue()), EntityUtil.getTags(entity));
 
         default:
             return false;
@@ -754,7 +885,7 @@ public abstract class AbstractEntityManager {
 
     private List<Entity> sortEntities(List<Entity> entities, String orderBy, String sortOrder) {
         // Sort the ArrayList using orderBy param
-        if (!StringUtils.isEmpty(orderBy)) {
+        if (!entities.isEmpty() && StringUtils.isNotEmpty(orderBy)) {
             EntityList.EntityFieldList orderByField = EntityList.EntityFieldList.valueOf(orderBy.toUpperCase());
             final String order = getValidSortOrder(sortOrder, orderBy);
             switch (orderByField) {
@@ -811,6 +942,8 @@ public abstract class AbstractEntityManager {
             // No elements to return
             return 0;
         }
+
+        numresults = numresults <= MAX_RESULTS ? numresults : MAX_RESULTS;
         int retLen = arraySize - offset;
         if (retLen > numresults) {
             retLen = numresults;
@@ -831,16 +964,18 @@ public abstract class AbstractEntityManager {
         EntityElement elem = new EntityElement();
         elem.type = entity.getEntityType().toString();
         elem.name = entity.getName();
-        if (fields.contains("status")) {
+        if (fields.contains(EntityList.EntityFieldList.STATUS.name())) {
             elem.status = getStatusString(entity);
         }
-        if (fields.contains("pipelines")) {
-            elem.pipelines = EntityUtil.getPipelines(entity);
+        if (fields.contains(EntityList.EntityFieldList.PIPELINES.name())) {
+            elem.pipeline = EntityUtil.getPipelines(entity);
         }
-        if (fields.contains("tags")) {
+        if (fields.contains(EntityList.EntityFieldList.TAGS.name())) {
             elem.tag = EntityUtil.getTags(entity);
         }
-
+        if (fields.contains(EntityList.EntityFieldList.CLUSTERS.name())) {
+            elem.cluster = new ArrayList<String>(EntityUtil.getClustersDefined(entity));
+        }
         return elem;
     }
 
@@ -853,7 +988,7 @@ public abstract class AbstractEntityManager {
      */
     public String getEntityDefinition(String type, String entityName) {
         try {
-            EntityType entityType = EntityType.valueOf(type.toUpperCase());
+            EntityType entityType = EntityType.getEnum(type);
             Entity entity = configStore.get(entityType, entityName);
             if (entity == null) {
                 throw new NoSuchElementException(entityName + " (" + type + ") not found");
@@ -865,6 +1000,51 @@ public abstract class AbstractEntityManager {
 
         }
     }
+
+
+    /**
+     * Given the location of data, returns the feed.
+     * @param type type of the entity, is valid only for feeds.
+     * @param instancePath location of the data
+     * @return Feed Name, type of the data and cluster name.
+     */
+    public FeedLookupResult reverseLookup(String type, String instancePath) {
+        try {
+            EntityType entityType = EntityType.getEnum(type);
+            if (entityType != EntityType.FEED) {
+                LOG.error("Reverse Lookup is not supported for entitytype: {}", type);
+                throw new IllegalArgumentException("Reverse lookup is not supported for " + type);
+            }
+
+            instancePath = StringUtils.trim(instancePath);
+            String instancePathWithoutSlash =
+                    instancePath.endsWith("/") ? StringUtils.removeEnd(instancePath, "/") : instancePath;
+            // treat strings with and without trailing slash as same for purpose of searching e.g.
+            // /data/cas and /data/cas/ should be treated as same.
+            String instancePathWithSlash = instancePathWithoutSlash + "/";
+            FeedLocationStore store = FeedLocationStore.get();
+            Collection<FeedLookupResult.FeedProperties> feeds = new ArrayList<>();
+            Collection<FeedLookupResult.FeedProperties> res = store.reverseLookup(instancePathWithoutSlash);
+            if (res != null) {
+                feeds.addAll(res);
+            }
+            res = store.reverseLookup(instancePathWithSlash);
+            if (res != null) {
+                feeds.addAll(res);
+            }
+            FeedLookupResult result = new FeedLookupResult(APIResult.Status.SUCCEEDED, "SUCCESS");
+            FeedLookupResult.FeedProperties[] props = feeds.toArray(new FeedLookupResult.FeedProperties[0]);
+            result.setElements(props);
+            return result;
+
+        } catch (IllegalArgumentException e) {
+            throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
+        } catch (Throwable throwable) {
+            LOG.error("reverse look up failed", throwable);
+            throw FalconWebException.newException(throwable, Response.Status.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
     protected AbstractWorkflowEngine getWorkflowEngine() {
         return this.workflowEngine;

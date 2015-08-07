@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.falcon.regression</groupId>
         <artifactId>falcon-regression</artifactId>
-        <version>0.6-incubating-SNAPSHOT</version>
+        <version>0.7-SNAPSHOT</version>
     </parent>
     <artifactId>falcon-merlin-core</artifactId>
     <description>merlin-core - utilities for Apache Falcon regression suite</description>
@@ -58,6 +58,16 @@
                 <dependency>
                     <groupId>org.apache.hive.hcatalog</groupId>
                     <artifactId>hive-hcatalog-core</artifactId>
+                </dependency>
+
+                <dependency>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-jdbc</artifactId>
+                </dependency>
+
+                <dependency>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-metastore</artifactId>
                 </dependency>
             </dependencies>
         </profile>
@@ -164,5 +174,16 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-exec</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-firefox-driver</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-support</artifactId>
+        </dependency>
+
     </dependencies>
 </project>

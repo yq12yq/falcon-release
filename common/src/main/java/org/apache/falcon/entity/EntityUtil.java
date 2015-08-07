@@ -21,7 +21,7 @@ package org.apache.falcon.entity;
 import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.Pair;
 import org.apache.falcon.Tag;
@@ -32,6 +32,7 @@ import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.Frequency;
 import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.entity.v0.feed.ClusterType;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.*;
@@ -60,14 +61,11 @@ import java.util.*;
 public final class EntityUtil {
     public static final Logger LOG = LoggerFactory.getLogger(EntityUtil.class);
 
-    private static final long MINUTE_IN_MS = 60000L;
-    private static final long HOUR_IN_MS = 3600000L;
-    private static final long DAY_IN_MS = 86400000L;
-    private static final long MONTH_IN_MS = 2592000000L;
+    private static final long MINUTE_IN_MS = 60 * 1000L;
+    private static final long HOUR_IN_MS = 60 * MINUTE_IN_MS;
+    private static final long DAY_IN_MS = 24 * HOUR_IN_MS;
+    private static final long MONTH_IN_MS = 31 * DAY_IN_MS;
 
-    public static final String PROCESS_CHECKSUM_FILE = "checksums";
-    public static final String PROCESS_USER_DIR = "user";
-    public static final String PROCESS_USERLIB_DIR = "userlib";
     public static final String SUCCEEDED_FILE_NAME = "_SUCCESS";
 
     private EntityUtil() {}
@@ -84,7 +82,7 @@ public final class EntityUtil {
     public static <T extends Entity> T getEntity(String type, String entityName) throws FalconException {
         EntityType entityType;
         try {
-            entityType = EntityType.valueOf(type.toUpperCase());
+            entityType = EntityType.getEnum(type);
         } catch (IllegalArgumentException e) {
             throw new FalconException("Invalid entity type: " + type, e);
         }
@@ -318,6 +316,19 @@ public final class EntityUtil {
             count++;
         }
         return count + 1;
+    }
+
+    public static Date getNextInstanceTime(Date instanceTime, Frequency frequency, TimeZone tz, int instanceCount) {
+        if (tz == null) {
+            tz = TimeZone.getTimeZone("UTC");
+        }
+        Calendar insCal = Calendar.getInstance(tz);
+        insCal.setTime(instanceTime);
+
+        final int freq = frequency.getFrequencyAsInt() * instanceCount;
+        insCal.add(frequency.getTimeUnit().getCalendarUnit(), freq);
+
+        return insCal.getTime();
     }
 
     public static String md5(Entity entity) throws FalconException {
@@ -564,7 +575,7 @@ public final class EntityUtil {
     //Each entity update creates a new staging path
     //Base staging path is the base path for all staging dirs
     public static Path getBaseStagingPath(org.apache.falcon.entity.v0.cluster.Cluster cluster, Entity entity) {
-        return new Path(ClusterHelper.getLocation(cluster, "staging"),
+        return new Path(ClusterHelper.getLocation(cluster, ClusterLocationType.STAGING).getPath(),
                 "falcon/workflows/" + entity.getEntityType().name().toLowerCase() + "/" + entity.getName());
     }
 

@@ -22,7 +22,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.client.FalconCLIException;
 import org.apache.falcon.client.FalconClient;
 import org.apache.falcon.metadata.RelationshipType;
@@ -54,6 +54,8 @@ public class FalconMetadataCLI {
     public static final String VERTEX_CMD = "vertex";
     public static final String VERTICES_CMD = "vertices";
     public static final String VERTEX_EDGES_CMD = "edges";
+    public static final String PIPELINE_OPT = "pipeline";
+
 
     public static final String EDGE_CMD = "edge";
     public static final String ID_OPT = "id";
@@ -78,8 +80,12 @@ public class FalconMetadataCLI {
         String key = commandLine.getOptionValue(KEY_OPT);
         String value = commandLine.getOptionValue(VALUE_OPT);
         String direction = commandLine.getOptionValue(DIRECTION_OPT);
+        String pipeline = commandLine.getOptionValue(PIPELINE_OPT);
 
-        if (optionsList.contains(LIST_OPT)) {
+        if (optionsList.contains(LINEAGE_OPT)) {
+            validatePipelineName(pipeline);
+            result = client.getEntityLineageGraph(pipeline).getDotNotation();
+        } else if (optionsList.contains(LIST_OPT)) {
             validateDimensionType(dimensionType.toUpperCase());
             result = client.getDimensionList(dimensionType, cluster);
         } else if (optionsList.contains(RELATIONS_OPT)) {
@@ -103,6 +109,12 @@ public class FalconMetadataCLI {
         }
 
         OUT.get().println(result);
+    }
+
+    private void validatePipelineName(String pipeline) throws FalconCLIException {
+        if (StringUtils.isEmpty(pipeline)) {
+            throw new FalconCLIException("Invalid value for pipeline");
+        }
     }
 
     private void validateDimensionType(String dimensionType) throws FalconCLIException {
@@ -157,6 +169,8 @@ public class FalconMetadataCLI {
         Option lineage = new Option(LINEAGE_OPT, false, "Get falcon metadata lineage information");
         group.addOption(discovery);
         group.addOption(lineage);
+        Option pipeline = new Option(PIPELINE_OPT, true,
+                "Get lineage graph for the entities in a pipeline");
         metadataOptions.addOptionGroup(group);
 
         // Add discovery options
@@ -172,6 +186,7 @@ public class FalconMetadataCLI {
         Option cluster = new Option(CLUSTER_OPT, true, "Cluster name");
 
         // Add lineage options
+        metadataOptions.addOption(pipeline);
 
         metadataOptions.addOption(url);
         metadataOptions.addOption(type);

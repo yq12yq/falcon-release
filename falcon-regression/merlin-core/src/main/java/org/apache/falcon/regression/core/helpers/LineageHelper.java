@@ -19,6 +19,7 @@
 package org.apache.falcon.regression.core.helpers;
 
 import com.google.gson.GsonBuilder;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.falcon.regression.core.response.lineage.Direction;
 import org.apache.falcon.regression.core.response.lineage.EdgeResult;
@@ -36,9 +37,7 @@ import org.apache.http.HttpResponse;
 import org.apache.log4j.Logger;
 import org.testng.Assert;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.util.EnumSet;
 import java.util.Map;
@@ -96,14 +95,7 @@ public class LineageHelper {
      * @throws IOException
      */
     public String getResponseString(HttpResponse response) throws IOException {
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(response.getEntity().getContent(), "UTF-8"));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while((line = reader.readLine()) != null){
-            sb.append(line).append("\n");
-        }
-        return sb.toString();
+        return IOUtils.toString(response.getEntity().getContent(), "UTF-8");
     }
 
     /**
@@ -115,7 +107,7 @@ public class LineageHelper {
      * @throws AuthenticationException
      */
     public HttpResponse runGetRequest(String url)
-            throws URISyntaxException, IOException, AuthenticationException, InterruptedException {
+        throws URISyntaxException, IOException, AuthenticationException, InterruptedException {
         final BaseRequest request = new BaseRequest(url, "get", null);
         return request.run();
     }
@@ -129,7 +121,7 @@ public class LineageHelper {
      * @throws AuthenticationException
      */
     public String runGetRequestSuccessfully(String url)
-            throws URISyntaxException, IOException, AuthenticationException, InterruptedException {
+        throws URISyntaxException, IOException, AuthenticationException, InterruptedException {
         HttpResponse response = runGetRequest(url);
         String responseString = getResponseString(response);
         LOGGER.info(Util.prettyPrintXmlOrJson(responseString));
@@ -155,8 +147,8 @@ public class LineageHelper {
         if (paramPairs != null && paramPairs.size() > 0) {
             String[] params = new String[paramPairs.size()];
             int i = 0;
-            for (String key : paramPairs.keySet()) {
-                params[i++] = key + '=' + paramPairs.get(key);
+            for (Map.Entry<String, String> entry : paramPairs.entrySet()) {
+                params[i++] = entry.getKey() + '=' + entry.getValue();
             }
             return hostAndPath + "/?" + StringUtils.join(params, "&");
         }
@@ -220,13 +212,7 @@ public class LineageHelper {
         String responseString = null;
         try {
             responseString = runGetRequestSuccessfully(url);
-        } catch (URISyntaxException e) {
-            AssertUtil.fail(e);
-        } catch (IOException e) {
-            AssertUtil.fail(e);
-        } catch (AuthenticationException e) {
-            AssertUtil.fail(e);
-        } catch (InterruptedException e) {
+        } catch (URISyntaxException | InterruptedException | AuthenticationException | IOException e) {
             AssertUtil.fail(e);
         }
         return new GsonBuilder().create().fromJson(responseString, clazz);
@@ -268,7 +254,7 @@ public class LineageHelper {
     }
 
     public VerticesResult getVertices(Vertex.FilterKey key, String value) {
-        Map<String, String> params = new TreeMap<String, String>();
+        Map<String, String> params = new TreeMap<>();
         params.put("key", key.toString());
         params.put("value", value);
         return getVerticesResult(getUrl(URL.VERTICES, params));

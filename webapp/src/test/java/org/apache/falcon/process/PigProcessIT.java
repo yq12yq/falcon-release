@@ -20,6 +20,7 @@ package org.apache.falcon.process;
 
 import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.InstancesResult;
 import org.apache.falcon.resource.TestContext;
@@ -80,7 +81,7 @@ public class PigProcessIT {
     private void copyLibsToHDFS(Cluster cluster, String storageUrl) throws IOException {
         // set up kahadb to be sent as part of workflows
         StartupProperties.get().setProperty("libext.paths", "./target/libext");
-        String libext = ClusterHelper.getLocation(cluster, "working") + "/libext";
+        String libext = ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath() + "/libext";
         FSUtils.copyOozieShareLibsToHDFS("./target/libext", storageUrl + libext);
     }
 
@@ -89,27 +90,24 @@ public class PigProcessIT {
         overlay.put("cluster", "primary-cluster");
 
         String filePath = TestContext.overlayParametersOverTemplate(TestContext.CLUSTER_TEMPLATE, overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
         // context.setCluster(filePath);
 
         filePath = TestContext.overlayParametersOverTemplate(TestContext.FEED_TEMPLATE1, overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submit -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type feed -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate(TestContext.FEED_TEMPLATE2, overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submit -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type feed -file " + filePath), 0);
 
         final String pigProcessName = "pig-" + context.getProcessName();
         overlay.put("processName", pigProcessName);
 
         filePath = TestContext.overlayParametersOverTemplate(TestContext.PIG_PROCESS_TEMPLATE, overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath), 0);
 
         WorkflowJob jobInfo = OozieTestUtils.getWorkflowJob(context.getCluster().getCluster(),
                 OozieClient.FILTER_NAME + "=FALCON_PROCESS_DEFAULT_" + pigProcessName);
-        Assert.assertEquals(WorkflowJob.Status.SUCCEEDED, jobInfo.getStatus());
+        Assert.assertEquals(jobInfo.getStatus(), WorkflowJob.Status.SUCCEEDED);
 
         InstancesResult response = context.getService().path("api/instance/running/process/" + pigProcessName)
                 .header("Cookie", context.getAuthenticationToken())

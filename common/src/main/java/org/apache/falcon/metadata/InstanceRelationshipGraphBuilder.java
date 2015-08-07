@@ -20,7 +20,7 @@ package org.apache.falcon.metadata;
 
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.CatalogStorage;
 import org.apache.falcon.entity.FeedHelper;
@@ -71,7 +71,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
         LOG.info("Adding process instance: {}", processInstanceName);
 
         Vertex processInstance = addVertex(processInstanceName,
-                RelationshipType.PROCESS_INSTANCE, context.getTimeStampAsISO8601());
+                RelationshipType.PROCESS_INSTANCE, context.getTimeStampAsLong());
         addWorkflowInstanceProperties(processInstance, context);
 
         addInstanceToEntity(processInstance, context.getEntityName(),
@@ -87,7 +87,19 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
             addPipelines(process.getPipelines(), processInstance);
         }
 
+        String counterString = getCounterString(context);
+        if (!StringUtils.isEmpty(counterString)) {
+            addCountersToInstance(counterString, processInstance);
+        }
+
         return processInstance;
+    }
+
+    private String getCounterString(WorkflowExecutionContext context) {
+        if (!StringUtils.isEmpty(context.getCounters())) {
+            return context.getCounters();
+        }
+        return null;
     }
 
     public String getProcessInstanceName(WorkflowExecutionContext context) {
@@ -112,6 +124,13 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
         }
 
         vertex.setProperty(optionName.getName(), value);
+    }
+
+    private void addCountersToInstance(String counter, Vertex vertex) {
+        int index = counter.indexOf(":");
+        String counterKey = counter.substring(0, index);
+        String counterValue = counter.substring(index+1, counter.length());
+        vertex.setProperty(counterKey, counterValue);
     }
 
     public void addInstanceToEntity(Vertex instanceVertex, String entityName,
@@ -250,7 +269,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
                                    String feedName, String clusterName) throws FalconException {
         LOG.info("Adding feed instance {}", feedInstanceName);
         Vertex feedInstance = addVertex(feedInstanceName, RelationshipType.FEED_INSTANCE,
-                context.getTimeStampAsISO8601());
+                context.getTimeStampAsLong());
 
         addInstanceToEntity(feedInstance, feedName,
                 RelationshipType.FEED_ENTITY, RelationshipLabel.INSTANCE_ENTITY_EDGE);

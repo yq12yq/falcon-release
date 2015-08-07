@@ -18,19 +18,25 @@
 
 package org.apache.falcon.regression.core.util;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.falcon.regression.core.helpers.ColoHelper;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -49,7 +55,7 @@ public final class HadoopUtil {
     /*
      * Removes 'hdfs(hftp)://server:port'
      */
-    private static String cutProtocol(String path) {
+    public static String cutProtocol(String path) {
         if (StringUtils.isNotEmpty(path)) {
             if (protocol.matcher(path).find()) {
                 return '/' + protocol.split(path)[1];
@@ -66,7 +72,7 @@ public final class HadoopUtil {
      * @throws IOException
      */
     public static List<String> getAllFilesHDFS(FileSystem fs, Path location) throws IOException {
-        List<String> files = new ArrayList<String>();
+        List<String> files = new ArrayList<>();
         if (!fs.exists(location)) {
             return files;
         }
@@ -89,7 +95,7 @@ public final class HadoopUtil {
      */
     public static List<Path> getAllDirsRecursivelyHDFS(
         FileSystem fs, Path location, int depth) throws IOException {
-        List<Path> returnList = new ArrayList<Path>();
+        List<Path> returnList = new ArrayList<>();
         FileStatus[] stats = fs.listStatus(location);
         for (FileStatus stat : stats) {
             if (isDir(stat)) {
@@ -111,27 +117,47 @@ public final class HadoopUtil {
      */
     public static List<Path> getAllFilesRecursivelyHDFS(
         FileSystem fs, Path location) throws IOException {
-        List<Path> returnList = new ArrayList<Path>();
-        FileStatus[] stats;
+        List<Path> returnList = new ArrayList<>();
+        RemoteIterator<LocatedFileStatus> remoteIterator;
         try {
-            stats = fs.listStatus(location);
+            remoteIterator = fs.listFiles(location, true);
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            return new ArrayList<Path>();
-        }
-        if (stats == null) {
+            LOGGER.info("Path '" + location + "' is not found on " + fs.getUri());
             return returnList;
         }
-        for (FileStatus stat : stats) {
-            if (!isDir(stat)) {
-                if (!stat.getPath().toUri().toString().contains("_SUCCESS")) {
-                    returnList.add(stat.getPath());
-                }
-            } else {
-                returnList.addAll(getAllFilesRecursivelyHDFS(fs, stat.getPath()));
+        while(remoteIterator.hasNext()) {
+            Path path = remoteIterator.next().getPath();
+            if (!path.toUri().toString().contains("_SUCCESS")) {
+                returnList.add(path);
             }
         }
         return returnList;
+    }
+
+    /**
+     * Recursively retrieves all data file names from a given location and looks for presence of availabilityFlag.
+     * If availabilityFlag is null then it looks for _SUCCESS file(set as default).
+     * @param fs filesystem
+     * @param location given location
+     * @param availabilityFlag value of availability flag set in entity
+     * @return
+     * @throws IOException
+     */
+    public static boolean getSuccessFolder(
+            FileSystem fs, Path location, String availabilityFlag) throws IOException {
+        LOGGER.info("location : " + location);
+        for(FileStatus stat : fs.listStatus(location)) {
+            if (availabilityFlag.isEmpty()) {
+                if (stat.getPath().getName().equals("_SUCCESS")) {
+                    return true;
+                }
+            } else {
+                if (stat.getPath().getName().equals(availabilityFlag)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("deprecation")
@@ -146,12 +172,12 @@ public final class HadoopUtil {
      * @param srcFileLocation source location
      * @throws IOException
      */
-    public static void copyDataToFolder(final FileSystem fs, final String dstHdfsDir,
+    public static void copyDataToFolder(final FileSystem fs, String dstHdfsDir,
                                         final String srcFileLocation)
         throws IOException {
         LOGGER.info(String.format("Copying local dir %s to hdfs location %s on %s",
             srcFileLocation, dstHdfsDir, fs.getUri()));
-        fs.copyFromLocalFile(new Path(srcFileLocation), new Path(dstHdfsDir));
+        fs.copyFromLocalFile(new Path(srcFileLocation), new Path(cutProtocol(dstHdfsDir)));
     }
 
     /**
@@ -171,6 +197,32 @@ public final class HadoopUtil {
     }
 
     /**
+     * Copies given data to hdfs location.
+     * @param fs target filesystem
+     * @param dstHdfsDir destination dir
+     * @param data source location
+     * @param overwrite do we want to overwrite the data
+     * @throws IOException
+     */
+    public static void writeDataForHive(final FileSystem fs, final String dstHdfsDir,
+        final CharSequence data, boolean overwrite) throws IOException {
+        LOGGER.info(String.format("Writing data %s to hdfs location %s", data, dstHdfsDir));
+        final File tempFile = File.createTempFile(UUID.randomUUID().toString().split("-")[0], ".dat");
+        FileUtils.write(tempFile, data);
+        if (overwrite) {
+            HadoopUtil.deleteDirIfExists(dstHdfsDir, fs);
+        }
+        try {
+            fs.mkdirs(new Path(dstHdfsDir));
+        } catch (Exception e) {
+            //ignore
+        }
+        fs.setPermission(new Path(dstHdfsDir), FsPermission.getDirDefault());
+        HadoopUtil.copyDataToFolder(fs, dstHdfsDir, tempFile.getAbsolutePath());
+        tempFile.delete();
+    }
+
+    /**
      * Lists names of given directory subfolders.
      * @param fs filesystem
      * @param baseDir given directory
@@ -179,7 +231,7 @@ public final class HadoopUtil {
      */
     public static List<String> getHDFSSubFoldersName(FileSystem fs,
                                                      String baseDir) throws IOException {
-        List<String> returnList = new ArrayList<String>();
+        List<String> returnList = new ArrayList<>();
         FileStatus[] stats = fs.listStatus(new Path(baseDir));
         for (FileStatus stat : stats) {
             if (isDir(stat)) {
@@ -218,7 +270,7 @@ public final class HadoopUtil {
      */
     private static List<String> getAllFileNamesFromHDFS(
         FileSystem fs, String hdfsPath) throws IOException {
-        List<String> returnList = new ArrayList<String>();
+        List<String> returnList = new ArrayList<>();
         LOGGER.info("getting file from folder: " + hdfsPath);
         FileStatus[] stats = fs.listStatus(new Path(hdfsPath));
         for (FileStatus stat : stats) {
@@ -301,7 +353,7 @@ public final class HadoopUtil {
         LOGGER.info("Creating data in folders: \n" + remoteLocations);
         File input = new File(inputPath);
         File[] files = input.isDirectory() ? input.listFiles() : new File[]{input};
-        List<Path> filePaths = new ArrayList<Path>();
+        List<Path> filePaths = new ArrayList<>();
         assert files != null;
         for (final File file : files) {
             if (!file.isDirectory()) {
@@ -312,7 +364,7 @@ public final class HadoopUtil {
         if (!remotePathPrefix.endsWith("/") && !remoteLocations.get(0).startsWith("/")) {
             remotePathPrefix += "/";
         }
-        List<String> locations = new ArrayList<String>();
+        List<String> locations = new ArrayList<>();
         for (String remoteDir : remoteLocations) {
             String remoteLocation = remotePathPrefix + remoteDir;
             remoteLocation = cutProtocol(remoteLocation);
@@ -339,22 +391,12 @@ public final class HadoopUtil {
     public static void copyDataToFolders(FileSystem fs, final String folderPrefix,
         List<String> folderList, String... fileLocations) throws IOException {
         for (final String folder : folderList) {
-            boolean r;
             String folderSpace = folder.replaceAll("/", "_");
-            File f = new File(OSUtil.NORMAL_INPUT + folderSpace + ".txt");
-            if (!f.exists()) {
-                r = f.createNewFile();
-                if (!r) {
-                    LOGGER.info("file could not be created");
-                }
-            }
-            FileWriter fr = new FileWriter(f);
-            fr.append("folder");
-            fr.close();
-            fs.copyFromLocalFile(new Path(f.getAbsolutePath()), new Path(folderPrefix + folder));
-            r = f.delete();
-            if (!r) {
-                LOGGER.info("delete was not successful");
+            File file = new File(OSUtil.NORMAL_INPUT + folderSpace + ".txt");
+            FileUtils.writeStringToFile(file, "folder", true);
+            fs.copyFromLocalFile(new Path(file.getAbsolutePath()), new Path(folderPrefix + folder));
+            if (!file.delete()) {
+                LOGGER.info("delete was not successful for file: " + file);
             }
             Path[] srcPaths = new Path[fileLocations.length];
             for (int i = 0; i < srcPaths.length; ++i) {
@@ -417,7 +459,7 @@ public final class HadoopUtil {
     }
 
     /**
-     * Uploads either _SUCCESS or log_01.txt file to remote directories with names within date
+     * Uploads either _SUCCESS or dataFile4.txt file to remote directories with names within date
      * ranges.
      * @param fs target filesystem
      * @param interval dates ranges before and after current date
@@ -435,12 +477,12 @@ public final class HadoopUtil {
         if (fileToBePut.equals("_SUCCESS")) {
             copyDataToFolders(fs, folderPrefix, folderPaths, OSUtil.NORMAL_INPUT + "_SUCCESS");
         } else {
-            copyDataToFolders(fs, folderPrefix, folderPaths, OSUtil.NORMAL_INPUT + "log_01.txt");
+            copyDataToFolders(fs, folderPrefix, folderPaths, OSUtil.NORMAL_INPUT + "dataFile4.txt");
         }
     }
 
     /**
-     * Uploads log_01.txt file to remote directories with names within date ranges.
+     * Uploads dataFile4.txt file to remote directories with names within date ranges.
      * @param fs target filesystem
      * @param interval dates ranges before and after current date
      * @param minuteSkip time to skip within a range to get intermediate directories
@@ -458,11 +500,11 @@ public final class HadoopUtil {
             }
         }
         createFolders(fs, folderPrefix, folderPaths);
-        copyDataToFolders(fs, folderPrefix, folderPaths, OSUtil.NORMAL_INPUT + "log_01.txt");
+        copyDataToFolders(fs, folderPrefix, folderPaths, OSUtil.NORMAL_INPUT + "dataFile4.txt");
     }
 
     /**
-     * Uploads both log_01.txt and _SUCCESS files to remote directories with names within date
+     * Uploads both dataFile4.txt and _SUCCESS files to remote directories with names within date
      * ranges.
      * @param fs target filesystem
      * @param interval dates ranges before and after current date
@@ -482,6 +524,29 @@ public final class HadoopUtil {
         }
         createFolders(fs, folderPrefix, folderPaths);
         copyDataToFolders(fs, folderPrefix, folderPaths,
-            OSUtil.NORMAL_INPUT + "_SUCCESS", OSUtil.NORMAL_INPUT + "log_01.txt");
+            OSUtil.NORMAL_INPUT + "_SUCCESS", OSUtil.NORMAL_INPUT + "dataFile4.txt");
+    }
+
+    /**
+     * Creates empty folders in hdfs.
+     * @param helper target
+     * @param folderList list of folders
+     * @throws IOException
+     * @deprecated method creates filesystem object by itself. We should pass existing FileSystem
+     * object to such methods.
+     */
+    @Deprecated
+    public static void createHDFSFolders(ColoHelper helper, List<String> folderList)
+        throws IOException {
+        LOGGER.info("creating folders.....");
+        Configuration conf = new Configuration();
+        conf.set("fs.default.name", "hdfs://" + helper.getFeedHelper().getHadoopURL());
+        final FileSystem fs = FileSystem.get(conf);
+        for (final String folder : folderList) {
+            if (StringUtils.isNotEmpty(folder)) {
+                fs.mkdirs(new Path(cutProtocol(folder)));
+            }
+        }
+        LOGGER.info("created folders.....");
     }
 }

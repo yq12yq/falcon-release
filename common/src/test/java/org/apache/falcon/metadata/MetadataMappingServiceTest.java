@@ -18,48 +18,35 @@
 
 package org.apache.falcon.metadata;
 
-import com.tinkerpop.blueprints.Direction;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Graph;
-import com.tinkerpop.blueprints.GraphQuery;
-import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.*;
 import org.apache.falcon.cluster.util.EntityBuilderTestUtil;
 import org.apache.falcon.entity.Storage;
 import org.apache.falcon.entity.store.ConfigurationStore;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.cluster.Cluster;
-import org.apache.falcon.entity.v0.feed.CatalogTable;
-import org.apache.falcon.entity.v0.feed.ClusterType;
-import org.apache.falcon.entity.v0.feed.Feed;
-import org.apache.falcon.entity.v0.feed.Location;
-import org.apache.falcon.entity.v0.feed.LocationType;
-import org.apache.falcon.entity.v0.feed.Locations;
-import org.apache.falcon.entity.v0.process.EngineType;
-import org.apache.falcon.entity.v0.process.Input;
-import org.apache.falcon.entity.v0.process.Inputs;
-import org.apache.falcon.entity.v0.process.Output;
-import org.apache.falcon.entity.v0.process.Outputs;
+import org.apache.falcon.entity.v0.feed.*;
+import org.apache.falcon.entity.v0.process.*;
 import org.apache.falcon.entity.v0.process.Process;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.retention.EvictedInstanceSerDe;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.service.Services;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.falcon.workflow.WorkflowExecutionArgs;
 import org.apache.falcon.workflow.WorkflowExecutionContext;
-import static org.apache.falcon.workflow.WorkflowExecutionContext.EntityOperations;
 import org.apache.falcon.workflow.WorkflowJobEndNotificationService;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.io.OutputStream;
+import java.util.*;
+
+import static org.apache.falcon.workflow.WorkflowExecutionContext.EntityOperations;
 
 /**
  * Test for Metadata relationship mapping service.
@@ -67,7 +54,7 @@ import java.util.Set;
 public class MetadataMappingServiceTest {
 
     public static final String FALCON_USER = "falcon-user";
-    private static final String LOGS_DIR = "/falcon/staging/feed/logs";
+    private static final String LOGS_DIR = "jail://global:00/falcon/staging/feed/logs";
     private static final String NOMINAL_TIME = "2014-01-01-01-00";
 
     public static final String CLUSTER_ENTITY_NAME = "primary-cluster";
@@ -96,6 +83,7 @@ public class MetadataMappingServiceTest {
             "jail://global:00/falcon/imp-click-join1/20140101,jail://global:00/falcon/imp-click-join1/20140102";
     public static final String OUTPUT_INSTANCE_PATHS_NO_DATE =
             "jail://global:00/falcon/imp-click-join1,jail://global:00/falcon/imp-click-join2";
+    public static final String COUNTER = "BYTESCOPIED:1000";
 
     public static final String BROKER = "org.apache.activemq.ActiveMQConnectionFactory";
 
@@ -104,8 +92,8 @@ public class MetadataMappingServiceTest {
 
     private Cluster clusterEntity;
     private Cluster anotherCluster;
-    private List<Feed> inputFeeds = new ArrayList<Feed>();
-    private List<Feed> outputFeeds = new ArrayList<Feed>();
+    private List<Feed> inputFeeds = new ArrayList<>();
+    private List<Feed> outputFeeds = new ArrayList<>();
     private Process processEntity;
 
     @BeforeClass
@@ -152,57 +140,82 @@ public class MetadataMappingServiceTest {
 
     @Test
     public void testOnAddClusterEntity() throws Exception {
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
         clusterEntity = addClusterEntity(CLUSTER_ENTITY_NAME, COLO_NAME,
                 "classification=production");
 
         verifyEntityWasAddedToGraph(CLUSTER_ENTITY_NAME, RelationshipType.CLUSTER_ENTITY);
         verifyClusterEntityEdges();
 
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 3); // +3 = cluster, colo, tag
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 2); // +2 = cluster to colo and tag
+        // +4 = cluster, colo, tag, user
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 4);
+        // +3 = cluster to colo, user and tag
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 3);
     }
 
     @Test (dependsOnMethods = "testOnAddClusterEntity")
     public void testOnAddFeedEntity() throws Exception {
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
         Feed impressionsFeed = addFeedEntity("impression-feed", clusterEntity,
                 "classified-as=Secure", "analytics", Storage.TYPE.FILESYSTEM,
                 "/falcon/impression-feed/${YEAR}/${MONTH}/${DAY}");
         inputFeeds.add(impressionsFeed);
         verifyEntityWasAddedToGraph(impressionsFeed.getName(), RelationshipType.FEED_ENTITY);
         verifyFeedEntityEdges(impressionsFeed.getName(), "Secure", "analytics");
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 7); // +4 = feed, tag, group, user
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 6); // +4 = cluster, tag, group, user
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 3); // +3 = feed, tag, group,
+        // user
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 4); // +4 = cluster, tag, group, user
 
+        // Get the before vertices and edges
+        beforeVerticesCount = getVerticesCount(service.getGraph());
+        beforeEdgesCount = getEdgesCount(service.getGraph());
         Feed clicksFeed = addFeedEntity("clicks-feed", clusterEntity,
                 "classified-as=Secure,classified-as=Financial", "analytics", Storage.TYPE.FILESYSTEM,
                 "/falcon/clicks-feed/${YEAR}-${MONTH}-${DAY}");
         inputFeeds.add(clicksFeed);
         verifyEntityWasAddedToGraph(clicksFeed.getName(), RelationshipType.FEED_ENTITY);
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 9); // feed and financial vertex
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 11); // +5 = cluster + user + 2Group + Tag
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 2); // feed and financial vertex
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 5); // +5 = cluster + user + 2Group
+        // + Tag
 
+        // Get the before vertices and edges
+        beforeVerticesCount = getVerticesCount(service.getGraph());
+        beforeEdgesCount = getEdgesCount(service.getGraph());
         Feed join1Feed = addFeedEntity("imp-click-join1", clusterEntity,
                 "classified-as=Financial", "reporting,bi", Storage.TYPE.FILESYSTEM,
                 "/falcon/imp-click-join1/${YEAR}${MONTH}${DAY}");
         outputFeeds.add(join1Feed);
         verifyEntityWasAddedToGraph(join1Feed.getName(), RelationshipType.FEED_ENTITY);
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 12); // + 3 = 1 feed and 2 groups
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 16); // +5 = cluster + user +
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 3); // + 3 = 1 feed and 2
+        // groups
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 5); // +5 = cluster + user +
         // Group + 2Tags
 
+        // Get the before vertices and edges
+        beforeVerticesCount = getVerticesCount(service.getGraph());
+        beforeEdgesCount = getEdgesCount(service.getGraph());
         Feed join2Feed = addFeedEntity("imp-click-join2", clusterEntity,
                 "classified-as=Secure,classified-as=Financial", "reporting,bi", Storage.TYPE.FILESYSTEM,
                 "/falcon/imp-click-join2/${YEAR}${MONTH}${DAY}");
         outputFeeds.add(join2Feed);
         verifyEntityWasAddedToGraph(join2Feed.getName(), RelationshipType.FEED_ENTITY);
 
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 13); // +1 feed
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 1); // +1 feed
         // +6 = user + 2tags + 2Groups + Cluster
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 22);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 6);
     }
 
     @Test (dependsOnMethods = "testOnAddFeedEntity")
     public void testOnAddProcessEntity() throws Exception {
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
         processEntity = addProcessEntity(PROCESS_ENTITY_NAME, clusterEntity,
                 "classified-as=Critical", "testPipeline,dataReplication_Pipeline", GENERATE_WORKFLOW_NAME,
                 WORKFLOW_VERSION);
@@ -211,9 +224,9 @@ public class MetadataMappingServiceTest {
         verifyProcessEntityEdges();
 
         // +4 = 1 process + 1 tag + 2 pipeline
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 17);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 4);
         // +9 = user,tag,cluster, 2 inputs,2 outputs, 2 pipelines
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 31);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 9);
     }
 
     @Test (dependsOnMethods = "testOnAddProcessEntity")
@@ -225,6 +238,9 @@ public class MetadataMappingServiceTest {
     public void testMapLineage() throws Exception {
         setup();
 
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
         WorkflowExecutionContext context = WorkflowExecutionContext.create(getTestMessageArgs(
                 EntityOperations.GENERATE, GENERATE_WORKFLOW_NAME, null, null, null, null)
                 , WorkflowExecutionContext.Type.POST_PROCESSING);
@@ -235,15 +251,18 @@ public class MetadataMappingServiceTest {
         verifyLineageGraph(RelationshipType.FEED_INSTANCE.getName());
 
         // +6 = 1 process, 2 inputs = 3 instances,2 outputs
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 23);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 6);
         //+40 = +26 for feed instances + 8 for process instance + 6 for second feed instance
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 71);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 40);
     }
 
     @Test
     public void testLineageForNoDateInFeedPath() throws Exception {
         setupForNoDateInFeedPath();
 
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
         WorkflowExecutionContext context = WorkflowExecutionContext.create(getTestMessageArgs(
                         EntityOperations.GENERATE, GENERATE_WORKFLOW_NAME, null,
                         OUTPUT_INSTANCE_PATHS_NO_DATE, INPUT_INSTANCE_PATHS_NO_DATE, null),
@@ -261,14 +280,29 @@ public class MetadataMappingServiceTest {
         Assert.assertTrue(feedNamesOwnedByUser.containsAll(expected));
 
         // +5 = 1 process, 2 inputs, 2 outputs
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 22);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 5);
         //+34 = +26 for feed instances + 8 for process instance
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 65);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 34);
     }
 
     @Test
     public void testLineageForReplication() throws Exception {
         setupForLineageReplication();
+
+        // Get the before vertices and edges
+        // +7 [primary, bcp cluster] = cluster, colo, tag, user
+        // +3 [input feed] = feed, tag, group
+        // +4 [output feed] = 1 feed + 1 tag + 2 groups
+        // +4 [process] = 1 process + 1 tag + 2 pipeline
+        // +3 = 1 process, 1 input, 1 output
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+
+        // +4 [cluster] = cluster to colo and tag [primary and bcp],
+        // +4 [input feed] = cluster, tag, group, user
+        // +5 [output feed] = cluster + user + Group + 2Tags
+        // +7 = user,tag,cluster, 1 input,1 output, 2 pipelines
+        // +19 = +6 for output feed instances + 7 for process instance + 6 for input feed instance
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
 
         WorkflowExecutionContext context = WorkflowExecutionContext.create(getTestMessageArgs(
                         EntityOperations.REPLICATE, REPLICATION_WORKFLOW_NAME, REPLICATED_FEED,
@@ -284,19 +318,11 @@ public class MetadataMappingServiceTest {
                 "jail://global:00/falcon/raw-click/bcp/20140101", context,
                 RelationshipLabel.FEED_CLUSTER_REPLICATED_EDGE);
 
-        // +6 [primary, bcp cluster] = cluster, colo, tag,
-        // +4 [input feed] = feed, tag, group, user
-        // +4 [output feed] = 1 feed + 1 tag + 2 groups
-        // +4 [process] = 1 process + 1 tag + 2 pipeline
-        // +3 = 1 process, 1 input, 1 output
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 21);
-        // +4 [cluster] = cluster to colo and tag [primary and bcp],
-        // +4 [input feed] = cluster, tag, group, user
-        // +5 [output feed] = cluster + user + Group + 2Tags
-        // +7 = user,tag,cluster, 1 input,1 output, 2 pipelines
-        // +19 = +6 for output feed instances + 7 for process instance + 6 for input feed instance
+        // No new vertex added after replication
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 0);
+
         // +1 for replicated-to edge to target cluster for each output feed instance
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 40);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 1);
     }
 
     @Test
@@ -333,6 +359,10 @@ public class MetadataMappingServiceTest {
     @Test
     public void testLineageForRetention() throws Exception {
         setupForLineageEviction();
+        // Get the before vertices and edges
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
         WorkflowExecutionContext context = WorkflowExecutionContext.create(getTestMessageArgs(
                         EntityOperations.DELETE, EVICTION_WORKFLOW_NAME,
                         EVICTED_FEED, EVICTED_INSTANCE_PATHS, "IGNORE", EVICTED_FEED),
@@ -356,11 +386,9 @@ public class MetadataMappingServiceTest {
         }
 
         // No new vertices added
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 23);
-        // +1 =  +2 for evicted-from edge from Feed Instance vertex to cluster.
-        // -1 imp-click-join1 is added twice instead of imp-click-join2 so there is one less edge as there is no
-        // classified-as -> Secure edge.
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 72);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 0);
+        // +2 for evicted-from edge from Feed Instance vertex to cluster
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 2);
     }
 
     @Test
@@ -390,14 +418,17 @@ public class MetadataMappingServiceTest {
         service.destroy();
         service.init();
 
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
         // cannot modify cluster, adding a new cluster
         anotherCluster = addClusterEntity("another-cluster", "east-coast",
                 "classification=another");
         verifyEntityWasAddedToGraph("another-cluster", RelationshipType.CLUSTER_ENTITY);
 
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 20); // +3 = cluster, colo, tag
-        // +2 edges to above, no user but only to colo and new tag
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 33);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 3); // +3 = cluster, colo, tag
+        // +3 edges to user, colo and new tag
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 3);
     }
 
     @Test(dependsOnMethods = "testOnChange")
@@ -408,8 +439,14 @@ public class MetadataMappingServiceTest {
         addStorage(newFeed, Storage.TYPE.FILESYSTEM,
                 "jail://global:00/falcon/impression-feed/20140101");
 
+        long beforeVerticesCount = 0;
+        long beforeEdgesCount = 0;
+
         try {
             configStore.initiateUpdate(newFeed);
+
+            beforeVerticesCount = getVerticesCount(service.getGraph());
+            beforeEdgesCount = getEdgesCount(service.getGraph());
 
             // add cluster
             org.apache.falcon.entity.v0.feed.Cluster feedCluster =
@@ -423,8 +460,8 @@ public class MetadataMappingServiceTest {
         }
 
         verifyUpdatedEdges(newFeed);
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 22); //+2 = 2 new tags
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 35); // +2 = 1 new cluster, 1 new tag
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 2); //+2 = 2 new tags
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount + 2); // +2 = 1 new cluster, 1 new tag
     }
 
     private void verifyUpdatedEdges(Feed newFeed) {
@@ -441,7 +478,7 @@ public class MetadataMappingServiceTest {
         Assert.assertEquals(edge.getVertex(Direction.IN).getProperty("name"), "data-warehouse");
 
         // new cluster
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
         for (Edge clusterEdge : feedVertex.getEdges(Direction.OUT, RelationshipLabel.FEED_CLUSTER_EDGE.getName())) {
             actual.add(clusterEdge.getVertex(Direction.IN).<String>getProperty("name"));
         }
@@ -451,6 +488,9 @@ public class MetadataMappingServiceTest {
 
     @Test(dependsOnMethods = "testOnFeedEntityChange")
     public void testOnProcessEntityChange() throws Exception {
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
         Process oldProcess = processEntity;
         Process newProcess = EntityBuilderTestUtil.buildProcess(oldProcess.getName(), anotherCluster,
                 null, null);
@@ -465,8 +505,9 @@ public class MetadataMappingServiceTest {
         }
 
         verifyUpdatedEdges(newProcess);
-        Assert.assertEquals(getVerticesCount(service.getGraph()), 22); // +0, no net new
-        Assert.assertEquals(getEdgesCount(service.getGraph()), 29); // -6 = -2 outputs, -1 tag, -1 cluster, -2 pipelines
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount + 0); // +0, no net new
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount - 6); // -6 = -2 outputs, -1 tag,
+        // -1 cluster, -2 pipelines
     }
 
     @Test(dependsOnMethods = "testOnProcessEntityChange")
@@ -498,6 +539,28 @@ public class MetadataMappingServiceTest {
         Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(inputs1, inputs2));
         outputs2.getOutputs().add(o1);
         Assert.assertTrue(EntityRelationshipGraphBuilder.areSame(outputs1, outputs2));
+    }
+
+    @Test
+    public void testLineageForDRCounter() throws Exception {
+        setupForDRCounter();
+        // Get the vertices before running replication WF
+        WorkflowExecutionContext context = WorkflowExecutionContext.create(getTestMessageArgs(
+                        EntityOperations.GENERATE, GENERATE_WORKFLOW_NAME, "NONE", "IGNORE", "IGNORE", "NONE"),
+                WorkflowExecutionContext.Type.POST_PROCESSING);
+        service.onSuccess(context);
+        debug(service.getGraph());
+        GraphUtils.dump(service.getGraph());
+        Graph graph = service.getGraph();
+
+        long beforeVerticesCount = getVerticesCount(service.getGraph());
+        long beforeEdgesCount = getEdgesCount(service.getGraph());
+
+        Vertex vertex = graph.getVertices("name", "sample-process/2014-01-01T01:00Z").iterator().next();
+        Assert.assertEquals(vertex.getProperty("BYTESCOPIED"), 1000L);
+        Assert.assertEquals(getVerticesCount(service.getGraph()), beforeVerticesCount);
+        Assert.assertEquals(getEdgesCount(service.getGraph()), beforeEdgesCount);
+        verifyLineageGraphForDRCounter(context);
     }
 
     private void verifyUpdatedEdges(Process newProcess) {
@@ -659,7 +722,7 @@ public class MetadataMappingServiceTest {
                 RelationshipType.PROCESS_ENTITY);
 
         // verify edge to cluster vertex
-        verifyVertexForEdge(processVertex, Direction.OUT, RelationshipLabel.FEED_CLUSTER_EDGE.getName(),
+        verifyVertexForEdge(processVertex, Direction.OUT, RelationshipLabel.PROCESS_CLUSTER_EDGE.getName(),
                 CLUSTER_ENTITY_NAME, RelationshipType.CLUSTER_ENTITY.getName());
         // verify edge to user vertex
         verifyVertexForEdge(processVertex, Direction.OUT, RelationshipLabel.USER.getName(),
@@ -669,7 +732,7 @@ public class MetadataMappingServiceTest {
                 "Critical", RelationshipType.TAGS.getName());
 
         // verify edges to inputs
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
         for (Edge edge : processVertex.getEdges(Direction.IN,
                 RelationshipLabel.FEED_PROCESS_EDGE.getName())) {
             Vertex outVertex = edge.getVertex(Direction.OUT);
@@ -709,13 +772,16 @@ public class MetadataMappingServiceTest {
 
     private void verifyVertexForEdge(Vertex fromVertex, Direction direction, String label,
                                      String expectedName, String expectedType) {
+        boolean found = false;
         for (Edge edge : fromVertex.getEdges(direction, label)) {
+            found = true;
             Vertex outVertex = edge.getVertex(Direction.IN);
             Assert.assertEquals(
                     outVertex.getProperty(RelationshipProperty.NAME.getName()), expectedName);
             Assert.assertEquals(
                     outVertex.getProperty(RelationshipProperty.TYPE.getName()), expectedType);
         }
+        Assert.assertFalse((!found), "Edge not found");
     }
 
     private void verifyEntityGraph(RelationshipType feedType, String classification) {
@@ -740,7 +806,7 @@ public class MetadataMappingServiceTest {
                 .has(RelationshipProperty.NAME.getName(), FALCON_USER)
                 .has(RelationshipProperty.TYPE.getName(), RelationshipType.USER.getName());
 
-        List<String> feedNames = new ArrayList<String>();
+        List<String> feedNames = new ArrayList<>();
         for (Vertex userVertex : userQuery.vertices()) {
             for (Vertex feed : userVertex.getVertices(Direction.IN, RelationshipLabel.USER.getName())) {
                 if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
@@ -758,7 +824,7 @@ public class MetadataMappingServiceTest {
                 .has(RelationshipProperty.NAME.getName(), "Secure")
                 .has(RelationshipProperty.TYPE.getName(), RelationshipType.TAGS.getName());
 
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
         for (Vertex feedVertex : classQuery.vertices()) {
             for (Vertex feed : feedVertex.getVertices(Direction.BOTH, "classified-as")) {
                 if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
@@ -773,7 +839,7 @@ public class MetadataMappingServiceTest {
 
     private void verifyFeedsOwnedByUserAndClassification(String feedType, String classification,
                                                          List<String> expected) {
-        List<String> actual = new ArrayList<String>();
+        List<String> actual = new ArrayList<>();
         Vertex userVertex = getEntityVertex(FALCON_USER, RelationshipType.USER);
         for (Vertex feed : userVertex.getVertices(Direction.IN, RelationshipLabel.USER.getName())) {
             if (feed.getProperty(RelationshipProperty.TYPE.getName()).equals(feedType)) {
@@ -861,6 +927,13 @@ public class MetadataMappingServiceTest {
         Assert.assertEquals(clusterVertex.getProperty(RelationshipProperty.NAME.getName()), context.getClusterName());
     }
 
+    private void verifyLineageGraphForDRCounter(WorkflowExecutionContext context) throws Exception {
+        Vertex processVertex = getEntityVertex(PROCESS_ENTITY_NAME,
+                RelationshipType.PROCESS_ENTITY);
+        Assert.assertEquals(processVertex.getProperty("name"), PROCESS_ENTITY_NAME);
+        Assert.assertTrue(context.getCounters().length()>0);
+    }
+
     private static String[] getTestMessageArgs(EntityOperations operation, String wfName, String outputFeedNames,
                                                String feedInstancePaths, String falconInputPaths,
                                                String falconInputFeeds) {
@@ -908,6 +981,36 @@ public class MetadataMappingServiceTest {
 
             "-" + WorkflowExecutionArgs.LOG_DIR.getName(), LOGS_DIR,
         };
+    }
+
+    private void setupForDRCounter() throws Exception {
+        cleanUp();
+        service.init();
+        // Add cluster
+        clusterEntity = addClusterEntity(CLUSTER_ENTITY_NAME, COLO_NAME,
+                "classification=production");
+
+        createDRCounterFileForTest();
+        // Add process
+        processEntity = addProcessEntity(PROCESS_ENTITY_NAME, clusterEntity,
+                "classified-as=Critical", "testPipeline,dataReplication_Pipeline", GENERATE_WORKFLOW_NAME,
+                WORKFLOW_VERSION);
+    }
+
+    private void createDRCounterFileForTest() throws Exception {
+        Path counterFilePath = new Path(LOGS_DIR, "counter.txt");
+        OutputStream out = null;
+        try {
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(
+                    new Path(LOGS_DIR).toUri());
+            out = fs.create(counterFilePath);
+            out.write(COUNTER.getBytes());
+            out.flush();
+        }  finally {
+            if (out != null) {
+                out.close();
+            }
+        }
     }
 
     private void setup() throws Exception {

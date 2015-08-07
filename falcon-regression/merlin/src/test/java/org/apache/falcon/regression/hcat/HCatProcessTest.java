@@ -51,65 +51,65 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+/**
+ * Tests falcon processes that run hive scripts.
+ */
 @Test(groups = "embedded")
 public class HCatProcessTest extends BaseTestClass {
-    private static final Logger logger = Logger.getLogger(HCatProcessTest.class);
-    ColoHelper cluster = servers.get(0);
-    FileSystem clusterFS = serverFS.get(0);
-    OozieClient clusterOC = serverOC.get(0);
-    HCatClient clusterHC;
+    private static final Logger LOGGER = Logger.getLogger(HCatProcessTest.class);
+    private final ColoHelper cluster = servers.get(0);
+    private final FileSystem clusterFS = serverFS.get(0);
+    private final OozieClient clusterOC = serverOC.get(0);
+    private HCatClient clusterHC;
 
-    final String testDir = "/HCatProcessTest";
-    final String baseTestHDFSDir = baseHDFSDir + testDir;
-    String hiveScriptDir = baseTestHDFSDir + "/hive";
-    String hiveScriptFile = hiveScriptDir + "/script.hql";
-    String aggregateWorkflowDir = baseTestHDFSDir + "/aggregator";
-    String hiveScriptFileNonHCatInput = hiveScriptDir + "/script_non_hcat_input.hql";
-    String hiveScriptFileNonHCatOutput = hiveScriptDir + "/script_non_hcat_output.hql";
-    String hiveScriptTwoHCatInputOneHCatOutput =
+    private final String baseTestHDFSDir = cleanAndGetTestDir();
+    private final String hiveScriptDir = baseTestHDFSDir + "/hive";
+    private final String hiveScriptFile = hiveScriptDir + "/script.hql";
+    private final String aggregateWorkflowDir = baseTestHDFSDir + "/aggregator";
+    private final String hiveScriptFileNonHCatInput = hiveScriptDir + "/script_non_hcat_input.hql";
+    private final String hiveScriptFileNonHCatOutput =
+        hiveScriptDir + "/script_non_hcat_output.hql";
+    private final String hiveScriptTwoHCatInputOneHCatOutput =
         hiveScriptDir + "/script_two_hcat_input_one_hcat_output.hql";
-    String hiveScriptOneHCatInputTwoHCatOutput =
+    private final String hiveScriptOneHCatInputTwoHCatOutput =
         hiveScriptDir + "/script_one_hcat_input_two_hcat_output.hql";
-    String hiveScriptTwoHCatInputTwoHCatOutput =
+    private final String hiveScriptTwoHCatInputTwoHCatOutput =
         hiveScriptDir + "/script_two_hcat_input_two_hcat_output.hql";
-    final String inputHDFSDir = baseTestHDFSDir + "/input";
-    final String inputHDFSDir2 = baseTestHDFSDir + "/input2";
-    final String outputHDFSDir = baseTestHDFSDir + "/output";
-    final String outputHDFSDir2 = baseTestHDFSDir + "/output2";
+    private final String inputHDFSDir = baseTestHDFSDir + "/input";
+    private final String inputHDFSDir2 = baseTestHDFSDir + "/input2";
+    private final String outputHDFSDir = baseTestHDFSDir + "/output";
+    private final String outputHDFSDir2 = baseTestHDFSDir + "/output2";
 
-    final String dbName = "default";
-    final String inputTableName = "hcatprocesstest_input_table";
-    final String inputTableName2 = "hcatprocesstest_input_table2";
-    final String outputTableName = "hcatprocesstest_output_table";
-    final String outputTableName2 = "hcatprocesstest_output_table2";
-    public static final String col1Name = "id";
-    public static final String col2Name = "value";
-    public static final String partitionColumn = "dt";
+    private final String dbName = "default";
+    private final String inputTableName = "hcatprocesstest_input_table";
+    private final String inputTableName2 = "hcatprocesstest_input_table2";
+    private final String outputTableName = "hcatprocesstest_output_table";
+    private final String outputTableName2 = "hcatprocesstest_output_table2";
+    private final String col1Name = "id";
+    private final String col2Name = "value";
+    private final String partitionColumn = "dt";
 
-    private static final String hcatDir = OSUtil.getPath("src", "test", "resources", "hcat");
-    private static final String localHCatData = OSUtil.getPath(hcatDir, "data");
-    private static final String hiveScript = OSUtil.getPath(hcatDir, "hivescript");
-    final String startDate = "2010-01-01T20:00Z";
-    final String endDate = "2010-01-01T21:10Z";
+    private final String hcatDir = OSUtil.getPath("src", "test", "resources", "hcat");
+    private final String localHCatData = OSUtil.getPath(hcatDir, "data");
+    private final String hiveScript = OSUtil.getPath(hcatDir, "hivescript");
+    private final String startDate = "2010-01-01T20:00Z";
+    private final String endDate = "2010-01-01T21:10Z";
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         clusterHC = cluster.getClusterHelper().getHCatClient();
         bundles[0] = BundleUtil.readHCatBundle();
         bundles[0] = new Bundle(bundles[0], cluster);
-        bundles[0].generateUniqueBundle();
+        bundles[0].generateUniqueBundle(this);
         bundles[0].setProcessWorkflow(hiveScriptFile, EngineType.HIVE);
         bundles[0].setClusterInterface(Interfacetype.REGISTRY,
             cluster.getClusterHelper().getHCatEndpoint());
@@ -129,11 +129,11 @@ public class HCatProcessTest extends BaseTestClass {
     public String[][] generateSeparators() {
         //disabling till FALCON-372 is fixed
         //return new String[][] {{"-"}, {"/"}};
-        return new String[][]{{"-"},};
+        return new String[][]{{"-", }, };
     }
 
     @Test(dataProvider = "generateSeparators")
-    public void OneHCatInputOneHCatOutput(String separator) throws Exception {
+    public void oneHCatInputOneHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -142,27 +142,27 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset = HadoopUtil
             .flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir)
-            .build());
+                .create(dbName, inputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir)
-            .build());
+                .create(dbName, outputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir)
+                .build());
 
         addPartitionsToTable(dataDates, dataset, "dt", dbName, inputTableName);
 
@@ -193,7 +193,7 @@ public class HCatProcessTest extends BaseTestClass {
     }
 
     @Test(dataProvider = "generateSeparators")
-    public void TwoHCatInputOneHCatOutput(String separator) throws Exception {
+    public void twoHCatInputOneHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -204,35 +204,35 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset2 = HadoopUtil
             .flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir2, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir)
-            .build());
+                .create(dbName, inputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName2, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir2)
-            .build());
+                .create(dbName, inputTableName2, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir2)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir)
-            .build());
+                .create(dbName, outputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir)
+                .build());
 
         addPartitionsToTable(dataDates, dataset, "dt", dbName, inputTableName);
         addPartitionsToTable(dataDates, dataset2, "dt", dbName, inputTableName2);
@@ -247,14 +247,13 @@ public class HCatProcessTest extends BaseTestClass {
         bundles[0].setInputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setInputFeedValidity(startDate, endDate);
         final String inputFeed1 = bundles[0].getInputFeedFromBundle();
-        final String inputFeed2Name = "second-" + Util.readEntityName(inputFeed1);
+        final String inputFeed2Name = Util.readEntityName(inputFeed1) + "-second";
 
         FeedMerlin feedObj = new FeedMerlin(inputFeed1);
         feedObj.setName(inputFeed2Name);
         feedObj.getTable().setUri(inputTableUri2);
 
-        String inputFeed2 = feedObj.toString();
-        bundles[0].addInputFeedToBundle("inputData2", inputFeed2, 0);
+        bundles[0].addInputFeedToBundle("inputData2", feedObj);
 
         String outputTableUri =
             "catalog:" + dbName + ":" + outputTableName + tableUriPartitionFragment;
@@ -278,16 +277,16 @@ public class HCatProcessTest extends BaseTestClass {
             clusterFS.getContentSummary(new Path(inputHDFSDir2 + "/" + dataDates.get(0)));
         final ContentSummary outputContentSummary =
             clusterFS.getContentSummary(new Path(outputHDFSDir + "/dt=" + dataDates.get(0)));
-        logger.info("inputContentSummary = " + inputContentSummary.toString(false));
-        logger.info("inputContentSummary2 = " + inputContentSummary2.toString(false));
-        logger.info("outputContentSummary = " + outputContentSummary.toString(false));
+        LOGGER.info("inputContentSummary = " + inputContentSummary.toString(false));
+        LOGGER.info("inputContentSummary2 = " + inputContentSummary2.toString(false));
+        LOGGER.info("outputContentSummary = " + outputContentSummary.toString(false));
         Assert.assertEquals(inputContentSummary.getLength() + inputContentSummary2.getLength(),
             outputContentSummary.getLength(),
             "Unexpected size of the output.");
     }
 
     @Test(dataProvider = "generateSeparators")
-    public void OneHCatInputTwoHCatOutput(String separator) throws Exception {
+    public void oneHCatInputTwoHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -296,35 +295,35 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset = HadoopUtil
             .flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir)
-            .build());
+                .create(dbName, inputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir)
-            .build());
+                .create(dbName, outputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName2, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir2)
-            .build());
+                .create(dbName, outputTableName2, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir2)
+                .build());
 
         addPartitionsToTable(dataDates, dataset, "dt", dbName, inputTableName);
 
@@ -343,11 +342,11 @@ public class HCatProcessTest extends BaseTestClass {
         bundles[0].setOutputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setOutputFeedValidity(startDate, endDate);
         final String outputFeed1 = bundles[0].getInputFeedFromBundle();
-        final String outputFeed2Name = "second-" + Util.readEntityName(outputFeed1);
+        final String outputFeed2Name = Util.readEntityName(outputFeed1) + "-second";
         FeedMerlin feedObj = new FeedMerlin(outputFeed1);
         feedObj.setName(outputFeed2Name);
         feedObj.getTable().setUri(outputTableUri2);
-        bundles[0].addOutputFeedToBundle("outputData2", feedObj.toString(), 0);
+        bundles[0].addOutputFeedToBundle("outputData2", feedObj);
 
         bundles[0].setProcessValidity(startDate, endDate);
         bundles[0].setProcessPeriodicity(1, Frequency.TimeUnit.hours);
@@ -367,7 +366,7 @@ public class HCatProcessTest extends BaseTestClass {
 
 
     @Test(dataProvider = "generateSeparators")
-    public void TwoHCatInputTwoHCatOutput(String separator) throws Exception {
+    public void twoHCatInputTwoHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -378,43 +377,43 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset2 = HadoopUtil
             .flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir2, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir)
-            .build());
+                .create(dbName, inputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName2, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir2)
-            .build());
+                .create(dbName, inputTableName2, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir2)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir)
-            .build());
+                .create(dbName, outputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir)
+                .build());
 
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName2, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir2)
-            .build());
+                .create(dbName, outputTableName2, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir2)
+                .build());
 
         addPartitionsToTable(dataDates, dataset, "dt", dbName, inputTableName);
         addPartitionsToTable(dataDates, dataset2, "dt", dbName, inputTableName2);
@@ -429,12 +428,11 @@ public class HCatProcessTest extends BaseTestClass {
         bundles[0].setInputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setInputFeedValidity(startDate, endDate);
         final String inputFeed1 = bundles[0].getInputFeedFromBundle();
-        final String inputFeed2Name = "second-" + Util.readEntityName(inputFeed1);
+        final String inputFeed2Name = Util.readEntityName(inputFeed1) + "-second";
         FeedMerlin feedObj = new FeedMerlin(inputFeed1);
         feedObj.setName(inputFeed2Name);
         feedObj.getTable().setUri(inputTableUri2);
-        String inputFeed2 = feedObj.toString();
-        bundles[0].addInputFeedToBundle("inputData2", inputFeed2, 0);
+        bundles[0].addInputFeedToBundle("inputData2", feedObj);
 
         String outputTableUri =
             "catalog:" + dbName + ":" + outputTableName + tableUriPartitionFragment;
@@ -444,12 +442,11 @@ public class HCatProcessTest extends BaseTestClass {
         bundles[0].setOutputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setOutputFeedValidity(startDate, endDate);
         final String outputFeed1 = bundles[0].getOutputFeedFromBundle();
-        final String outputFeed2Name = "second-" + Util.readEntityName(outputFeed1);
+        final String outputFeed2Name = Util.readEntityName(outputFeed1) + "-second";
         FeedMerlin feedObj2 = new FeedMerlin(outputFeed1);
         feedObj2.setName(outputFeed2Name);
         feedObj2.getTable().setUri(outputTableUri2);
-        String outputFeed2 = feedObj2.toString();
-        bundles[0].addOutputFeedToBundle("outputData2", outputFeed2, 0);
+        bundles[0].addOutputFeedToBundle("outputData2", feedObj2);
         bundles[0].setProcessValidity(startDate, endDate);
         bundles[0].setProcessPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setProcessInputStartEnd("now(0,0)", "now(0,0)");
@@ -468,10 +465,10 @@ public class HCatProcessTest extends BaseTestClass {
             clusterFS.getContentSummary(new Path(outputHDFSDir + "/dt=" + dataDates.get(0)));
         final ContentSummary outputContentSummary2 =
             clusterFS.getContentSummary(new Path(outputHDFSDir2 + "/dt=" + dataDates.get(0)));
-        logger.info("inputContentSummary = " + inputContentSummary.toString(false));
-        logger.info("inputContentSummary2 = " + inputContentSummary2.toString(false));
-        logger.info("outputContentSummary = " + outputContentSummary.toString(false));
-        logger.info("outputContentSummary2 = " + outputContentSummary2.toString(false));
+        LOGGER.info("inputContentSummary = " + inputContentSummary.toString(false));
+        LOGGER.info("inputContentSummary2 = " + inputContentSummary2.toString(false));
+        LOGGER.info("outputContentSummary = " + outputContentSummary.toString(false));
+        LOGGER.info("outputContentSummary2 = " + outputContentSummary2.toString(false));
         Assert.assertEquals(inputContentSummary.getLength() + inputContentSummary2.getLength(),
             outputContentSummary.getLength(),
             "Unexpected size of the output.");
@@ -482,7 +479,7 @@ public class HCatProcessTest extends BaseTestClass {
 
 
     @Test(dataProvider = "generateSeparators")
-    public void OneHCatInputOneNonHCatOutput(String separator) throws Exception {
+    public void oneHCatInputOneNonHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -491,19 +488,19 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset = HadoopUtil
             .flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, inputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(inputHDFSDir)
-            .build());
+                .create(dbName, inputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(inputHDFSDir)
+                .build());
 
         addPartitionsToTable(dataDates, dataset, "dt", dbName, inputTableName);
 
@@ -516,15 +513,15 @@ public class HCatProcessTest extends BaseTestClass {
         bundles[0].setInputFeedValidity(startDate, endDate);
 
         //
-        String nonHCatFeed = BundleUtil.readELBundle().getOutputFeedFromBundle();
+        FeedMerlin nonHCatFeed = new FeedMerlin(BundleUtil.readELBundle().getOutputFeedFromBundle());
         final String outputFeedName = bundles[0].getOutputFeedNameFromBundle();
-        nonHCatFeed = Util.setFeedName(nonHCatFeed, outputFeedName);
+        nonHCatFeed.setName(outputFeedName);
         final List<String> clusterNames = bundles[0].getClusterNames();
         Assert.assertEquals(clusterNames.size(), 1, "Expected only one cluster in the bundle.");
-        nonHCatFeed = Util.setClusterNameInFeed(nonHCatFeed, clusterNames.get(0), 0);
+        nonHCatFeed.setClusterNameInFeed(clusterNames.get(0), 0);
         bundles[0].writeFeedElement(nonHCatFeed, outputFeedName);
-        bundles[0].setOutputFeedLocationData(outputHDFSDir + "/" +
-            StringUtils.join(new String[]{"${YEAR}", "${MONTH}", "${DAY}", "${HOUR}"}, separator));
+        bundles[0].setOutputFeedLocationData(outputHDFSDir + "/"
+            + StringUtils.join(new String[]{"${YEAR}", "${MONTH}", "${DAY}", "${HOUR}"}, separator));
         bundles[0].setOutputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setOutputFeedValidity(startDate, endDate);
 
@@ -544,7 +541,7 @@ public class HCatProcessTest extends BaseTestClass {
     }
 
     @Test(dataProvider = "generateSeparators")
-    public void OneNonCatInputOneHCatOutput(String separator) throws Exception {
+    public void oneNonCatInputOneHCatOutput(String separator) throws Exception {
         /* upload data and create partition */
         final String datePattern =
             StringUtils.join(new String[]{"yyyy", "MM", "dd", "HH"}, separator);
@@ -553,29 +550,29 @@ public class HCatProcessTest extends BaseTestClass {
         final List<String> dataset = HadoopUtil.
             flattenAndPutDataInFolder(clusterFS, localHCatData, inputHDFSDir, dataDates);
 
-        ArrayList<HCatFieldSchema> cols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> cols = new ArrayList<>();
         cols.add(HCatUtil.getStringSchema(col1Name, col1Name + " comment"));
         cols.add(HCatUtil.getStringSchema(col2Name, col2Name + " comment"));
-        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<HCatFieldSchema>();
+        ArrayList<HCatFieldSchema> partitionCols = new ArrayList<>();
 
         partitionCols.add(HCatUtil.getStringSchema(partitionColumn, partitionColumn + " partition"));
         clusterHC.createTable(HCatCreateTableDesc
-            .create(dbName, outputTableName, cols)
-            .partCols(partitionCols)
-            .ifNotExists(true)
-            .isTableExternal(true)
-            .location(outputHDFSDir)
-            .build());
+                .create(dbName, outputTableName, cols)
+                .partCols(partitionCols)
+                .ifNotExists(true)
+                .isTableExternal(true)
+                .location(outputHDFSDir)
+                .build());
 
-        String nonHCatFeed = BundleUtil.readELBundle().getInputFeedFromBundle();
+        FeedMerlin nonHCatFeed = new FeedMerlin(BundleUtil.readELBundle().getInputFeedFromBundle());
         final String inputFeedName = bundles[0].getInputFeedNameFromBundle();
-        nonHCatFeed = Util.setFeedName(nonHCatFeed, inputFeedName);
+        nonHCatFeed.setName(inputFeedName);
         final List<String> clusterNames = bundles[0].getClusterNames();
         Assert.assertEquals(clusterNames.size(), 1, "Expected only one cluster in the bundle.");
-        nonHCatFeed = Util.setClusterNameInFeed(nonHCatFeed, clusterNames.get(0), 0);
+        nonHCatFeed.setClusterNameInFeed(clusterNames.get(0), 0);
         bundles[0].writeFeedElement(nonHCatFeed, inputFeedName);
-        bundles[0].setInputFeedDataPath(inputHDFSDir + "/" +
-            StringUtils.join(new String[]{"${YEAR}", "${MONTH}", "${DAY}", "${HOUR}"}, separator));
+        bundles[0].setInputFeedDataPath(inputHDFSDir + "/"
+            + StringUtils.join(new String[]{"${YEAR}", "${MONTH}", "${DAY}", "${HOUR}"}, separator));
         bundles[0].setInputFeedPeriodicity(1, Frequency.TimeUnit.hours);
         bundles[0].setInputFeedValidity(startDate, endDate);
 
@@ -603,17 +600,17 @@ public class HCatProcessTest extends BaseTestClass {
 
     private void addPartitionsToTable(List<String> partitions, List<String> partitionLocations,
                                       String partitionCol,
-                                      String dbName, String tableName) throws HCatException {
+                                      String databaseName, String tableName) throws HCatException {
         Assert.assertEquals(partitions.size(), partitionLocations.size(),
             "Number of locations is not same as number of partitions.");
-        final List<HCatAddPartitionDesc> partitionDesc = new ArrayList<HCatAddPartitionDesc>();
+        final List<HCatAddPartitionDesc> partitionDesc = new ArrayList<>();
         for (int i = 0; i < partitions.size(); ++i) {
             final String partition = partitions.get(i);
-            final Map<String, String> onePartition = new HashMap<String, String>();
+            final Map<String, String> onePartition = new HashMap<>();
             onePartition.put(partitionCol, partition);
             final String partitionLoc = partitionLocations.get(i);
             partitionDesc.add(
-                HCatAddPartitionDesc.create(dbName, tableName, partitionLoc, onePartition).build());
+                HCatAddPartitionDesc.create(databaseName, tableName, partitionLoc, onePartition).build());
         }
         clusterHC.addPartitions(partitionDesc);
     }
@@ -623,9 +620,9 @@ public class HCatProcessTest extends BaseTestClass {
         DateTime startDateJoda = new DateTime(TimeUtil.oozieDateToDate(startDate));
         DateTime endDateJoda = new DateTime(TimeUtil.oozieDateToDate(endDate));
         DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
-        logger.info("generating data between " + formatter.print(startDateJoda) + " and " +
-            formatter.print(endDateJoda));
-        List<String> dates = new ArrayList<String>();
+        LOGGER.info("generating data between " + formatter.print(startDateJoda) + " and "
+            + formatter.print(endDateJoda));
+        List<String> dates = new ArrayList<>();
         dates.add(formatter.print(startDateJoda));
         while (!startDateJoda.isAfter(endDateJoda)) {
             startDateJoda = startDateJoda.plusMinutes(skipMinutes);
@@ -636,11 +633,6 @@ public class HCatProcessTest extends BaseTestClass {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-        removeBundles();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void tearDownClass() throws IOException {
-        cleanTestDirs();
+        removeTestClassEntities();
     }
 }

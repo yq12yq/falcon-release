@@ -22,7 +22,6 @@ import org.apache.falcon.FalconException;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Interface definition for a catalog registry service
@@ -66,6 +65,10 @@ public abstract class AbstractCatalogService {
     public abstract boolean isTableExternal(Configuration conf, String catalogUrl, String database,
                                             String tableName) throws FalconException;
 
+    public abstract List<CatalogPartition> listPartitions(Configuration conf, String catalogUrl,
+                                                          String database, String tableName,
+                                                          List<String> values) throws FalconException;
+
     /**
      * List partitions by filter. Executed in the workflow engine.
      *
@@ -88,47 +91,86 @@ public abstract class AbstractCatalogService {
     /**
      * Drops a given partition. Executed in the workflow engine.
      *
+     * @param conf  conf object
+     * @param catalogUrl url for the catalog service
+     * @param database database the table belongs to
+     * @param tableName tableName to check if it exists
+     * @param partitionValues list of partition values
+     * @param deleteData should dropPartition also delete the corresponding data
+     * @return if the partition was dropped
+     * @throws FalconException
+     */
+    public abstract boolean dropPartition(Configuration conf, String catalogUrl,
+                                           String database, String tableName, List<String> partitionValues,
+                                           boolean deleteData) throws FalconException;
+
+    /**
+     * Drops the partitions. Executed in the workflow engine.
      *
      * @param conf  conf object
      * @param catalogUrl url for the catalog service
      * @param database database the table belongs to
      * @param tableName tableName to check if it exists
-     * @param partitions list of partitions as Key=Value pairs
+     * @param partitionValues list of partition values
+     * @param deleteData should dropPartition also delete the corresponding data
      * @return if the partition was dropped
      * @throws FalconException
      */
-    public abstract boolean dropPartitions(Configuration conf, String catalogUrl,
-                                           String database, String tableName,
-                                           Map<String, String> partitions) throws FalconException;
+    public abstract void dropPartitions(Configuration conf, String catalogUrl,
+                                        String database, String tableName,
+                                        List<String> partitionValues, boolean deleteData) throws FalconException;
 
     /**
      * Gets the partition. Executed in the workflow engine.
-     *
      *
      * @param conf  conf
      * @param catalogUrl url for the catalog service
      * @param database database the table belongs to
      * @param tableName tableName to check if it exists
-     * @param partitionSpec The partition specification, {[col_name,value],[col_name2,value2]}.
-     *                      All partition-key-values must be specified.
+     * @param partitionValues Values for partition columns.
      * @return An instance of CatalogPartition.
      * @throws FalconException
      */
     public abstract CatalogPartition getPartition(Configuration conf, String catalogUrl,
                                                   String database, String tableName,
-                                                  Map<String, String> partitionSpec)
+                                                  List<String> partitionValues)
         throws FalconException;
 
     /**
-     *
-     * @param conf  conf
+     * Gets the partition columns for the table in catalog service.
+     * @param conf
      * @param catalogUrl url for the catalog service
-     * @param database database the table belongs to
-     * @param tableName table name
-     * @return list of partition column names of the table
+     * @param database
+     * @param tableName
+     * @return ordered list of partition columns for the table
      * @throws FalconException
      */
-    public abstract List<String> getTablePartitionCols(Configuration conf, String catalogUrl,
-                                                       String database,
-                                                       String tableName) throws FalconException;
+    public abstract List<String> getPartitionColumns(Configuration conf, String catalogUrl, String database,
+                                                     String tableName) throws FalconException;
+
+    /**
+     * Adds the partition to the table.
+     * @param conf
+     * @param catalogUrl
+     * @param database
+     * @param tableName
+     * @param values
+     * @param location
+     * @throws FalconException
+     */
+    public abstract void addPartition(Configuration conf, String catalogUrl, String database,
+                                      String tableName, List<String> values, String location) throws FalconException;
+
+    /**
+     * Updates an existing partition in the table.
+     * @param conf
+     * @param catalogUrl
+     * @param database
+     * @param tableName
+     * @param partValues
+     * @param location
+     * @throws FalconException
+     */
+    public abstract void updatePartition(Configuration conf, String catalogUrl, String database, String tableName,
+                                         List<String> partValues, String location) throws FalconException;
 }

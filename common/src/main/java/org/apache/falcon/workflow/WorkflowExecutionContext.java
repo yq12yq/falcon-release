@@ -23,11 +23,13 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.hadoop.HadoopClientFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.json.simple.JSONValue;
@@ -38,9 +40,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 
 /**
  * Captures the workflow execution context.
@@ -92,8 +97,9 @@ public class WorkflowExecutionContext {
 
     private final Map<WorkflowExecutionArgs, String> context;
     private final long creationTime;
+    private Configuration actionJobConf;
 
-    protected WorkflowExecutionContext(Map<WorkflowExecutionArgs, String> context) {
+    public WorkflowExecutionContext(Map<WorkflowExecutionArgs, String> context) {
         this.context = context;
         creationTime = System.currentTimeMillis();
     }
@@ -149,6 +155,21 @@ public class WorkflowExecutionContext {
 
     String getTimestamp() {
         return getValue(WorkflowExecutionArgs.TIMESTAMP);
+    }
+
+    /**
+     * Returns timestamp as a long.
+     * @return Date as long (milliseconds since epoch) for the timestamp.
+     */
+    public long getTimeStampAsLong() {
+        String dateString = getTimestamp();
+        try {
+            DateFormat dateFormat = new SimpleDateFormat(INSTANCE_FORMAT.substring(0, dateString.length()));
+            dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return dateFormat.parse(dateString).getTime();
+        } catch (java.text.ParseException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -262,6 +283,14 @@ public class WorkflowExecutionContext {
         return creationTime;
     }
 
+    public String getStatus() {
+        return getValue(WorkflowExecutionArgs.STATUS);
+    }
+
+    public String getCounters() {
+        return getValue(WorkflowExecutionArgs.COUNTERS);
+    }
+
     /**
      * this method is invoked from with in the workflow.
      *
@@ -283,7 +312,9 @@ public class WorkflowExecutionContext {
         OutputStream out = null;
         Path file = new Path(contextFile);
         try {
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(file.toUri());
+            FileSystem fs =
+                    actionJobConf == null ? HadoopClientFactory.get().createProxiedFileSystem(file.toUri())
+                                 : HadoopClientFactory.get().createProxiedFileSystem(file.toUri(), actionJobConf);
             out = fs.create(file);
             out.write(JSONValue.toJSONString(context).getBytes());
         } catch (IOException e) {
@@ -328,9 +359,37 @@ public class WorkflowExecutionContext {
         return new Path(logDir + parentSuffix, entityName + "-wf-post-exec-context.json").toString();
     }
 
-    public static WorkflowExecutionContext create(String[] args, Type type) throws FalconException {
-        Map<WorkflowExecutionArgs, String> wfProperties = new HashMap<WorkflowExecutionArgs, String>();
+    public static Path getCounterFilePath(String logDir) {
+        return new Path(logDir, "counter.txt");
+    }
 
+    public static String readCounters(FileSystem fs, Path counterFilePath) throws IOException{
+        StringBuilder counterBuffer = new StringBuilder();
+        BufferedReader in = new BufferedReader(new InputStreamReader(fs.open(counterFilePath)));
+        try {
+            String line;
+            while ((line = in.readLine()) != null) {
+                counterBuffer.append(line);
+                counterBuffer.append(",");
+            }
+        } catch (IOException e) {
+            throw e;
+        } finally {
+            IOUtils.closeQuietly(in);
+        }
+
+        if (counterBuffer.length() > 0) {
+            String counterString = counterBuffer.toString();
+            return counterString.substring(0, counterString.length() - 1);
+        } else {
+            return null;
+        }
+    }
+    public static WorkflowExecutionContext create(String[] args, Type type) throws FalconException {
+        return create(args,type, null);
+    }
+    public static WorkflowExecutionContext create(String[] args, Type type, Configuration conf) throws FalconException {
+        Map<WorkflowExecutionArgs, String> wfProperties = new HashMap<WorkflowExecutionArgs, String>();
         try {
             CommandLine cmd = getCommand(args);
             for (WorkflowExecutionArgs arg : WorkflowExecutionArgs.values()) {
@@ -344,12 +403,41 @@ public class WorkflowExecutionContext {
         }
 
         WorkflowExecutionContext executionContext = new WorkflowExecutionContext(wfProperties);
+        executionContext.actionJobConf = conf;
         executionContext.context.put(WorkflowExecutionArgs.CONTEXT_TYPE, type.name());
         executionContext.context.put(WorkflowExecutionArgs.CONTEXT_FILE,
                 getFilePath(executionContext.getLogDir(), executionContext.getEntityName(),
                         executionContext.getEntityType(), executionContext.getOperation()));
+        addCounterToWF(executionContext);
 
         return executionContext;
+    }
+
+    private static void addCounterToWF(WorkflowExecutionContext executionContext) throws FalconException {
+        Path file = new Path(executionContext.getLogDir());
+        FileSystem fs = executionContext.actionJobConf == null
+                ? HadoopClientFactory.get().createProxiedFileSystem(file.toUri())
+                : HadoopClientFactory.get().createProxiedFileSystem(file.toUri(), executionContext.actionJobConf);
+        Path counterFilePath = getCounterFilePath(executionContext.getLogDir());
+        try {
+            if (fs.exists(counterFilePath)) {
+                String counters = readCounters(fs, counterFilePath);
+                if (!StringUtils.isEmpty(counters)) {
+                    executionContext.context.put(WorkflowExecutionArgs.COUNTERS, counters);
+                }
+            }
+        } catch (IOException e) {
+            throw new FalconException("Error in checking counter file :" + e);
+        } finally {
+            try {
+                if (fs.exists(counterFilePath)) {
+                    fs.delete(counterFilePath, false);
+                }
+                fs.close();
+            } catch (IOException e) {
+                LOG.error("unable to delete counter file: {}", e);
+            }
+        }
     }
 
     private static CommandLine getCommand(String[] arguments) throws ParseException {

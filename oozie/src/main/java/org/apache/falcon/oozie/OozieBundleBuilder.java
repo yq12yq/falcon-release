@@ -24,6 +24,7 @@ import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.oozie.bundle.BUNDLEAPP;
 import org.apache.falcon.oozie.bundle.CONFIGURATION;
@@ -58,7 +59,8 @@ public abstract class OozieBundleBuilder<T extends Entity> extends OozieEntityBu
         super(entity);
     }
 
-    @Override public Properties build(Cluster cluster, Path buildPath) throws FalconException {
+    @Override
+    public Properties build(Cluster cluster, Path buildPath) throws FalconException {
         String clusterName = cluster.getName();
         if (EntityUtil.getStartTime(entity, clusterName).compareTo(EntityUtil.getEndTime(entity, clusterName)) >= 0) {
             LOG.info("process validity start <= end for cluster {}. Skipping schedule", clusterName);
@@ -92,6 +94,12 @@ public abstract class OozieBundleBuilder<T extends Entity> extends OozieEntityBu
         properties.setProperty(OozieClient.BUNDLE_APP_PATH, getStoragePath(buildPath));
         properties.setProperty(AbstractWorkflowEngine.NAME_NODE, ClusterHelper.getStorageUrl(cluster));
 
+        //Add libpath
+        String libPath = getLibPath(buildPath);
+        if (libPath != null) {
+            properties.put(OozieClient.LIBPATH, getStoragePath(libPath));
+        }
+
         return properties;
     }
 
@@ -115,7 +123,8 @@ public abstract class OozieBundleBuilder<T extends Entity> extends OozieEntityBu
 
         properties.setProperty(OozieClient.USER_NAME, CurrentUser.getUser());
         properties.setProperty(OozieClient.USE_SYSTEM_LIBPATH, "true");
-        properties.setProperty("falcon.libpath", ClusterHelper.getLocation(cluster, "working") + "/lib");
+        properties.setProperty("falcon.libpath",
+                ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath() + "/lib");
 
         if (EntityUtil.isTableStorageType(cluster, entity)) {
             Tag tag = EntityUtil.getWorkflowNameTag(coordName, entity);
@@ -126,12 +135,6 @@ public abstract class OozieBundleBuilder<T extends Entity> extends OozieEntityBu
             } else {
                 properties.putAll(getHiveCredentials(cluster));
             }
-        }
-
-        //Add libpath
-        Path libPath = getLibPath(cluster, buildPath);
-        if (libPath != null) {
-            properties.put(OozieClient.LIBPATH, getStoragePath(libPath));
         }
 
         return properties;
@@ -160,4 +163,6 @@ public abstract class OozieBundleBuilder<T extends Entity> extends OozieEntityBu
             throw new FalconException(e);
         }
     }
+
+    public abstract String getLibPath(Path buildPath);
 }

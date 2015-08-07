@@ -52,11 +52,13 @@ See also: [[../Security.twiki][Security in Falcon]]
 | GET         | [[EntityList][api/entities/list/:entity-type]]                              | Get the list of entities           |
 | GET         | [[EntitySummary][api/entities/summary/:entity-type/:cluster]]               | Get instance summary of all entities |
 | GET         | [[EntityDependencies][api/entities/dependencies/:entity-type/:entity-name]] | Get the dependencies of the entity |
+| GET         | [[FeedLookup][api/entities/lookup/feed/]]                                   | Get feed for given path            |
 
 ---++ REST Call on Feed and Process Instances
 
 | *Call Type* | *Resource*                                                                  | *Description*                |
 | GET         | [[InstanceRunning][api/instance/running/:entity-type/:entity-name]]         | List of running instances.   |
+| GET         | [[InstanceParams][api/instance/params/:entity-type/:entity-name]]           | List of entity instances along with their workflow params.   |
 | GET         | [[InstanceList][api/instance/list/:entity-type/:entity-name]]               | List of instances   |
 | GET         | [[InstanceStatus][api/instance/status/:entity-type/:entity-name]]           | Status of a given instance   |
 | POST        | [[InstanceKill][api/instance/kill/:entity-type/:entity-name]]               | Kill a given instance        |
@@ -77,6 +79,7 @@ See also: [[../Security.twiki][Security in Falcon]]
 | GET         | [[AdjacentVertices][api/metadata/lineage/vertices/:id/:direction]]                     | get the adjacent vertices or edges of the vertex with the specified direction |
 | GET         | [[AllEdges][api/metadata/lineage/edges/all]]                                           | get all edges                                                                 |
 | GET         | [[Edge][api/metadata/lineage/edges/:id]]                                               | get the edge with the specified id                                            |
+| GET         | [[EntityLineage][api/metadata/lineage/entities?pipeline=:name]]                        | Get lineage graph for processes and feeds in the specified pipeline           |
 
 ---++ REST Call on Metadata Discovery Resource
 

@@ -18,7 +18,9 @@
 
 package org.apache.falcon.util;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -26,6 +28,9 @@ import javax.servlet.http.HttpServletRequest;
  * Utility functions for dealing with servlets.
  */
 public final class Servlets {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Servlets.class);
+    public static final String REQUEST_ID = "requestId";
 
     private Servlets() {
         /* singleton */
@@ -38,16 +43,20 @@ public final class Servlets {
      * @return the user
      */
     public static String getUserFromRequest(HttpServletRequest httpRequest) {
+
+        LOG.info("HttpServletRequest RemoteUser is " + httpRequest.getRemoteUser());
         String user = httpRequest.getRemoteUser();
         if (!StringUtils.isEmpty(user)) {
             return user;
         }
 
+        LOG.info("HttpServletRequest user.name param value is " + httpRequest.getParameter("user.name"));
         user = httpRequest.getParameter("user.name"); // available in query-param
         if (!StringUtils.isEmpty(user)) {
             return user;
         }
 
+        LOG.info("HttpServletRequest user.name from remote-header is " + httpRequest.getParameter("user.name"));
         user = httpRequest.getHeader("Remote-User"); // backwards-compatibility
         if (!StringUtils.isEmpty(user)) {
             return user;

@@ -22,6 +22,7 @@ import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.process.EngineType;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.workflow.WorkflowExecutionContext;
+import org.apache.falcon.workflow.util.OozieActionConfigurationHelper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,12 +52,21 @@ import java.util.Set;
 public class JobLogMover {
 
     private static final Logger LOG = LoggerFactory.getLogger(JobLogMover.class);
+    private static final String YARN = "yarn";
+    private static final String MAPREDUCE_FRAMEWORK = "mapreduce.framework.name";
 
     public static final Set<String> FALCON_ACTIONS =
         new HashSet<String>(Arrays.asList(new String[]{"eviction", "replication", }));
 
     private Configuration getConf() {
-        return new Configuration();
+        Configuration conf = null;
+        try {
+            conf = OozieActionConfigurationHelper.createActionConf();
+        }
+        catch (IOException ioe) {
+            LOG.warn("Cannot get Oozie configuration.  Returning default");
+        }
+        return conf == null ? new Configuration(): conf;
     }
 
     public int run(WorkflowExecutionContext context) {
@@ -70,9 +80,11 @@ public class JobLogMover {
                 return 0;
             }
 
+            //Assumption is - Each wf run will have a directory
+            //the corresponding job logs are stored within the respective dir
             Path path = new Path(context.getLogDir() + "/"
                     + String.format("%03d", context.getWorkflowRunId()));
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri(), getConf());
 
             if (EntityType.FEED.name().equalsIgnoreCase(context.getEntityType())
                     || notUserWorkflowEngineIsOozie(context.getUserWorkflowEngine())) {
@@ -87,17 +99,26 @@ public class JobLogMover {
                     }
                 }
             } else {
-                // if process wf with oozie engine
-                String subflowId = jobInfo.getExternalId();
-                copyOozieLog(client, fs, path, subflowId);
-                WorkflowJob subflowInfo = client.getJobInfo(subflowId);
+                String flowId;
+                // if process wf with pig, hive
+                if (context.getUserWorkflowEngine().equals("pig")
+                        ||context.getUserWorkflowEngine().equals("hive")) {
+                    flowId = jobInfo.getId();
+                } else {
+                    // if process wf with oozie engine
+                    flowId = jobInfo.getExternalId();
+                }
+                copyOozieLog(client, fs, path, flowId);
+                WorkflowJob subflowInfo = client.getJobInfo(flowId);
                 List<WorkflowAction> actions = subflowInfo.getActions();
                 for (WorkflowAction action : actions) {
-                    if (action.getType().equals("pig")
-                            || action.getType().equals("java")) {
+                    if (isActionTypeSupported(action)) {
+                        LOG.info("Copying hadoop TT log for action: {} of type: {}",
+                                action.getName(), action.getType());
                         copyTTlogs(fs, path, action);
                     } else {
-                        LOG.info("Ignoring hadoop TT log for non-pig and non-java action: {}", action.getName());
+                        LOG.info("Ignoring hadoop TT log for non supported action: {} of type: {}",
+                                action.getName(), action.getType());
                     }
                 }
             }
@@ -110,8 +131,8 @@ public class JobLogMover {
     }
 
     private boolean notUserWorkflowEngineIsOozie(String userWorkflowEngine) {
-        // userWorkflowEngine will be null for replication and "pig" for pig
-        return userWorkflowEngine != null && EngineType.fromValue(userWorkflowEngine) != EngineType.OOZIE;
+        // userWorkflowEngine will be null for replication and "not null" for pig, hive, oozie
+        return userWorkflowEngine != null && EngineType.fromValue(userWorkflowEngine) == null;
     }
 
     private void copyOozieLog(OozieClient client, FileSystem fs, Path path,
@@ -124,15 +145,26 @@ public class JobLogMover {
 
     private void copyTTlogs(FileSystem fs, Path path,
                             WorkflowAction action) throws Exception {
-        String ttLogURL = getTTlogURL(action.getExternalId());
-        if (ttLogURL != null) {
-            LOG.info("Fetching log for action: {} from url: {}", action.getExternalId(), ttLogURL);
-            InputStream in = getURLinputStream(new URL(ttLogURL));
-            OutputStream out = fs.create(new Path(path, action.getName() + "_"
-                    + getMappedStatus(action.getStatus()) + ".log"));
-            IOUtils.copyBytes(in, out, 4096, true);
-            LOG.info("Copied log to {}", path);
+        List<String> ttLogUrls = getTTlogURL(action.getExternalId());
+        if (ttLogUrls != null) {
+            int index = 1;
+            for (String ttLogURL : ttLogUrls) {
+                LOG.info("Fetching log for action: {} from url: {}", action.getExternalId(), ttLogURL);
+                InputStream in = getURLinputStream(new URL(ttLogURL));
+                OutputStream out = fs.create(new Path(path, action.getName() + "_" + action.getType() + "_"
+                        + getMappedStatus(action.getStatus()) + "-" + index + ".log"));
+                IOUtils.copyBytes(in, out, 4096, true);
+                LOG.info("Copied log to {}", path);
+                index++;
+            }
         }
+    }
+
+    private boolean isActionTypeSupported(WorkflowAction action) {
+        return action.getType().equals("pig")
+                || action.getType().equals("hive")
+                || action.getType().equals("java")
+                || action.getType().equals("map-reduce");
     }
 
     private String getMappedStatus(WorkflowAction.Status status) {
@@ -145,19 +177,17 @@ public class JobLogMover {
         }
     }
 
-    private String getTTlogURL(String jobId) throws Exception {
+    private List<String> getTTlogURL(String jobId) throws Exception {
         TaskLogURLRetriever logRetriever = ReflectionUtils
-                .newInstance(getLogRetrieverClassName(), getConf());
+                .newInstance(getLogRetrieverClassName(getConf()), getConf());
         return logRetriever.retrieveTaskLogURL(jobId);
     }
 
     @SuppressWarnings("unchecked")
-    private Class<? extends TaskLogURLRetriever> getLogRetrieverClassName() {
-        try {
-            return (Class<? extends TaskLogURLRetriever>)
-                    Class.forName("org.apache.falcon.logging.v1.TaskLogRetrieverV1");
-        } catch (ClassNotFoundException e) {
-            LOG.warn("V1 Retriever missing, falling back to Default retriever");
+    private Class<? extends TaskLogURLRetriever> getLogRetrieverClassName(Configuration conf) {
+        if (YARN.equals(conf.get(MAPREDUCE_FRAMEWORK))) {
+            return TaskLogRetrieverYarn.class;
+        } else {
             return DefaultTaskLogRetriever.class;
         }
     }

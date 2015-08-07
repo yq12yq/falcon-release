@@ -20,9 +20,9 @@ package org.apache.falcon.lifecycle;
 
 import org.apache.commons.el.ExpressionEvaluatorImpl;
 import org.apache.falcon.Pair;
-import org.apache.falcon.catalog.HiveCatalogService;
 import org.apache.falcon.entity.Storage;
 import org.apache.falcon.expression.ExpressionHelper;
+import org.apache.falcon.resource.TestContext;
 import org.apache.falcon.retention.FeedEvictor;
 import org.apache.falcon.util.HiveTestUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -34,7 +34,6 @@ import org.apache.hive.hcatalog.api.HCatClient;
 import org.apache.hive.hcatalog.api.HCatPartition;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -87,7 +86,13 @@ public class TableStorageFeedEvictorIT {
     public void setUp() throws Exception {
         FeedEvictor.OUT.set(stream);
 
-        client = HiveCatalogService.getHCatClient(METASTORE_URL);
+        client = TestContext.getHCatClient(METASTORE_URL);
+
+        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, EXTERNAL_TABLE_NAME);
+        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, TABLE_NAME);
+        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_EXTERNAL_TABLE_NAME);
+        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_TABLE_NAME);
+        HiveTestUtils.dropDatabase(METASTORE_URL, DATABASE_NAME);
 
         HiveTestUtils.createDatabase(METASTORE_URL, DATABASE_NAME);
         final List<String> partitionKeys = Arrays.asList("ds", "region");
@@ -99,15 +104,6 @@ public class TableStorageFeedEvictorIT {
         HiveTestUtils.createTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_TABLE_NAME, multiColDatedPartitionKeys);
         HiveTestUtils.createExternalTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_EXTERNAL_TABLE_NAME,
                 multiColDatedPartitionKeys, MULTI_COL_DATED_EXTERNAL_TABLE_LOCATION);
-    }
-
-    @AfterClass
-    public void close() throws Exception {
-        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, EXTERNAL_TABLE_NAME);
-        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, TABLE_NAME);
-        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_EXTERNAL_TABLE_NAME);
-        HiveTestUtils.dropTable(METASTORE_URL, DATABASE_NAME, MULTI_COL_DATED_TABLE_NAME);
-        HiveTestUtils.dropDatabase(METASTORE_URL, DATABASE_NAME);
     }
 
     @DataProvider (name = "evictorTestDataProvider")
@@ -156,7 +152,7 @@ public class TableStorageFeedEvictorIT {
                 "-retentionType", "instance",
                 "-retentionLimit", retentionLimit,
                 "-timeZone", timeZone,
-                "-frequency", "daily",
+                "-frequency", "days(1)",
                 "-logFile", logFile,
                 "-falconFeedStorageType", Storage.TYPE.TABLE.name(),
             });
@@ -372,15 +368,16 @@ public class TableStorageFeedEvictorIT {
         FileSystem fs = path.getFileSystem(new Configuration());
 
         for (String candidatePartition : candidatePartitions) {
+            path = new Path(EXTERNAL_TABLE_LOCATION + candidatePartition);
             if (isTableExternal) {
-                touch(fs, EXTERNAL_TABLE_LOCATION + candidatePartition);
+                touch(fs, path.toString());
             }
 
             Map<String, String> partition = new HashMap<String, String>();
             partition.put("ds", candidatePartition); //yyyyMMDD
             partition.put("region", "in");
             HCatAddPartitionDesc addPtn = HCatAddPartitionDesc.create(
-                    DATABASE_NAME, tableName, null, partition).build();
+                    DATABASE_NAME, tableName, isTableExternal ? path.toString() : null, partition).build();
             client.addPartition(addPtn);
         }
     }
@@ -408,7 +405,7 @@ public class TableStorageFeedEvictorIT {
     }
 
     private void touch(FileSystem fs, String path) throws Exception {
-        fs.create(new Path(path)).close();
+        fs.mkdirs(new Path(path));
     }
 
     private void dropPartitions(String tableName, List<String> candidatePartitions) throws Exception {

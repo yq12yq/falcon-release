@@ -20,6 +20,7 @@ package org.apache.falcon.process;
 
 import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.entity.v0.cluster.Interfacetype;
 import org.apache.falcon.resource.APIResult;
 import org.apache.falcon.resource.InstancesResult;
@@ -100,7 +101,7 @@ public class TableStorageProcessIT {
     private void copyLibsToHDFS(Cluster cluster, String storageUrl) throws IOException {
         // set up kahadb to be sent as part of workflows
         StartupProperties.get().setProperty("libext.paths", "./target/libext");
-        String libext = ClusterHelper.getLocation(cluster, "working") + "/libext";
+        String libext = ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath() + "/libext";
         FSUtils.copyOozieShareLibsToHDFS("./target/libext", storageUrl + libext);
     }
 
@@ -118,15 +119,13 @@ public class TableStorageProcessIT {
         overlay.put("cluster", "primary-cluster");
 
         String filePath = TestContext.overlayParametersOverTemplate(CLUSTER_TEMPLATE, overlay);
-        Assert.assertEquals(0, TestContext.executeWithURL("entity -submit -type cluster -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submit -type cluster -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/table-feed-input.xml", overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath), 0);
 
         filePath = TestContext.overlayParametersOverTemplate("/table/table-feed-output.xml", overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type feed -file " + filePath), 0);
     }
 
     @AfterClass
@@ -162,8 +161,7 @@ public class TableStorageProcessIT {
         overlay.put("processName", pigProcessName);
 
         String filePath = TestContext.overlayParametersOverTemplate("/table/pig-process-tables.xml", overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath), 0);
 
         WorkflowJob jobInfo = OozieTestUtils.getWorkflowJob(context.getCluster().getCluster(),
                 OozieClient.FILTER_NAME + "=FALCON_PROCESS_DEFAULT_" + pigProcessName);
@@ -189,8 +187,7 @@ public class TableStorageProcessIT {
         overlay.put("processName", hiveProcessName);
 
         String filePath = TestContext.overlayParametersOverTemplate("/table/hive-process-template.xml", overlay);
-        Assert.assertEquals(0,
-                TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath));
+        Assert.assertEquals(TestContext.executeWithURL("entity -submitAndSchedule -type process -file " + filePath), 0);
 
         WorkflowJob jobInfo = OozieTestUtils.getWorkflowJob(context.getCluster().getCluster(),
                 OozieClient.FILTER_NAME + "=FALCON_PROCESS_DEFAULT_" + hiveProcessName);

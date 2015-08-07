@@ -26,6 +26,7 @@ import org.apache.falcon.entity.ClusterHelper;
 import org.apache.falcon.entity.EntityUtil;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.cluster.Cluster;
+import org.apache.falcon.entity.v0.cluster.ClusterLocationType;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.hadoop.HadoopClientFactory;
@@ -209,7 +210,7 @@ public abstract class OozieOrchestrationWorkflowBuilder<T extends Entity> extend
     }
 
     protected void addLibExtensionsToWorkflow(Cluster cluster, WORKFLOWAPP wf, Tag tag) throws FalconException {
-        String libext = ClusterHelper.getLocation(cluster, "working") + "/libext";
+        String libext = ClusterHelper.getLocation(cluster, ClusterLocationType.WORKING).getPath() + "/libext";
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(
             ClusterHelper.getConfiguration(cluster));
         try {
@@ -364,10 +365,5 @@ public abstract class OozieOrchestrationWorkflowBuilder<T extends Entity> extend
         Properties props = RuntimeProperties.get();
         action.setRetryMax(props.getProperty("falcon.parentworkflow.retry.max", "3"));
         action.setRetryInterval(props.getProperty("falcon.parentworkflow.retry.interval.secs", "1"));
-    }
-
-    @Override
-    protected Path getLibPath(Cluster cluster, Path buildPath) throws FalconException {
-        return super.getLibPath(cluster, buildPath.getParent());
     }
 }

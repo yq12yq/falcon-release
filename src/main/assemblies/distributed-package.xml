@@ -122,6 +122,25 @@
             <source>oozie-el-extensions/target/falcon-oozie-el-extension-${project.version}.jar</source>
             <outputDirectory>oozie/libext</outputDirectory>
         </file>
+
+        <file>
+            <source>oozie-el-extensions/src/main/conf/oozie-site.xml</source>
+            <outputDirectory>oozie/conf</outputDirectory>
+        </file>
+
+        <file>
+            <source>addons/recipes/hdfs-replication/src/main/resources/hdfs-replication-workflow.xml</source>
+            <outputDirectory>data-mirroring/workflows</outputDirectory>
+        </file>
+
+        <file>
+            <source>addons/recipes/hive-disaster-recovery/src/main/resources/hive-disaster-recovery-workflow.xml</source>
+            <outputDirectory>data-mirroring/workflows</outputDirectory>
+        </file>
+        <file>
+            <source>addons/recipes/hive-disaster-recovery/src/main/resources/hive-disaster-recovery-secure-workflow.xml</source>
+            <outputDirectory>data-mirroring/workflows</outputDirectory>
+        </file>
     </files>
 </assembly>
     

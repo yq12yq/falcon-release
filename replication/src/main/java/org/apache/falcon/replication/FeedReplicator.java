@@ -18,23 +18,30 @@
 package org.apache.falcon.replication;
 
 import org.apache.commons.cli.*;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.EntityUtil;
+import org.apache.falcon.entity.Storage;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.Counters;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpOptions;
+import org.apache.hadoop.tools.mapred.CopyMapper;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -68,14 +75,30 @@ public class FeedReplicator extends Configured implements Tool {
         final boolean includePathSet = (includePathConf != null)
                 && !IGNORE.equalsIgnoreCase(includePathConf);
 
+        String availabilityFlagOpt = cmd.getOptionValue("availabilityFlag");
+        if (StringUtils.isEmpty(availabilityFlagOpt)) {
+            availabilityFlagOpt = "NA";
+        }
+        String availabilityFlag = EntityUtil.SUCCEEDED_FILE_NAME;
+        if (cmd.getOptionValue("falconFeedStorageType").equals(Storage.TYPE.FILESYSTEM.name())) {
+            availabilityFlag = "NA".equals(availabilityFlagOpt)
+                    ? availabilityFlag : availabilityFlagOpt;
+        }
+
+        conf.set("falcon.feed.availability.flag", availabilityFlag);
         DistCp distCp = (includePathSet)
                 ? new CustomReplicator(conf, options)
                 : new DistCp(conf, options);
         LOG.info("Started DistCp");
-        distCp.execute();
+        Job job = distCp.execute();
+
+        if (cmd.hasOption("counterLogDir")) {
+            Path counterFilePath = new Path(cmd.getOptionValue("counterLogDir"), "counter.txt");
+            storeDistcpStats(job, counterFilePath, options);
+        }
 
         if (includePathSet) {
-            executePostProcessing(options);  // this only applies for FileSystem Storage.
+            executePostProcessing(conf, options);  // this only applies for FileSystem Storage.
         }
 
         LOG.info("Completed DistCp");
@@ -107,6 +130,14 @@ public class FeedReplicator extends Configured implements Tool {
         opt.setRequired(true);
         options.addOption(opt);
 
+        opt = new Option("availabilityFlag", true, "availability flag");
+        opt.setRequired(false);
+        options.addOption(opt);
+
+        opt = new Option("counterLogDir", true, "log directory to store job counter file");
+        opt.setRequired(false);
+        options.addOption(opt);
+
         return new GnuParser().parse(options, args);
     }
 
@@ -124,14 +155,14 @@ public class FeedReplicator extends Configured implements Tool {
     }
 
     private List<Path> getPaths(String[] paths) {
-        List<Path> listPaths = new ArrayList<Path>();
+        List<Path> listPaths = new ArrayList<>();
         for (String path : paths) {
             listPaths.add(new Path(path));
         }
         return listPaths;
     }
 
-    private void executePostProcessing(DistCpOptions options) throws IOException, FalconException {
+    private void executePostProcessing(Configuration conf, DistCpOptions options) throws IOException, FalconException {
         Path targetPath = options.getTargetPath();
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(
                 targetPath.toUri(), getConf());
@@ -154,15 +185,16 @@ public class FeedReplicator extends Configured implements Tool {
             finalOutputPath = targetPath;
         }
 
+        final String availabilityFlag = conf.get("falcon.feed.availability.flag");
         FileStatus[] files = fs.globStatus(finalOutputPath);
         if (files != null) {
             for (FileStatus file : files) {
-                fs.create(new Path(file.getPath(), EntityUtil.SUCCEEDED_FILE_NAME)).close();
-                LOG.info("Created {}", new Path(file.getPath(), EntityUtil.SUCCEEDED_FILE_NAME));
+                fs.create(new Path(file.getPath(), availabilityFlag)).close();
+                LOG.info("Created {}", new Path(file.getPath(), availabilityFlag));
             }
         } else {
-            // As distcp is not copying empty directories we are creating  _SUCCESS file here
-            fs.create(new Path(finalOutputPath, EntityUtil.SUCCEEDED_FILE_NAME)).close();
+            // As distcp is not copying empty directories we are creating availabilityFlag file here
+            fs.create(new Path(finalOutputPath, availabilityFlag)).close();
             LOG.info("No files present in path: {}", finalOutputPath);
         }
     }
@@ -188,5 +220,29 @@ public class FeedReplicator extends Configured implements Tool {
         }
         String result = resultBuffer.toString();
         return result.substring(0, result.lastIndexOf('/'));
+    }
+
+    private void storeDistcpStats(Job distcpJob, Path counterFile, DistCpOptions options) throws Exception {
+        List<Path> inPaths = options.getSourcePaths();
+        assert inPaths.size() == 1 : "Source paths more than 1 can't be handled";
+
+        OutputStream out = null;
+        FileSystem sourceFs = HadoopClientFactory.get().createProxiedFileSystem(
+                inPaths.get(0).toUri(), getConf());
+
+        Counters jobCounters = distcpJob.getCounters();
+        try {
+            out = sourceFs.create(counterFile);
+            Counter counter = jobCounters.findCounter(CopyMapper.Counter.BYTESCOPIED);
+            if (counter!=null) {
+                String counterName = counter.getName();
+                Long counterValue = counter.getValue();
+                LOG.info("Data copied (in bytes): {}", counterValue);
+                out.write((counterName + ":" + counterValue).getBytes());
+            }
+            out.flush();
+        } finally {
+            IOUtils.closeQuietly(out);
+        }
     }
 }

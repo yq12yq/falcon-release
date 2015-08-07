@@ -45,7 +45,6 @@ import java.util.*;
  */
 @Path("instance")
 public class InstanceManagerProxy extends AbstractInstanceManager {
-    private static final String DEFAULT_NUM_RESULTS = "10";
     private final Map<String, Channel> processInstanceManagerChannels = new HashMap<String, Channel>();
 
     public InstanceManagerProxy() {
@@ -327,14 +326,15 @@ public class InstanceManagerProxy extends AbstractInstanceManager {
             @Dimension("end-time") @QueryParam("end") final String endStr,
             @Context HttpServletRequest request,
             @Dimension("colo") @QueryParam("colo") String colo,
-            @Dimension("lifecycle") @QueryParam("lifecycle") final List<LifeCycle> lifeCycles) {
+            @Dimension("lifecycle") @QueryParam("lifecycle") final List<LifeCycle> lifeCycles,
+            @Dimension("force") @QueryParam("force") final Boolean isForced) {
 
         final HttpServletRequest bufferedRequest = new BufferedRequest(request);
         return new InstanceProxy<InstancesResult>(InstancesResult.class) {
             @Override
             protected InstancesResult doExecute(String colo) throws FalconException {
                 return getInstanceManager(colo).invoke("reRunInstance",
-                        type, entity, startStr, endStr, bufferedRequest, colo, lifeCycles);
+                        type, entity, startStr, endStr, bufferedRequest, colo, lifeCycles, isForced);
             }
         }.execute(colo, type, entity);
     }

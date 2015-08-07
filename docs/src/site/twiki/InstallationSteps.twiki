@@ -4,16 +4,26 @@
 ---+++ Building Falcon
 
 <verbatim>
-git clone https://git-wip-us.apache.org/repos/asf/incubator-falcon.git falcon
+You would need the following installed to build Falcon
+
+* JDK 1.7
+* Maven 3.x
+
+git clone https://git-wip-us.apache.org/repos/asf/falcon.git falcon
 
 cd falcon
 
-export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m" && mvn clean install
+export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m -noverify" && mvn clean install
 
 [optionally -Dhadoop.version=<<hadoop.version>> can be appended to build for a specific version of hadoop]
 *Note:* Falcon drops support for Hadoop-1 and only supports Hadoop-2 from Falcon 0.6 onwards
 [optionally -Doozie.version=<<oozie version>> can be appended to build with a specific version of oozie.
 Oozie versions >= 4 are supported]
+
+To compile Falcon with Hive Disaster Recovery, optionally "-P hadoop-2,hivedr" can be appended.
+*Note:* Falcon Hive Disaster Recovery only works with Hive >= 1.2.0 and accordingly Oozie hive2 sharelib should be available.
+
+Falcon build with JDK 1.7 using -noverify option
 
 </verbatim>
 
@@ -24,9 +34,12 @@ Once the build successfully completes, artifacts can be packaged for deployment.
 
 mvn clean assembly:assembly -DskipTests -DskipCheck=true
 
+To build Falcon with Hive Disaster Recovery, optionally "-P hadoop-2,hivedr" can be appended.
+*Note:* Falcon Hive Disaster Recovery only works with Hive >= 1.2.0 and accordingly Oozie hive2 sharelib should be available.
+
 </verbatim>
 
-Tar can be found in {project dir}/target/falcon-${project.version}-bin.tar.gz
+Tar can be found in {project dir}/target/apache-falcon-${project.version}-bin.tar.gz
 
 Tar is structured as follows
 
@@ -65,9 +78,12 @@ Tar is structured as follows
 
 mvn clean assembly:assembly -DskipTests -DskipCheck=true -Pdistributed,hadoop-2
 
+To build Falcon with Hive Disaster Recovery, optionally "hivedr" can be appended with "-P".
+*Note:* Falcon Hive Disaster Recovery only works with Hive >= 1.2.0 and accordingly Oozie hive2 sharelib should be available.
+
 </verbatim>
 
-Tar can be found in {project dir}/target/falcon-distributed-${project.version}-server.tar.gz
+Tar can be found in {project dir}/target/apache-falcon-distributed-${project.version}-server.tar.gz
 
 Tar is structured as follows
 
@@ -159,6 +175,27 @@ In addition you can set any other environment variables you might need. This fil
 #export FALCON_EXPANDED_WEBAPP_DIR=
 </verbatim>
 
+*Configuring Monitoring plugin to register catalog partitions*
+Falcon comes with a monitoring plugin that registers catalog partition. This comes in really handy during migration from filesystem based feeds to hcatalog based feeds.
+This plugin enables the user to de-couple the partition registration and assume that all partitions are already on hcatalog even before the migration, simplifying the hcatalog migration.
+
+By default this plugin is disabled.
+To enable this plugin and leverage the feature, there are 3 pre-requisites:
+
+<verbatim>
+In {package dir}/conf/startup.properties, add
+*.workflow.execution.listeners=org.apache.falcon.catalog.CatalogPartitionHandler
+
+In the cluster definition, ensure registry endpoint is defined.
+Ex:
+<interface type="registry" endpoint="thrift://localhost:1109" version="0.13.3"/>
+
+In the feed definition, ensure the corresponding catalog table is mentioned in feed-properties
+Ex:
+<properties>
+    <property name="catalog.table" value="catalog:default:in_table#year={YEAR};month={MONTH};day={DAY};hour={HOUR};minute={MINUTE}"/>
+</properties>
+</verbatim>
 
 *NOTE for Mac OS users*
 <verbatim>
@@ -252,7 +289,7 @@ src/bin/package.sh <<hadoop-version>> <<oozie-version>>
 
 >> ex. src/bin/package.sh 1.1.2 4.0.1 or src/bin/package.sh 0.20.2-cdh3u5 4.0.1
 >> ex. src/bin/package.sh 2.5.0 4.0.0
->> Falcon package is available in <<falcon home>>/target/falcon-<<version>>-bin.tar.gz
+>> Falcon package is available in <<falcon home>>/target/apache-falcon-<<version>>-bin.tar.gz
 >> Oozie package is available in <<falcon home>>/target/oozie-4.0.1-distro.tar.gz
 </verbatim>
 

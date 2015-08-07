@@ -24,25 +24,26 @@
     <parent>
         <groupId>org.apache.falcon</groupId>
         <artifactId>falcon-main</artifactId>
-        <version>0.6-incubating-SNAPSHOT</version>
+        <version>0.7-SNAPSHOT</version>
     </parent>
     <groupId>org.apache.falcon.regression</groupId>
     <artifactId>falcon-regression</artifactId>
-    <version>0.6-incubating-SNAPSHOT</version>
+    <version>0.7-SNAPSHOT</version>
     <description>Regression Framework for Falcon</description>
     <name>Apache Falcon Regression</name>
     <packaging>pom</packaging>
 
     <modules>
-        <module>checkstyle</module>
         <module>merlin-core</module>
         <module>merlin</module>
     </modules>
 
     <properties>
-        <oozie.version>3.2.2</oozie.version>
-        <hive.version>0.13.1</hive.version>
+        <oozie.version>4.1.0</oozie.version>
+        <hive.version>0.14.0</hive.version>
+        <testng.exclude.pattern>nothing</testng.exclude.pattern>
         <testng.include.pattern>**/Test*.java,**/*Test.java,**/*TestCase.java</testng.include.pattern>
+        <testng.exclude.pattern>nothing</testng.exclude.pattern>
     </properties>
 
     <profiles>
@@ -84,6 +85,12 @@
 
                     <dependency>
                         <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-distcp</artifactId>
+                        <version>${hadoop.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
                         <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
                         <version>${hadoop.version}</version>
                     </dependency>
@@ -91,6 +98,12 @@
                     <dependency>
                         <groupId>org.apache.hadoop</groupId>
                         <artifactId>hadoop-yarn-server-nodemanager</artifactId>
+                        <version>${hadoop.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-azure</artifactId>
                         <version>${hadoop.version}</version>
                     </dependency>
 
@@ -113,9 +126,15 @@
                     </dependency>
 
                     <dependency>
-                        <groupId>org.apache.hadoop</groupId>
-                        <artifactId>hadoop-azure</artifactId>
-                        <version>${hadoop.version}</version>
+                        <groupId>org.apache.hive</groupId>
+                        <artifactId>hive-jdbc</artifactId>
+                        <version>${hive.version}</version>
+                    </dependency>
+
+                    <dependency>
+                        <groupId>org.apache.hive</groupId>
+                        <artifactId>hive-metastore</artifactId>
+                        <version>${hive.version}</version>
                     </dependency>
 
                 </dependencies>
@@ -178,19 +197,19 @@
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
-                <version>4.2.3</version>
+                <version>4.4.1</version>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpcore</artifactId>
-                <version>4.2.3</version>
+                <version>4.4.1</version>
             </dependency>
 
             <dependency>
                 <groupId>com.jcraft</groupId>
                 <artifactId>jsch</artifactId>
-                <version>0.1.44-1</version>
+                <version>0.1.51</version>
             </dependency>
 
             <dependency>
@@ -221,17 +240,22 @@
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-firefox-driver</artifactId>
-                <version>2.41.0</version>
+                <version>2.45.0</version>
             </dependency>
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-support</artifactId>
-                <version>2.41.0</version>
+                <version>2.45.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-exec</artifactId>
                 <version>1.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>18.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -243,12 +267,6 @@
         <testOutputDirectory>target/test-classes</testOutputDirectory>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>2.3.2</version>
-                </plugin>
-
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
@@ -290,15 +308,6 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <executions>
                     <execution>
@@ -335,6 +344,9 @@
                     <threadCount>1</threadCount>
                     <groups>${testng.groups}</groups>
                     <excludedGroups>${testng.exclude.groups}</excludedGroups>
+                    <excludes>
+                        <exclude>${testng.exclude.pattern}</exclude>
+                    </excludes>
                     <includes>
                         <include>${testng.include.pattern}</include>
                     </includes>
@@ -342,9 +354,14 @@
                         <!-- Hack to get the dir in CP through CLI and idea -->
                         <additionalClasspathElement>${hadoop.conf.dir}</additionalClasspathElement>
                         <additionalClasspathElement>${hive.conf.dir}</additionalClasspathElement>
+                        <additionalClasspathElement>${falcon.conf.dir}</additionalClasspathElement>
                         <additionalClasspathElement>merlin/src/test/resources/hadoop-conf
                         </additionalClasspathElement>
                         <additionalClasspathElement>src/test/resources/hadoop-conf
+                        </additionalClasspathElement>
+                        <additionalClasspathElement>merlin/src/test/resources/falcon-conf
+                        </additionalClasspathElement>
+                        <additionalClasspathElement>src/test/resources/falcon-conf
                         </additionalClasspathElement>
                     </additionalClasspathElements>
                     <properties>
@@ -370,6 +387,7 @@
                         <exclude>*.txt</exclude>
                         <exclude>.git/**</exclude>
                         <exclude>.idea/**</exclude>
+                        <exclude>oozie_logs/**</exclude>
                         <exclude>**/*.twiki</exclude>
                         <exclude>**/*.iml</exclude>
                         <exclude>**/target/**</exclude>
@@ -438,7 +456,7 @@
                     <!--debug>true</debug -->
                     <xmlOutput>true</xmlOutput>
                     <excludeFilterFile>
-                        ${project.basedir}/../checkstyle/src/main/resources/falcon/findbugs-exclude.xml
+                        ${project.basedir}/../../checkstyle/src/main/resources/falcon/findbugs-exclude.xml
                     </excludeFilterFile>
                     <failOnError>true</failOnError>
                     <skip>${skipCheck}</skip>

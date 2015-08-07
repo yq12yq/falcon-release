@@ -18,12 +18,16 @@
 
 package org.apache.falcon.security;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.v0.AccessControlList;
+import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.util.ReflectionUtils;
 import org.apache.falcon.util.StartupProperties;
 import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -103,5 +107,23 @@ public final class SecurityUtil {
                 "falcon.security.authorization.provider",
                 "org.apache.falcon.security.DefaultAuthorizationProvider");
         return ReflectionUtils.getInstanceByClassName(providerClassName);
+    }
+
+    public static void tryProxy(Entity entity) throws IOException, FalconException {
+        if (entity != null && entity.getACL() != null && !isACLEmpty(entity.getACL())
+                && SecurityUtil.isAuthorizationEnabled()) {
+            final String aclOwner = entity.getACL().getOwner();
+            final String aclGroup = entity.getACL().getGroup();
+
+            if (SecurityUtil.getAuthorizationProvider().shouldProxy(
+                    CurrentUser.getAuthenticatedUGI(), aclOwner, aclGroup)) {
+                CurrentUser.proxy(aclOwner, aclGroup);
+            }
+        }
+    }
+
+    private static boolean isACLEmpty(AccessControlList acl) {
+        return acl == null || (StringUtils.isEmpty(acl.getGroup()) || StringUtils.isEmpty(acl.getOwner())
+                || StringUtils.isEmpty(acl.getPermission()));
     }
 }

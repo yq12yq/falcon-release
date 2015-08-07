@@ -19,7 +19,7 @@
 package org.apache.falcon.oozie.feed;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.LifeCycle;
 import org.apache.falcon.Tag;
@@ -36,6 +36,7 @@ import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.feed.ClusterType;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.entity.v0.feed.LocationType;
+import org.apache.falcon.entity.v0.process.ExecutionType;
 import org.apache.falcon.expression.ExpressionHelper;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.falcon.oozie.OozieCoordinatorBuilder;
@@ -74,6 +75,7 @@ public class FeedReplicationCoordinatorBuilder extends OozieCoordinatorBuilder<F
     private static final String TIMEOUT = "timeout";
     private static final String MR_MAX_MAPS = "maxMaps";
     private static final String MR_MAP_BANDWIDTH = "mapBandwidth";
+    private static final String ORDER = "order";
 
     public FeedReplicationCoordinatorBuilder(Feed entity) {
         super(entity, LifeCycle.REPLICATION);
@@ -181,6 +183,12 @@ public class FeedReplicationCoordinatorBuilder extends OozieCoordinatorBuilder<F
             instancePaths = pathsWithPartitions;
 
             propagateFileSystemCopyProperties(pathsWithPartitions, props);
+
+            if (entity.getAvailabilityFlag() == null) {
+                props.put("availabilityFlag", "NA");
+            } else {
+                props.put("availabilityFlag", entity.getAvailabilityFlag());
+            }
         } else if (sourceStorage.getType() == Storage.TYPE.TABLE) {
             instancePaths = "${coord:dataIn('input')}";
             final CatalogStorage sourceTableStorage = (CatalogStorage) sourceStorage;
@@ -189,6 +197,7 @@ public class FeedReplicationCoordinatorBuilder extends OozieCoordinatorBuilder<F
             propagateTableStorageProperties(trgCluster, targetTableStorage, props, "falconTarget");
             propagateTableCopyProperties(srcCluster, sourceTableStorage, trgCluster, targetTableStorage, props);
             setupHiveConfiguration(srcCluster, trgCluster, buildPath);
+            props.put("availabilityFlag", "NA");
         }
 
         propagateLateDataProperties(instancePaths, sourceStorage.getType().name(), props);
@@ -376,6 +385,17 @@ public class FeedReplicationCoordinatorBuilder extends OozieCoordinatorBuilder<F
             }
         }
         coord.getControls().setConcurrency(String.valueOf(parallel));
+
+        String orderProp = props.getProperty(ORDER);
+        ExecutionType order = ExecutionType.FIFO;
+        if (orderProp != null) {
+            try {
+                order = ExecutionType.fromValue(orderProp);
+            } catch (IllegalArgumentException ignore) {
+                LOG.error("Unable to parse order:", ignore);
+            }
+        }
+        coord.getControls().setExecution(order.name());
     }
 
 
