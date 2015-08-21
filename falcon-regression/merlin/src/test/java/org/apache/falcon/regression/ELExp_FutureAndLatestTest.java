@@ -85,7 +85,7 @@ public class ELExp_FutureAndLatestTest extends BaseTestClass {
         bundles[0].setInputFeedDataPath(baseTestDir + "/ELExp_latest/testData" +
             MINUTE_DATE_PATTERN);
         bundles[0].setInputFeedPeriodicity(5, TimeUnit.minutes);
-        bundles[0].setInputFeedValidity("2010-04-01T00:00Z", "2015-04-01T00:00Z");
+        bundles[0].setInputFeedValidity("2010-04-01T00:00Z", "2099-04-01T00:00Z");
         String processStart = TimeUtil.getTimeWrtSystemTime(-3);
         String processEnd = TimeUtil.getTimeWrtSystemTime(8);
         logger.info("processStart: " + processStart + " processEnd: " + processEnd);
