@@ -450,6 +450,12 @@
                 <module>addons/hivedr</module>
             </modules>
         </profile>
+        <profile>
+            <id>adfprovider</id>
+            <modules>
+                <module>addons/ADFProvider</module>
+            </modules>
+        </profile>
     </profiles>
 
     <modules>
