@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.falcon</groupId>
     <artifactId>falcon-main</artifactId>
-    <version>0.6.1</version>
+    <version>0.7-SNAPSHOT</version>
   </parent>
   <artifactId>falcon-ui</artifactId>
   <packaging>pom</packaging>
@@ -44,7 +44,6 @@
             <configuration>
               <nodeVersion>v0.10.30</nodeVersion>
               <npmVersion>1.4.3</npmVersion>
-              <nodedownloadRoot>${local_url}</nodedownloadRoot>
             </configuration>
           </execution>
 
