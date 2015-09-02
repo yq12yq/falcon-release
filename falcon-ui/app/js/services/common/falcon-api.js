@@ -75,13 +75,11 @@
         }, 5000);
       };
 
-      Falcon.responses.unreaded = 0;
       Falcon.notify = function (showAll) {
         $(".notifs").stop();
         $timeout.cancel(Falcon.hideTimeout);
 
         if (showAll) {
-          Falcon.responses.unreaded = 0;
           if (Falcon.responses.isVisible) {
             Falcon.responses.isVisible = false;
             $(".notifs").fadeOut(300);
@@ -92,7 +90,6 @@
           }
           Falcon.responses.showAll = true;
         } else {
-          Falcon.responses.unreaded++;
           Falcon.responses.isVisible = false;
           $(".notifs").stop();
           $(".notifs").hide();
@@ -111,9 +108,6 @@
         $timeout.cancel(Falcon.hideTimeout);
         Falcon.responses.isVisible = false;
         $(".notifs").fadeOut(300);
-        Falcon.responses.queue.forEach(function(notifMsg) {
-          notifMsg.readed = true;
-        });
       };
 
       Falcon.logResponse = function (type, messageObject, entityType, hide) {
@@ -124,8 +118,7 @@
               type: "success",
               status: messageObject.status,
               message: messageObject.message,
-              requestId: messageObject.requestId,
-              readed: false
+              requestId: messageObject.requestId
             };
             Falcon.responses.queue.push(response);
             Falcon.responses.count.success = Falcon.responses.count.success + 1;
@@ -141,8 +134,7 @@
               status: messageObject.state,
               state: messageObject.state,
               message: messageObject.message,
-              model: messageObject.model,
-              readed: false
+              model: messageObject.model
             };
             Falcon.responses.queue.push(response);
             Falcon.notify(false);
@@ -156,8 +148,7 @@
               type: "error",
               status: messageObject.status,
               message: messageObject.message,
-              requestId: messageObject.requestId,
-              readed: false
+              requestId: messageObject.requestId
             };
           } else {
             if (messageObject.slice(0, 6) !== "Cannot") {
@@ -167,8 +158,7 @@
                 type: "error",
                 status: errorMessage.result ? errorMessage.result.status : 'error',
                 message: errorMessage.result ? errorMessage.result.message : 'Unexpected Error',
-                requestId: errorMessage.result ? errorMessage.result.requestId : 0,
-                readed: false
+                requestId: errorMessage.result ? errorMessage.result.requestId : 0
               };
             }
             else {
@@ -177,8 +167,7 @@
                 type: "error",
                 status: "No connection",
                 message: messageObject,
-                requestId: "no ID",
-                readed: false
+                requestId: "no ID"
               };
             }
           }
@@ -198,8 +187,7 @@
               type: "warning",
               status: messageObject.status,
               message: messageObject.message,
-              model: '',
-              readed: false
+              model: ''
             };
             Falcon.responses.queue.push(response);
             Falcon.notify(false);
@@ -229,8 +217,7 @@
       Falcon.errorMessage = function (message) {
         var response = {
           type: "error",
-          message: message,
-          readed: false
+          message: message
         };
         Falcon.responses.queue.push(response);
         Falcon.notify(false);
@@ -238,8 +225,7 @@
       Falcon.warningMessage = function (message) {
         var response = {
           type: "warning",
-          message: message,
-          readed: false
+          message: message
         };
         Falcon.responses.queue.push(response);
         Falcon.notify(false);

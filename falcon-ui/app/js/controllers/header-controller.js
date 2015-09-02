@@ -30,7 +30,6 @@
 
       $scope.fake = { focus: false }; //used in upload button to fake the focus borders
       $scope.notifs = false;
-      $scope.responses = Falcon.responses;
 
       $scope.isInForm = function (type) {
         if($rootScope.currentState) {

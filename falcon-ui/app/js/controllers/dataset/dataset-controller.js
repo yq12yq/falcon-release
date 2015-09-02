@@ -36,11 +36,7 @@
       });
 
       $scope.isActive = function (route) {
-        return route === $state.current.name;
-      };
-
-      $scope.isCompleted = function (route) {
-        return $state.get(route).data && $state.get(route).data.completed;
+        return $state.current.name === route;
       };
 
       $scope.clone = $scope.$parent.cloningMode;
@@ -163,9 +159,6 @@
       //-------------------------------------//
 
       $scope.goNext = function (formInvalid, stateName) {
-        $state.current.data = $state.current.data || {};
-        $state.current.data.completed = !formInvalid;
-
         SpinnersFlag.show = true;
         if (!validationService.nameAvailable || formInvalid) {
           validationService.displayValidations.show = true;
@@ -200,9 +193,8 @@
             if (!EntityModel.datasetModel.UIModel.hiveOptions.source.stagingPath && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
               EntityModel.datasetModel.UIModel.hiveOptions.source.stagingPath = findLocation($scope.sourceClusterModel.cluster.locations.location, 'staging');
             }
-            console.log("Enter!");
             if (!EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
-              EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint = replaceHive(findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'registry'));
+              EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint = replacePortInInterface(findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'registry'));
             }
 
           })
@@ -218,8 +210,8 @@
             if (!EntityModel.datasetModel.UIModel.hiveOptions.target.stagingPath && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
               EntityModel.datasetModel.UIModel.hiveOptions.target.stagingPath = findLocation($scope.targetClusterModel.cluster.locations.location, 'staging');
             }
-            if (!EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
-              EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint = replaceHive(findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'registry'));
+            if (!EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
+              EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint = replacePortInInterface(findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'registry'));
             }
           })
           .error(function (err) {
@@ -247,11 +239,10 @@
         return inter;
       }
 
-      function replaceHive(string) {
+      function replacePortInInterface(string) {
         if (string) {
           var splitted = string.split(':');
-          var uri = 'hive2' + ':' + splitted[1] + ':10000';
-          return uri;
+          return splitted[0] + ':' + splitted[1] + ':10000';
         }
       }
 
@@ -363,7 +354,11 @@
               item._value = $scope.UIModel.hiveOptions.source.stagingPath;
             }
             if (item._name === 'targetStagingPath') {
-              item._value = $scope.UIModel.hiveOptions.target.stagingPath;
+              if ($scope.UIModel.source.hiveDatabaseType === "databases") {
+                item._value = "*";
+              } else {
+                item._value = $scope.UIModel.hiveOptions.target.stagingPath;
+              }
             }
             if (item._name === 'sourceNN') {
               item._value = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'write');
@@ -415,13 +410,7 @@
               item._value = $scope.UIModel.name;
             }
             if (item._name === 'drNotificationReceivers') {
-              item._value = (function () {
-                if ($scope.UIModel.alerts.alertsArray.length === 0) {
-                  return "NA";
-                } else {
-                  return $scope.UIModel.alerts.alertsArray.join();
-                }
-              }());
+              item._value = $scope.UIModel.alerts.alertsArray.join();
             }
 
           });
@@ -633,13 +622,7 @@
               }
             }
             if (item._name === 'drNotificationReceivers') {
-              EntityModel.datasetModel.UIModel.alerts.alertsArray = (function () {
-                if (item._value !== "NA") {
-                  return item._value.split(',');
-                } else {
-                  return [];
-                }
-              }());
+              EntityModel.datasetModel.UIModel.alerts.alertsArray = item._value.split(',');
             }
 
           });
