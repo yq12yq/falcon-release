@@ -1,0 +1,12 @@
+ INCOMPATIBLE CHANGES
+  None
+
+ NEW FEATURES
+  None
+
+ IMPROVEMENTS
+
+ BUG FIXES
+   FALCON-1129: In a secure cluster, feed replication fails because of Authentication issues
+   FALCON-1282: Incorrect hdfs servers property for feed replication in secured environment
+   FALCON-1365: HCatReplication job fails with AccessControlException
