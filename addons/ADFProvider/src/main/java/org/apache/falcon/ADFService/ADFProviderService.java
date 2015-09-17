@@ -90,46 +90,46 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                 WorkflowJobEndNotificationService.SERVICE_NAME).registerListener(this);
 
         adfScheduledExecutorService = new ADFScheduledExecutor(AZURE_SERVICEBUS_REQUEST_HANDLING_THREADS);
-        adfScheduledExecutorService.scheduleWithFixedDelay(new handleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
+        adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
 
         LOG.info("Falcon ADFProvider service initialized");
     }
 
-    private static class handleADFRequests implements Runnable {
+    private static class HandleADFRequests implements Runnable {
 
         @Override
         public void run() {
 
-            /* TODO: Handle request */
+            /* TODO- Handle request */
         }
     }
 
     private static Configuration getServiceBusConfig() throws FalconException {
-        String namespace;
-        if ((namespace = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
-                + AZURE_SERVICEBUS_CONF_NAMESPACE)) == null) {
-            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_NAMESPACE + " property not set in startup "
-                    + "properties. Please add it.");
+        String namespace = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_NAMESPACE);
+        if (namespace == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_NAMESPACE
+                    + " property not set in startup properties. Please add it.");
         }
 
-        String sasKeyName;
-        if ((sasKeyName = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
-                + AZURE_SERVICEBUS_CONF_SASKEYNAME)) == null) {
-            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SASKEYNAME + " property not set in startup "
-                    + "properties. Please add it.");
+        String sasKeyName = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_SASKEYNAME);
+        if (sasKeyName == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SASKEYNAME
+                    + " property not set in startup properties. Please add it.");
         }
-        String sasKey;
-        if ((sasKey = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
-                + AZURE_SERVICEBUS_CONF_SASKEY)) == null) {
-            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SASKEY + " property not set in startup "
-                    + "properties. Please add it.");
+        String sasKey = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_SASKEY);
+        if (sasKey == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SASKEY
+                    + " property not set in startup properties. Please add it.");
         }
 
-        String serviceBusRootUri;
-        if ((serviceBusRootUri = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
-                + AZURE_SERVICEBUS_CONF_SERVICEBUSROOTURI)) == null) {
-            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SERVICEBUSROOTURI + " property not set in startup "
-                    + "properties. Please add it.");
+        String serviceBusRootUri = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_SERVICEBUSROOTURI);
+        if (serviceBusRootUri == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_SERVICEBUSROOTURI
+                    + " property not set in startup properties. Please add it.");
         }
 
         return ServiceBusConfiguration.configureWithSASAuthentication(namespace, sasKeyName, sasKey,

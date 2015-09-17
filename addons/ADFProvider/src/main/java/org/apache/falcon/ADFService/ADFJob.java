@@ -18,12 +18,14 @@
 
 package org.apache.falcon.ADFService;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * Azure ADF base job
+ * Azure ADF base job.
  */
 public abstract class ADFJob {
 
@@ -48,24 +50,43 @@ public abstract class ADFJob {
         return entityName.substring(ADF_ENTITY_NAME_PREFIX_LENGTH);
     }
 
-    public static enum JobType {
+    private static enum JobType {
         HIVE, PIG, REPLICATE
     }
 
-    public static JobType getJobType(String msg) throws FalconException {
+    private static enum RequestType {
+        HADOOPREPLICATEDATA, HADOOPHIVE, HADOOPPIG
+    }
+
+    private static JobType getJobType(String msg) throws FalconException {
         try {
             JSONObject obj = new JSONObject(msg);
-            JSONObject activityProperties = obj.getJSONObject("activity").getJSONObject("transformation");
-            String type = activityProperties.getString("type");
-            switch (type) {
-                case "HadoopReplicateData":
-                    return JobType.REPLICATE;
-                case "HadoopHive":
-                    return JobType.HIVE;
-                case "HadoopPig":
-                    return JobType.PIG;
-                default:
-                    throw new FalconException("Unrecognized ADF job type: " + type);
+            JSONObject activity = obj.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
+            if (activity == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_ACTIVITY + " not found in ADF"
+                        + " request.");
+            }
+
+            JSONObject activityProperties = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_TRANSFORMATION);
+            if (activityProperties == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_TRANSFORMATION + " not found "
+                        + "in ADF request.");
+            }
+
+            String type = activityProperties.getString(ADFJsonConstants.ADF_REQUEST_TYPE);
+            if (StringUtils.isBlank(type)) {
+                throw new FalconException(ADFJsonConstants.ADF_REQUEST_TYPE + " not found in ADF request msg");
+            }
+
+            switch (RequestType.valueOf(type.toUpperCase())) {
+            case HADOOPREPLICATEDATA:
+                return JobType.REPLICATE;
+            case HADOOPHIVE:
+                return JobType.HIVE;
+            case HADOOPPIG:
+                return JobType.PIG;
+            default:
+                throw new FalconException("Unrecognized ADF job type: " + type);
             }
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
@@ -81,7 +102,11 @@ public abstract class ADFJob {
     public ADFJob(String msg) throws FalconException {
         try {
             message = new JSONObject(msg);
-            id = message.getString("jobId");
+            type = getJobType(msg);
+            id = message.getString(ADFJsonConstants.ADF_REQUEST_JOBID);
+            if (StringUtils.isBlank(id)) {
+                throw new FalconException(ADFJsonConstants.ADF_REQUEST_JOBID + " not found in ADF request");
+            }
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }

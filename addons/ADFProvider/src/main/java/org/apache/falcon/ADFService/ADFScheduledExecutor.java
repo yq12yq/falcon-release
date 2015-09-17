@@ -25,6 +25,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * ADF thread pool executor.
+ */
 public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LoggerFactory.getLogger(ADFScheduledExecutor.class);
@@ -44,13 +47,13 @@ public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
     }
 
     private Runnable wrapRunnable(Runnable command) {
-        return new LogOnRunnableException(command);
+        return new LogOnRunnable(command);
     }
 
-    private class LogOnRunnableException implements Runnable {
+    private static class LogOnRunnable implements Runnable {
         private Runnable runnable;
 
-        public LogOnRunnableException(Runnable runnable) {
+        public LogOnRunnable(Runnable runnable) {
             super();
             this.runnable = runnable;
         }
