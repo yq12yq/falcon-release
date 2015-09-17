@@ -47,13 +47,13 @@ public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
     }
 
     private Runnable wrapRunnable(Runnable command) {
-        return new LogOnRunnable(command);
+        return new LogOnExceptionRunnable(command);
     }
 
-    private static class LogOnRunnable implements Runnable {
+    private static class LogOnExceptionRunnable implements Runnable {
         private Runnable runnable;
 
-        public LogOnRunnable(Runnable runnable) {
+        public LogOnExceptionRunnable(Runnable runnable) {
             super();
             this.runnable = runnable;
         }
@@ -63,7 +63,7 @@ public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
             try {
                 runnable.run();
             } catch (Exception e) {
-                LOG.debug("Error while executing: " + runnable);
+                LOG.debug("Error while executing: {}", e);
                 throw new RuntimeException(e);
             }
         }
