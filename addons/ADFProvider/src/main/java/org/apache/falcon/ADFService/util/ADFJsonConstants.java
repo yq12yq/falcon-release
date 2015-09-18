@@ -27,6 +27,20 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_TRANSFORMATION = "transformation";
     public static final String ADF_REQUEST_TYPE = "type";
     public static final String ADF_REQUEST_JOBID = "jobId";
+    public static final String ADF_REQUEST_START_TIME = "dataSliceStart";
+    public static final String ADF_REQUEST_END_TIME = "dataSliceEnd";
+    public static final String ADF_REQUEST_SCHEDULER = "scheduler";
+    public static final String ADF_REQUEST_FREQUENCY = "frequency";
+    public static final String ADF_REQUEST_INTERVAL = "interval";
+    public static final String ADF_REQUEST_LINKED_SERVICES = "linkedServices";
+    public static final String ADF_REQUEST_NAME = "name";
+    public static final String ADF_REQUEST_TABLES = "tables";
+    public static final String ADF_REQUEST_PROPERTIES = "properties";
+    public static final String ADF_REQUEST_EXTENDED_PROPERTIES = "extendedProperties";
+    public static final String ADF_REQUEST_CLUSTER_NAME = "clusterName";
+    public static final String ADF_REQUEST_LOCATION = "location";
+    public static final String ADF_REQUEST_FOLDER_PATH = "folderPath";
+    public static final String ADF_REQUEST_LINKED_SERVICE_NAME = "linkedServiceName";
 
     private ADFJsonConstants() {
     }
