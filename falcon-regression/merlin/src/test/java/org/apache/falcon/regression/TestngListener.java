@@ -54,7 +54,7 @@ public class TestngListener implements ITestListener, IExecutionListener {
 
     private void logEndOfTest(ITestResult result, String outcome) {
         logger.info(
-            String.format("Testing going to end for: %s.%s(%s) %s", result.getTestClass().getName(),
+            String.format("Testing going to end for: %s.%s(%s) ----- Status: %s", result.getTestClass().getName(),
                 result.getName(), Arrays.toString(result.getParameters()), outcome));
         NDC.pop();
         logger.info(hr);
