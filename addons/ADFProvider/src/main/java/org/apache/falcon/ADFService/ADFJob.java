@@ -18,11 +18,21 @@
 
 package org.apache.falcon.ADFService;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.lang.String;
+import java.lang.StringBuilder;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,6 +48,7 @@ public abstract class ADFJob {
     // name prefix for all adf related job entity, i.e. adf hive/pig process and replication feed
     public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB_";
     public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
+    public static final String TEMPLATE_PATH_PREFIX = "hdfs://sandbox.hortonworks.com:8020/apps/falcon/";
 
     public static boolean isADFEntity(String entityName) {
         return entityName.startsWith(ADF_ENTITY_NAME_PREFIX);
@@ -55,7 +66,7 @@ public abstract class ADFJob {
     }
 
     public static enum JobType {
-        HIVE, PIG, REPLICATE
+        HIVE, PIG, REPLICATION
     }
 
     private static enum RequestType {
@@ -84,7 +95,7 @@ public abstract class ADFJob {
 
             switch (RequestType.valueOf(type.toUpperCase())) {
             case HADOOPREPLICATEDATA:
-                return JobType.REPLICATE;
+                return JobType.REPLICATION;
             case HADOOPHIVE:
                 return JobType.HIVE;
             case HADOOPPIG:
@@ -108,13 +119,9 @@ public abstract class ADFJob {
     private Map<String, JSONObject> linkedServicesMap = new HashMap<String, JSONObject>();
     private Map<String, JSONObject> tablesMap = new HashMap<String, JSONObject>();
 
-    public ADFJob(String msg) throws FalconException {
+    public ADFJob(String msg, String id) throws FalconException {
         try {
             message = new JSONObject(msg);
-            id = message.getString(ADFJsonConstants.ADF_REQUEST_JOBID);
-            if (StringUtils.isBlank(id)) {
-                throw new FalconException(ADFJsonConstants.ADF_REQUEST_JOBID + " not found in ADF request");
-            }
 
             startTime = message.getString(ADFJsonConstants.ADF_REQUEST_START_TIME);
             endTime = message.getString(ADFJsonConstants.ADF_REQUEST_END_TIME);
@@ -166,7 +173,33 @@ public abstract class ADFJob {
         }
     }
 
-    protected String getTablePath(String tableName) {
+    protected List<String> getInputTables() {
+        List<String> tables = new ArrayList<String>();
+        try {
+            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_INPUTS);
+            for (int i = 0; i < inputs.length(); i++) {
+                tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
+            }
+        } catch (JSONException e) {
+            return null;
+        }
+        return tables;
+    }
+
+    protected List<String> getOutputTables() {
+        List<String> tables = new ArrayList<String>();
+        try {
+            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_OUTPUTS);
+            for (int i = 0; i < inputs.length(); i++) {
+                tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
+            }
+        } catch (JSONException e) {
+            return null;
+        }
+        return tables;
+    }
+
+    protected String getADFTablePath(String tableName) {
         JSONObject table = tablesMap.get(tableName);
         if (table == null) {
             return null;
@@ -197,4 +230,21 @@ public abstract class ADFJob {
             return null;
         }
     }
+
+    protected String readTemplateFile(String templateFilePath) throws IOException {
+        Path pt = new Path(templateFilePath);
+        FileSystem fs = FileSystem.get(new Configuration());
+        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
+        StringBuilder fileContent = new StringBuilder();
+        String line;
+        while (true){
+            line = br.readLine();
+            if (line == null) {
+                break;
+            }
+            fileContent.append(line);
+        }
+        return fileContent.toString();
+    }
+
 }

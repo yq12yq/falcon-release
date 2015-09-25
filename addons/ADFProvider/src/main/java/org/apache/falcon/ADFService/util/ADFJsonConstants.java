@@ -34,6 +34,8 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_INTERVAL = "interval";
     public static final String ADF_REQUEST_LINKED_SERVICES = "linkedServices";
     public static final String ADF_REQUEST_NAME = "name";
+    public static final String ADF_REQUEST_INPUTS = "inputs";
+    public static final String ADF_REQUEST_OUTPUTS = "outputs";
     public static final String ADF_REQUEST_TABLES = "tables";
     public static final String ADF_REQUEST_PROPERTIES = "properties";
     public static final String ADF_REQUEST_EXTENDED_PROPERTIES = "extendedProperties";
