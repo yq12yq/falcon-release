@@ -19,6 +19,8 @@
 package org.apache.falcon.ADFService;
 
 import java.io.IOException;
+
+import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 
 /**
@@ -36,7 +38,7 @@ public class ADFReplicationJob extends ADFJob {
 
     public void submitJob() {
         try {
-            String template = readTemplateFile(TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
+            String template = FSUtils.readTemplateFile(TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
             String inputTableName = getInputTables().get(0);
             String outputTableName = getOutputTables().get(0);
             String message = template.replace("$feedName$", jobEntityName())

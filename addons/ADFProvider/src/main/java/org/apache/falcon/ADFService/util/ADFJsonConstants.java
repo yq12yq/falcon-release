@@ -40,9 +40,14 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_PROPERTIES = "properties";
     public static final String ADF_REQUEST_EXTENDED_PROPERTIES = "extendedProperties";
     public static final String ADF_REQUEST_CLUSTER_NAME = "clusterName";
+    public static final String ADF_REQUEST__RUN_ON_BEHALF_USER = "runOnBehalf";
     public static final String ADF_REQUEST_LOCATION = "location";
     public static final String ADF_REQUEST_FOLDER_PATH = "folderPath";
+    public static final String ADF_REQUEST_SCRIPT = "script";
+    public static final String ADF_REQUEST_SCRIPT_PATH = "scriptPath";
     public static final String ADF_REQUEST_LINKED_SERVICE_NAME = "linkedServiceName";
+    public static final String ADF_REQUEST_TABLE_NAME = "hivetable";
+    public static final String ADF_REQUEST_TABLE_PARTITION = "partition";
 
     private ADFJsonConstants() {
     }

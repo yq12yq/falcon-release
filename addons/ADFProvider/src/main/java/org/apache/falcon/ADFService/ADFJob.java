@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
@@ -48,7 +49,7 @@ public abstract class ADFJob {
     // name prefix for all adf related job entity, i.e. adf hive/pig process and replication feed
     public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB_";
     public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
-    public static final String TEMPLATE_PATH_PREFIX = "hdfs://sandbox.hortonworks.com:8020/apps/falcon/";
+    public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
 
     public static boolean isADFEntity(String entityName) {
         return entityName.startsWith(ADF_ENTITY_NAME_PREFIX);
@@ -94,14 +95,14 @@ public abstract class ADFJob {
             }
 
             switch (RequestType.valueOf(type.toUpperCase())) {
-            case HADOOPREPLICATEDATA:
-                return JobType.REPLICATION;
-            case HADOOPHIVE:
-                return JobType.HIVE;
-            case HADOOPPIG:
-                return JobType.PIG;
-            default:
-                throw new FalconException("Unrecognized ADF job type: " + type);
+                case HADOOPREPLICATEDATA:
+                    return JobType.REPLICATION;
+                case HADOOPHIVE:
+                    return JobType.HIVE;
+                case HADOOPPIG:
+                    return JobType.PIG;
+                default:
+                    throw new FalconException("Unrecognized ADF job type: " + type);
             }
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
@@ -111,13 +112,15 @@ public abstract class ADFJob {
     public abstract void submitJob();
 
     protected JSONObject message;
+    protected JSONObject activityExtendedProperties;
     protected String id;
     protected JobType type;
     protected String startTime, endTime;
     protected String frequency;
+    protected String proxyUser;
 
     private Map<String, JSONObject> linkedServicesMap = new HashMap<String, JSONObject>();
-    private Map<String, JSONObject> tablesMap = new HashMap<String, JSONObject>();
+    protected Map<String, JSONObject> tablesMap = new HashMap<String, JSONObject>();
 
     public ADFJob(String msg, String id) throws FalconException {
         try {
@@ -141,6 +144,27 @@ public abstract class ADFJob {
                 JSONObject table = tables.getJSONObject(i);
                 tablesMap.put(table.getString(ADFJsonConstants.ADF_REQUEST_NAME), table);
             }
+
+            // Set the activity extended properties
+            JSONObject activity = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
+            if (activity == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_ACTIVITY + " not found in ADF"
+                        + " request.");
+            }
+            JSONObject activityProperties = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_TRANSFORMATION);
+            if (activityProperties == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_TRANSFORMATION + " not found"
+                        + " in ADF request.");
+            }
+
+            activityExtendedProperties = activityProperties.getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES);
+            if (activityExtendedProperties == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES + " not"
+                        + " found in ADF request.");
+            }
+
+            // should be called after setting activityExtendedProperties
+            proxyUser = getRunAsUser();
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }
@@ -171,6 +195,25 @@ public abstract class ADFJob {
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    protected String getRunAsUser() throws FalconException {
+        if (activityExtendedProperties == null) {
+            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES + " not"
+                    + " found in ADF request.");
+        }
+
+        try {
+            String proxyUser =  activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER);
+            if (StringUtils.isBlank(proxyUser)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER + " cannot"
+                        + " be empty in ADF request.");
+            }
+        } catch (JSONException e) {
+            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER + " not"
+                    + " found in ADF request.");
+        }
+        return proxyUser;
     }
 
     protected List<String> getInputTables() {
@@ -230,21 +273,4 @@ public abstract class ADFJob {
             return null;
         }
     }
-
-    protected String readTemplateFile(String templateFilePath) throws IOException {
-        Path pt = new Path(templateFilePath);
-        FileSystem fs = FileSystem.get(new Configuration());
-        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
-        StringBuilder fileContent = new StringBuilder();
-        String line;
-        while (true){
-            line = br.readLine();
-            if (line == null) {
-                break;
-            }
-            fileContent.append(line);
-        }
-        return fileContent.toString();
-    }
-
 }
