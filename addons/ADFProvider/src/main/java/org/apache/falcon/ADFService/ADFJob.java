@@ -18,11 +18,6 @@
 
 package org.apache.falcon.ADFService;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.lang.String;
-import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,9 +26,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,6 +58,9 @@ public abstract class ADFJob {
         return entityName.substring(ADF_ENTITY_NAME_PREFIX_LENGTH);
     }
 
+    /**
+     * Enum for job type.
+     */
     public static enum JobType {
         HIVE, PIG, REPLICATION
     }
@@ -157,7 +152,8 @@ public abstract class ADFJob {
                         + " in ADF request.");
             }
 
-            activityExtendedProperties = activityProperties.getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES);
+            activityExtendedProperties = activityProperties.getJSONObject(
+                    ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES);
             if (activityExtendedProperties == null) {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES + " not"
                         + " found in ADF request.");
@@ -203,17 +199,18 @@ public abstract class ADFJob {
                     + " found in ADF request.");
         }
 
+        String runAsUser;
         try {
-            String proxyUser =  activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER);
-            if (StringUtils.isBlank(proxyUser)) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER + " cannot"
+            runAsUser =  activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
+            if (StringUtils.isBlank(runAsUser)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " cannot"
                         + " be empty in ADF request.");
             }
         } catch (JSONException e) {
-            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST__RUN_ON_BEHALF_USER + " not"
+            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
                     + " found in ADF request.");
         }
-        return proxyUser;
+        return runAsUser;
     }
 
     protected List<String> getInputTables() {

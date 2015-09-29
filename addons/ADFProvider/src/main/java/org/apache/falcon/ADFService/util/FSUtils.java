@@ -27,9 +27,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 /**
- * Utility for file operations
+ * Utility for file operations.
  */
-public class FSUtils {
+public final class FSUtils {
 
     public static String readTemplateFile(String templateFilePath) throws IOException {
         Path pt = new Path(templateFilePath);

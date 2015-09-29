@@ -34,16 +34,16 @@ import java.io.OutputStream;
 
 
 /**
- * Azure ADF Hive Job
+ * Azure ADF Hive Job.
  */
 public class ADFHiveJob extends ADFJob {
-    private static String HIVE_PROCESS_TEMPLATE_FILE = "hive-process.xml";
-    private static String HIVE_PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX + "/scripts";
-    private static String HIVE_SCRIPT_EXTENSION = ".hql";
-    private static String ENGINE_TYPE = "hive";
-    private static String INPUT_FEED_PREFIX = "hive-input-feed-";
-    private static String OUTPUT_FEED_PREFIX = "hive-output-feed-";
-    private String scriptPath;
+    private static final String HIVE_PROCESS_TEMPLATE_FILE = "hive-process.xml";
+    private static final String HIVE_PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX + "/scripts";
+    private static final String HIVE_SCRIPT_EXTENSION = ".hql";
+    private static final String ENGINE_TYPE = "hive";
+    private static final String INPUT_FEED_PREFIX = "hive-input-feed-";
+    private static final String OUTPUT_FEED_PREFIX = "hive-output-feed-";
+    private String hiveScriptPath;
     private TableFeed inputFeed;
     private TableFeed outputFeed;
     private String clusterName;
@@ -62,7 +62,7 @@ public class ADFHiveJob extends ADFJob {
 
         try {
             // set the script path
-            scriptPath = getScriptPath();
+            hiveScriptPath = getScriptPath();
         } catch (FalconException e) {
             /* TODO - send the error msg to ADF queue */
         }
@@ -80,10 +80,10 @@ public class ADFHiveJob extends ADFJob {
                     .replace("$inputFeedName$", inputFeed.getName())
                     .replace("$outputFeedName$", outputFeed.getName())
                     .replace("$engine$", ENGINE_TYPE)
-                    .replace("$scriptPath$", scriptPath)
+                    .replace("$scriptPath$", hiveScriptPath)
                     .replace("$aclowner$", proxyUser);
         } catch (IOException e) {
-
+            /* TODO - handle */
         }
     }
 
@@ -161,7 +161,9 @@ public class ADFHiveJob extends ADFJob {
         }
 
 
-        return new TableFeed(feedName, frequency, clusterName, startTime, endTime, proxyUser, tableFeedName, partitions);
+        return new TableFeed.Builder().withFeedName(feedName).withFrequency(frequency)
+                .withClusterName(clusterName).withStartTime(startTime).withEndTime(endTime).
+                withAclOwner(proxyUser).withTableName(tableFeedName).withPartitions(partitions).build();
     }
 
     private JSONObject getTableExtendedProperties(String tableName) throws FalconException {
@@ -173,20 +175,20 @@ public class ADFHiveJob extends ADFJob {
         try {
             JSONObject tableProperties = table.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES);
             if (tableProperties == null) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_PROPERTIES  + " not found in ADF"
-                        + " request.");
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_PROPERTIES
+                        + " not found in ADF request.");
             }
             JSONObject tablesLocation = tableProperties.getJSONObject(ADFJsonConstants.ADF_REQUEST_LOCATION);
             if (tablesLocation == null) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LOCATION  + " not found in ADF"
-                        + " request.");
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LOCATION
+                        + " not found in ADF request.");
             }
 
             JSONObject tableExtendedProperties = tablesLocation.getJSONObject(ADFJsonConstants.
                     ADF_REQUEST_EXTENDED_PROPERTIES);
             if (tableExtendedProperties == null) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LOCATION  + " not found in ADF"
-                        + " request.");
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LOCATION
+                        + " not found in ADF request.");
             }
             return tableExtendedProperties;
         } catch (JSONException e) {

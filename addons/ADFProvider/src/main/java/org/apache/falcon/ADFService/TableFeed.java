@@ -24,32 +24,34 @@ import org.apache.falcon.FalconException;
 
 import java.io.IOException;
 
+/**
+ * Table Feed.
+ */
 public class TableFeed {
-    private static String TABLE_FEED_TEMPLATE_FILE = "table-feed.xml";
-    private static String TABLE_PARTITION_SEPARATOR = "#";
+    private static final String TABLE_FEED_TEMPLATE_FILE = "table-feed.xml";
+    private static final String TABLE_PARTITION_SEPARATOR = "#";
 
     private String feedName;
     private String clusterName;
     private String frequency;
-    private String startTime, endTime;
+    private String startTime;
+    private String endTime;
     private String tableName;
     private String aclOwner;
 //    public List<String> partitions;
     private String partitions;
 
-    public TableFeed(String feedName, String frequency, String clusterName,
-                     String startTime, String endTime, String aclOwner,
-                     String tableName, String partitions) {
-        this.feedName = feedName;
-        this.clusterName = clusterName;
-        this.frequency = frequency;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.tableName = tableName;
-        this.aclOwner = aclOwner;
+    public TableFeed(final Builder builder) {
+        this.feedName = builder.tableFeedName;
+        this.clusterName = builder.feedClusterName;
+        this.frequency = builder.feedFrequency;
+        this.startTime = builder.feedStartTime;
+        this.endTime = builder.feedEndTime;
+        this.tableName = builder.feedTableName;
+        this.aclOwner = builder.feedAclOwner;
         // ToDO - More than 1 partition allowed? Why inisde []?
-//        this.partitions = Arrays.asList(partitions.split("[;]"));
-        this.partitions = partitions;
+//        this.partitions = Arrays.asList(builder.partitions.split("[;]"));
+        this.partitions = builder.feedPartitions;
     }
 
     private String getTable() {
@@ -61,14 +63,13 @@ public class TableFeed {
         try {
             String template = FSUtils.readTemplateFile(ADFJob.TEMPLATE_PATH_PREFIX
                     + TABLE_FEED_TEMPLATE_FILE);
-            String message = template.replace("$feedName$", feedName)
+            return template.replace("$feedName$", feedName)
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
                     .replace("$endTime$", endTime)
                     .replace("$cluster$", clusterName)
                     .replace("$table$", getTable())
                     .replace("$aclowner$", aclOwner);
-            return message;
         } catch (IOException e) {
             throw new FalconException("Error when generating entity xml for table feed", e);
         }
@@ -76,6 +77,64 @@ public class TableFeed {
 
     public String getName() {
         return feedName;
+    }
+
+    /**
+     * Builder for table Feed.
+     */
+    public static class Builder {
+        private String tableFeedName;
+        private String feedClusterName;
+        private String feedFrequency;
+        private String feedStartTime;
+        private String feedEndTime;
+        private String feedTableName;
+        private String feedAclOwner;
+        private String feedPartitions;
+
+        public TableFeed build() {
+            return new TableFeed(this);
+        }
+
+        public Builder withFeedName(final String feedName) {
+            this.tableFeedName = feedName;
+            return this;
+        }
+
+        public Builder withClusterName(final String clusterName) {
+            this.feedClusterName = clusterName;
+            return this;
+        }
+
+        public Builder withFrequency(final String frequency) {
+            this.feedFrequency = frequency;
+            return this;
+        }
+
+        public Builder withStartTime(final String startTime) {
+            this.feedStartTime = startTime;
+            return this;
+        }
+
+        public Builder withEndTime(final String endTime) {
+            this.feedEndTime = endTime;
+            return this;
+        }
+
+        public Builder withTableName(final String tableName) {
+            this.feedTableName = tableName;
+            return this;
+        }
+
+        public Builder withAclOwner(final String aclOwner) {
+            this.feedAclOwner = aclOwner;
+            return this;
+        }
+
+        public Builder withPartitions(final String partitions) {
+            this.feedPartitions = partitions;
+            return this;
+        }
     }
 
 }
