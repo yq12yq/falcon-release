@@ -26,6 +26,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
+import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -42,6 +43,8 @@ public abstract class ADFJob {
     public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB_";
     public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
     public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
+    public static final String PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX
+            + Path.SEPARATOR + "generatedscripts";
 
     public static boolean isADFEntity(String entityName) {
         return entityName.startsWith(ADF_ENTITY_NAME_PREFIX);
@@ -270,4 +273,73 @@ public abstract class ADFJob {
             return null;
         }
     }
+
+    protected boolean activityHasScriptPath() throws FalconException {
+        if (JobType.REPLICATION == jobType()) {
+            return false;
+        }
+
+        try {
+            JSONObject scriptPathObject = activityExtendedProperties.getJSONObject
+                    (ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
+            return (scriptPathObject != null);
+        } catch (JSONException jsonException) {
+            throw new FalconException("Error when parsing ADF JSON object: "
+                    + activityExtendedProperties, jsonException);
+        }
+    }
+
+    protected String getScriptPath() throws FalconException {
+        if (!activityHasScriptPath()) {
+            throw new FalconException("JSON object does not have object: "
+                    + ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
+        }
+
+        try {
+            String scriptPath = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
+            if (StringUtils.isBlank(scriptPath)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH + " not"
+                        + " found or empty in ADF request.");
+            }
+            return scriptPath;
+        } catch (JSONException jsonException) {
+            throw new FalconException("Error when parsing ADF JSON object: "
+                    + activityExtendedProperties, jsonException);
+        }
+    }
+
+    protected String getScriptContent() throws FalconException {
+        if (activityHasScriptPath()) {
+            throw new FalconException("JSON object does not have object: " + ADFJsonConstants.ADF_REQUEST_SCRIPT);
+        }
+        try {
+            String script = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_SCRIPT);
+            if (StringUtils.isBlank(script)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_SCRIPT + " cannot"
+                        + " be empty in ADF request.");
+            }
+            return script;
+        } catch (JSONException jsonException) {
+            throw new FalconException("Error when parsing ADF JSON object: "
+                    + activityExtendedProperties, jsonException);
+        }
+    }
+
+    protected Map<String, String> getAdditionalScriptProperties() throws FalconException {
+        /* TODO - doesn't get the properties if script file is passed, verify */
+        String[] propertyObjects = JSONObject.getNames(activityExtendedProperties);
+        Map<String, String> properties = new HashMap<>();
+        for (String obj : propertyObjects) {
+            if(StringUtils.isNotBlank(obj) && !obj.equalsIgnoreCase(ADFJsonConstants.ADF_REQUEST_SCRIPT)) {
+                try {
+                    properties.put(obj, activityExtendedProperties.getString(obj));
+                } catch (JSONException jsonException) {
+                    throw new FalconException("Error when parsing ADF JSON object: "
+                            + activityExtendedProperties, jsonException);
+                }
+            }
+        }
+        return properties;
+    }
+
 }

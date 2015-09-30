@@ -18,6 +18,11 @@
 
 package org.apache.falcon.ADFService.util;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.falcon.ADFService.ADFJob;
+import org.apache.falcon.FalconException;
+import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -25,13 +30,14 @@ import org.apache.hadoop.fs.Path;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 
 /**
  * Utility for file operations.
  */
 public final class FSUtils {
 
-    public static String readTemplateFile(String templateFilePath) throws IOException {
+    public static String readTemplateFile(final String templateFilePath) throws IOException {
         Path pt = new Path(templateFilePath);
         FileSystem fs = FileSystem.get(new Configuration());
         BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
@@ -45,6 +51,30 @@ public final class FSUtils {
             fileContent.append(line);
         }
         return fileContent.toString();
+    }
+
+    public static String createScriptFile(final String scriptContent,
+                                          final String additionalProperties,
+                                          final String fileName,
+                                          final String fileExtension) throws FalconException {
+        // path is unique as job name is always unique
+        /* TODO - delete the file at the end */
+        final Path path = new Path(ADFJob.PROCESS_SCRIPTS_PATH, fileName + fileExtension);
+        OutputStream out = null;
+        try {
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
+            HadoopClientFactory.mkdirsWithDefaultPerms(fs, path);
+            out = fs.create(path);
+            out.write(scriptContent.getBytes());
+            if (StringUtils.isNotBlank(additionalProperties)) {
+                out.write(additionalProperties.getBytes());
+            }
+        } catch (IOException e) {
+            throw new FalconException("Error preparing script file: " + path, e);
+        } finally {
+            IOUtils.closeQuietly(out);
+        }
+        return path.toString();
     }
 
     private FSUtils() {

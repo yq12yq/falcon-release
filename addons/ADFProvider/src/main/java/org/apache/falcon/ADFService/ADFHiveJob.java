@@ -18,19 +18,15 @@
 
 package org.apache.falcon.ADFService;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
-import org.apache.falcon.hadoop.HadoopClientFactory;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.util.Map;
 
 
 /**
@@ -38,7 +34,6 @@ import java.io.OutputStream;
  */
 public class ADFHiveJob extends ADFJob {
     private static final String HIVE_PROCESS_TEMPLATE_FILE = "hive-process.xml";
-    private static final String HIVE_PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX + "/scripts";
     private static final String HIVE_SCRIPT_EXTENSION = ".hql";
     private static final String ENGINE_TYPE = "hive";
     private static final String INPUT_FEED_PREFIX = "hive-input-feed-";
@@ -62,7 +57,7 @@ public class ADFHiveJob extends ADFJob {
 
         try {
             // set the script path
-            hiveScriptPath = getScriptPath();
+            hiveScriptPath = getHiveScriptPath();
         } catch (FalconException e) {
             /* TODO - send the error msg to ADF queue */
         }
@@ -87,49 +82,29 @@ public class ADFHiveJob extends ADFJob {
         }
     }
 
-    private String getScriptPath() throws FalconException {
-        String scriptPath;
-        try {
-            JSONObject scriptObject = activityExtendedProperties.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCRIPT);
-            if (scriptObject == null) {
-                // get the script Path
-                scriptPath = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
-                if (StringUtils.isBlank(scriptPath)) {
-                    throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH + " not"
-                            + " found or empty in ADF request.");
-                }
-            } else {
-                String script = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_SCRIPT);
-                if (StringUtils.isBlank(script)) {
-                    throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_SCRIPT + " cannot"
-                            + " be empty in ADF request.");
-                }
-                // write script to file and set the scriptPath
-                scriptPath = createScriptFile(script);
-            }
-
-        } catch (JSONException jsonException) {
-            throw new FalconException("Error when parsing ADF JSON message: " + message, jsonException);
+    private String getHiveScriptPath() throws FalconException {
+        if (activityHasScriptPath()) {
+            return getScriptPath();
+        } else {
+            String content = getScriptContent();
+            String additionalScriptProperties = getHivePropertiesAsString(getAdditionalScriptProperties());
+            return FSUtils.createScriptFile(content, additionalScriptProperties, jobEntityName(),
+                    HIVE_SCRIPT_EXTENSION);
         }
-        return scriptPath;
     }
 
-    private String createScriptFile(String scriptContent) throws FalconException {
-        // path is unique as job name is always unique
-        /* ToDo - what to do with year, month and day passed? */
-        final Path path = new Path(HIVE_PROCESS_SCRIPTS_PATH, jobEntityName() + HIVE_SCRIPT_EXTENSION);
-        OutputStream out = null;
-        try {
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
-            HadoopClientFactory.mkdirsWithDefaultPerms(fs, path);
-            out = fs.create(path);
-            out.write(scriptContent.getBytes());
-        } catch (IOException e) {
-            throw new FalconException("Error preparing script file: " + path, e);
-        } finally {
-            IOUtils.closeQuietly(out);
+    private static String getHivePropertiesAsString(final Map<String, String> properties) {
+        if (properties == null || properties.isEmpty()) {
+            return null;
         }
-        return path.toString();
+
+        StringBuilder content = new StringBuilder();
+        content.append(System.getProperty("line.separator"));
+        for(Map.Entry<String, String> propertyEntry : properties.entrySet()) {
+            content.append(("set " + propertyEntry.getKey() + " = " + propertyEntry.getValue()));
+            content.append(System.getProperty("line.separator"));
+        }
+        return content.toString();
     }
 
     private TableFeed getInputTableFeed() throws FalconException {
@@ -140,7 +115,7 @@ public class ADFHiveJob extends ADFJob {
         return getTableFeed(OUTPUT_FEED_PREFIX + jobEntityName(), getOutputTables().get(0));
     }
 
-    private TableFeed getTableFeed(String feedName, String tableName) throws FalconException {
+    private TableFeed getTableFeed(final String feedName, final String tableName) throws FalconException {
         JSONObject tableExtendedProperties = getTableExtendedProperties(tableName);
         String tableFeedName;
         String partitions;
@@ -166,7 +141,7 @@ public class ADFHiveJob extends ADFJob {
                 withAclOwner(proxyUser).withTableName(tableFeedName).withPartitions(partitions).build();
     }
 
-    private JSONObject getTableExtendedProperties(String tableName) throws FalconException {
+    private JSONObject getTableExtendedProperties(final String tableName) throws FalconException {
         JSONObject table = tablesMap.get(tableName);
         if (table == null) {
             throw new FalconException("JSON object tables  not found in ADF request.");
@@ -187,7 +162,7 @@ public class ADFHiveJob extends ADFJob {
             JSONObject tableExtendedProperties = tablesLocation.getJSONObject(ADFJsonConstants.
                     ADF_REQUEST_EXTENDED_PROPERTIES);
             if (tableExtendedProperties == null) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LOCATION
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES
                         + " not found in ADF request.");
             }
             return tableExtendedProperties;
