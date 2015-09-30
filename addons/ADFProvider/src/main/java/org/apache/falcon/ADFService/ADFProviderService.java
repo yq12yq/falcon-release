@@ -18,8 +18,8 @@
 
 package org.apache.falcon.ADFService;
 
-
 import org.apache.commons.lang3.StringUtils;
+import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.service.FalconService;
 import org.apache.falcon.service.Services;
@@ -38,6 +38,9 @@ import com.microsoft.windowsazure.services.servicebus.ServiceBusContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.Exception;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -93,6 +96,14 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
 
         LOG.info("Falcon ADFProvider service initialized");
+
+        try {
+            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
+                    ADFJob.TEMPLATE_PATH_PREFIX + ADFReplicationJob.TEMPLATE_REPLIACATION_FEED);
+            LOG.info("replication template: " + template);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static class HandleADFRequests implements Runnable {
@@ -101,6 +112,9 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         public void run() {
 
             /* TODO- Handle request */
+
+
+
         }
     }
 

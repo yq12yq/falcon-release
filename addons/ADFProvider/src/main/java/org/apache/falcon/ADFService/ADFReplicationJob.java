@@ -18,7 +18,11 @@
 
 package org.apache.falcon.ADFService;
 
+import com.sun.jersey.api.client.ClientResponse;
+
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
@@ -38,7 +42,8 @@ public class ADFReplicationJob extends ADFJob {
 
     public void submitJob() {
         try {
-            String template = FSUtils.readTemplateFile(TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
+            String template = FSUtils.readTemplateFile(HDFS_URL_PORT,
+                    TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
             String inputTableName = getInputTables().get(0);
             String outputTableName = getOutputTables().get(0);
             String message = template.replace("$feedName$", jobEntityName())
@@ -49,8 +54,12 @@ public class ADFReplicationJob extends ADFJob {
                     .replace("$clusterTarget$", REPLICATION_TARGET_CLUSTER)
                     .replace("$sourceLocation$", getADFTablePath(inputTableName))
                     .replace("$targetLocation$", getADFTablePath(outputTableName));
-        } catch (IOException e) {
 
+            ClientResponse clientResponse = submitAndScheduleJob("feed", message);
+        } catch (IOException e) {
+            /* TODO - handle */
+        } catch (URISyntaxException e) {
+            /* TODO - handle */
         }
 
     }

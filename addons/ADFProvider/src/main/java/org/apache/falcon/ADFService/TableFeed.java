@@ -23,6 +23,8 @@ import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Table Feed.
@@ -61,8 +63,8 @@ public class TableFeed {
 
     public String getEntityxml() throws FalconException {
         try {
-            String template = FSUtils.readTemplateFile(ADFJob.TEMPLATE_PATH_PREFIX
-                    + TABLE_FEED_TEMPLATE_FILE);
+            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
+                    ADFJob.TEMPLATE_PATH_PREFIX + TABLE_FEED_TEMPLATE_FILE);
             return template.replace("$feedName$", feedName)
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
@@ -71,6 +73,8 @@ public class TableFeed {
                     .replace("$table$", getTable())
                     .replace("$aclowner$", aclOwner);
         } catch (IOException e) {
+            throw new FalconException("Error when generating entity xml for table feed", e);
+        } catch (URISyntaxException e) {
             throw new FalconException("Error when generating entity xml for table feed", e);
         }
     }

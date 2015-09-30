@@ -31,15 +31,18 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Utility for file operations.
  */
 public final class FSUtils {
 
-    public static String readTemplateFile(final String templateFilePath) throws IOException {
+    public static String readTemplateFile(final String hdfsUrl, final String templateFilePath)
+            throws IOException, URISyntaxException {
+        FileSystem fs = FileSystem.get(new URI(hdfsUrl), new Configuration());
         Path pt = new Path(templateFilePath);
-        FileSystem fs = FileSystem.get(new Configuration());
         BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
         StringBuilder fileContent = new StringBuilder();
         String line;

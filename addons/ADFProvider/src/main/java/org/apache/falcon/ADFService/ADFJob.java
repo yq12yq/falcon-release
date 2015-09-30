@@ -18,12 +18,21 @@
 
 package org.apache.falcon.ADFService;
 
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.HttpMethod;
+import javax.ws.rs.core.MediaType;
+
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.FalconException;
 import org.apache.hadoop.fs.Path;
@@ -42,6 +51,10 @@ public abstract class ADFJob {
     // name prefix for all adf related job entity, i.e. adf hive/pig process and replication feed
     public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB_";
     public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
+
+    // TODO(yzheng): read falcon url from client.properties
+    protected static final String DEFAULT_FALCON_URL = "http://localhost:15000/";
+    public static final String HDFS_URL_PORT = "hdfs://sandbox.hortonworks.com:8020";
     public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
     public static final String PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX
             + Path.SEPARATOR + "generatedscripts";
@@ -122,14 +135,13 @@ public abstract class ADFJob {
 
     public ADFJob(String msg, String id) throws FalconException {
         try {
+            this.id = id;
             message = new JSONObject(msg);
 
+            frequency = "days(1)";
             startTime = message.getString(ADFJsonConstants.ADF_REQUEST_START_TIME);
+            //TODO(yzheng): set to the next day of start time
             endTime = message.getString(ADFJsonConstants.ADF_REQUEST_END_TIME);
-
-            JSONObject scheduler = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
-            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
-                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
 
             JSONArray linkedServices = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_LINKED_SERVICES);
             for (int i = 0; i < linkedServices.length(); i++) {
@@ -219,7 +231,8 @@ public abstract class ADFJob {
     protected List<String> getInputTables() {
         List<String> tables = new ArrayList<String>();
         try {
-            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_INPUTS);
+            JSONArray inputs = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY)
+                    .getJSONArray(ADFJsonConstants.ADF_REQUEST_INPUTS);
             for (int i = 0; i < inputs.length(); i++) {
                 tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
             }
@@ -232,9 +245,10 @@ public abstract class ADFJob {
     protected List<String> getOutputTables() {
         List<String> tables = new ArrayList<String>();
         try {
-            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_OUTPUTS);
-            for (int i = 0; i < inputs.length(); i++) {
-                tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
+            JSONArray outputs = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY)
+                    .getJSONArray(ADFJsonConstants.ADF_REQUEST_OUTPUTS);
+            for (int i = 0; i < outputs.length(); i++) {
+                tables.add(outputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
             }
         } catch (JSONException e) {
             return null;
@@ -340,6 +354,19 @@ public abstract class ADFJob {
             }
         }
         return properties;
+    }
+
+    protected ClientResponse submitAndScheduleJob(String entityType, String message)
+    {
+        InputStream stream = IOUtils.toInputStream(message);
+        Client client = Client.create();
+        WebResource resource = client.resource(DEFAULT_FALCON_URL);
+        ClientResponse clientResponse = resource
+                .path("api/entities/submitAndSchedule/").path(entityType)
+                .queryParam("user.name", proxyUser)
+                .accept(MediaType.TEXT_XML).type(MediaType.TEXT_XML)
+                .method(HttpMethod.POST, ClientResponse.class, stream);
+        return clientResponse;
     }
 
 }

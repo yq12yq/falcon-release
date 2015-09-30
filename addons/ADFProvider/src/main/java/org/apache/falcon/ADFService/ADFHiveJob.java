@@ -26,6 +26,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 
 
@@ -65,8 +67,8 @@ public class ADFHiveJob extends ADFJob {
 
     public void submitJob() {
         try {
-            String template = FSUtils.readTemplateFile(TEMPLATE_PATH_PREFIX + HIVE_PROCESS_TEMPLATE_FILE);
-
+            String template = FSUtils.readTemplateFile(HDFS_URL_PORT,
+                    TEMPLATE_PATH_PREFIX + HIVE_PROCESS_TEMPLATE_FILE);
             String message = template.replace("$processName$", jobEntityName())
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
@@ -78,6 +80,8 @@ public class ADFHiveJob extends ADFJob {
                     .replace("$scriptPath$", hiveScriptPath)
                     .replace("$aclowner$", proxyUser);
         } catch (IOException e) {
+            /* TODO - handle */
+        } catch (URISyntaxException e) {
             /* TODO - handle */
         }
     }
