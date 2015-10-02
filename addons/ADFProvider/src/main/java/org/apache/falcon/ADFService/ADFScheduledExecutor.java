@@ -63,7 +63,7 @@ public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
             try {
                 runnable.run();
             } catch (Exception e) {
-                LOG.debug("Error while executing: {}", e);
+                LOG.info("Error while executing: {}", e);
                 throw new RuntimeException(e);
             }
         }

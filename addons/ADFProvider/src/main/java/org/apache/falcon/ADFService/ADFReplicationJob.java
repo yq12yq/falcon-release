@@ -36,7 +36,7 @@ public class ADFReplicationJob extends ADFJob {
         type = JobType.REPLICATION;
     }
 
-    public void submitJob() {
+    public void submitJob() throws FalconException {
         try {
             String template = FSUtils.readTemplateFile(TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
             String inputTableName = getInputTables().get(0);

@@ -25,17 +25,21 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
+import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * Azure ADF base job.
  */
 public abstract class ADFJob {
+    private static final Logger LOG = LoggerFactory.getLogger(ADFJob.class);
 
     // name prefix for all adf related entity, e.g. an adf hive process and the feeds associated with it
     public static final String ADF_ENTITY_NAME_PREFIX = "ADF_";
@@ -45,6 +49,14 @@ public abstract class ADFJob {
     public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
     public static final String PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX
             + Path.SEPARATOR + "generatedscripts";
+
+    // Constants for process properties
+    private static final String PROPERTY_START = "<property ";
+    private static final String PROPERTY_NAME = "name=";
+    private static final String PROPERTY_VALUE = "value=";
+    private static final String PROPERTY_END = "/>";
+    private static final String PROPERTY_DOUBLE_QUOTES = "\"";
+
 
     public static boolean isADFEntity(String entityName) {
         return entityName.startsWith(ADF_ENTITY_NAME_PREFIX);
@@ -107,9 +119,10 @@ public abstract class ADFJob {
         }
     }
 
-    public abstract void submitJob();
+    public abstract void submitJob() throws FalconException;
 
     protected JSONObject message;
+    protected JSONObject activity;
     protected JSONObject activityExtendedProperties;
     protected String id;
     protected JobType type;
@@ -121,15 +134,13 @@ public abstract class ADFJob {
     protected Map<String, JSONObject> tablesMap = new HashMap<String, JSONObject>();
 
     public ADFJob(String msg, String id) throws FalconException {
+        this.id = id;
+        FSUtils.createScriptDir(new Path(TEMPLATE_PATH_PREFIX));
         try {
             message = new JSONObject(msg);
 
             startTime = message.getString(ADFJsonConstants.ADF_REQUEST_START_TIME);
             endTime = message.getString(ADFJsonConstants.ADF_REQUEST_END_TIME);
-
-            JSONObject scheduler = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
-            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
-                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
 
             JSONArray linkedServices = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_LINKED_SERVICES);
             for (int i = 0; i < linkedServices.length(); i++) {
@@ -144,7 +155,7 @@ public abstract class ADFJob {
             }
 
             // Set the activity extended properties
-            JSONObject activity = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
+            activity = message.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
             if (activity == null) {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_ACTIVITY + " not found in ADF"
                         + " request.");
@@ -154,6 +165,10 @@ public abstract class ADFJob {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_TRANSFORMATION + " not found"
                         + " in ADF request.");
             }
+
+            JSONObject scheduler = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
+            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
+                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
 
             activityExtendedProperties = activityProperties.getJSONObject(
                     ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES);
@@ -197,29 +212,27 @@ public abstract class ADFJob {
     }
 
     protected String getRunAsUser() throws FalconException {
-        if (activityExtendedProperties == null) {
-            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES + " not"
+        String hadoopLinkedService = getHadoopLinkedService();
+        JSONObject linkedService = linkedServicesMap.get(hadoopLinkedService);
+        if (linkedService == null) {
+            throw new FalconException("JSON object " + hadoopLinkedService + " not"
                     + " found in ADF request.");
         }
 
-        String runAsUser;
         try {
-            runAsUser =  activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
-            if (StringUtils.isBlank(runAsUser)) {
-                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " cannot"
-                        + " be empty in ADF request.");
-            }
+            return linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
+                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
+                    .getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
         } catch (JSONException e) {
             throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
                     + " found in ADF request.");
         }
-        return runAsUser;
     }
 
     protected List<String> getInputTables() {
         List<String> tables = new ArrayList<String>();
         try {
-            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_INPUTS);
+            JSONArray inputs = activity.getJSONArray(ADFJsonConstants.ADF_REQUEST_INPUTS);
             for (int i = 0; i < inputs.length(); i++) {
                 tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
             }
@@ -232,7 +245,7 @@ public abstract class ADFJob {
     protected List<String> getOutputTables() {
         List<String> tables = new ArrayList<String>();
         try {
-            JSONArray inputs = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_OUTPUTS);
+            JSONArray inputs = activity.getJSONArray(ADFJsonConstants.ADF_REQUEST_OUTPUTS);
             for (int i = 0; i < inputs.length(); i++) {
                 tables.add(inputs.getJSONObject(i).getString(ADFJsonConstants.ADF_REQUEST_NAME));
             }
@@ -279,14 +292,8 @@ public abstract class ADFJob {
             return false;
         }
 
-        try {
-            JSONObject scriptPathObject = activityExtendedProperties.getJSONObject
-                    (ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
-            return (scriptPathObject != null);
-        } catch (JSONException jsonException) {
-            throw new FalconException("Error when parsing ADF JSON object: "
-                    + activityExtendedProperties, jsonException);
-        }
+        return activityExtendedProperties.has(
+                ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH);
     }
 
     protected String getScriptPath() throws FalconException {
@@ -325,21 +332,57 @@ public abstract class ADFJob {
         }
     }
 
-    protected Map<String, String> getAdditionalScriptProperties() throws FalconException {
-        /* TODO - doesn't get the properties if script file is passed, verify */
+    protected String getAdditionalScriptProperties() throws FalconException {
         String[] propertyObjects = JSONObject.getNames(activityExtendedProperties);
-        Map<String, String> properties = new HashMap<>();
+        StringBuilder properties = new StringBuilder();
         for (String obj : propertyObjects) {
-            if(StringUtils.isNotBlank(obj) && !obj.equalsIgnoreCase(ADFJsonConstants.ADF_REQUEST_SCRIPT)) {
-                try {
-                    properties.put(obj, activityExtendedProperties.getString(obj));
-                } catch (JSONException jsonException) {
-                    throw new FalconException("Error when parsing ADF JSON object: "
-                            + activityExtendedProperties, jsonException);
-                }
+            if (StringUtils.isBlank(obj) || obj.equalsIgnoreCase(ADFJsonConstants.ADF_REQUEST_SCRIPT)
+                    || obj.equalsIgnoreCase(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER)
+                    || obj.equalsIgnoreCase(ADFJsonConstants.ADF_REQUEST_SCRIPT_PATH)) {
+                continue;
             }
+
+            String key = obj;
+            String value;
+            try {
+                value = activityExtendedProperties.getString(obj);
+            } catch (JSONException jsonException) {
+                throw new FalconException("Error when parsing ADF JSON object: "
+                        + activityExtendedProperties, jsonException);
+            }
+            properties.append(PROPERTY_START);
+            properties.append(PROPERTY_NAME);
+            properties.append(PROPERTY_DOUBLE_QUOTES);
+            properties.append(key);
+            properties.append(PROPERTY_DOUBLE_QUOTES);
+            properties.append(" ");
+            properties.append(PROPERTY_VALUE);
+            properties.append(PROPERTY_DOUBLE_QUOTES);
+            properties.append(value);
+            properties.append(PROPERTY_DOUBLE_QUOTES);
+            properties.append(PROPERTY_END);
+            properties.append(System.lineSeparator());
         }
-        return properties;
+        return properties.toString();
     }
 
+    protected String getClusterNameToRunProcessOn() throws FalconException {
+        return getClusterName(getHadoopLinkedService());
+    }
+
+    private String getHadoopLinkedService() throws FalconException {
+        String hadoopLinkedService;
+        try {
+            hadoopLinkedService = activity.getString(ADFJsonConstants.ADF_REQUEST_LINKED_SERVICE_NAME);
+        } catch (JSONException jsonException) {
+            throw new FalconException("Error when parsing ADF JSON object: "
+                    + activity, jsonException);
+        }
+
+        if (StringUtils.isBlank(hadoopLinkedService)) {
+            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_LINKED_SERVICE_NAME
+                    + " in the activity cannot be empty in ADF request.");
+        }
+        return hadoopLinkedService;
+    }
 }

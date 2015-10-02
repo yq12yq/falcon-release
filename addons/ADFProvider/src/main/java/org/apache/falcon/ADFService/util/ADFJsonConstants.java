@@ -46,8 +46,8 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_SCRIPT = "script";
     public static final String ADF_REQUEST_SCRIPT_PATH = "scriptPath";
     public static final String ADF_REQUEST_LINKED_SERVICE_NAME = "linkedServiceName";
-    public static final String ADF_REQUEST_TABLE_NAME = "hivetable";
-    public static final String ADF_REQUEST_TABLE_PARTITION = "partition";
+    public static final String ADF_REQUEST_TABLE_NAME = "tableName";
+    public static final String ADF_REQUEST_TABLE_PARTITION = "partitionedBy";
 
     private ADFJsonConstants() {
     }

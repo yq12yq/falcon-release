@@ -22,64 +22,51 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.hadoop.fs.Path;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.util.Map;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Azure ADF Hive Job.
  */
 public class ADFHiveJob extends ADFJob {
-    private static final String HIVE_PROCESS_TEMPLATE_FILE = "hive-process.xml";
+    private static final Logger LOG = LoggerFactory.getLogger(ADFHiveJob.class);
     private static final String HIVE_SCRIPT_EXTENSION = ".hql";
     private static final String ENGINE_TYPE = "hive";
-    private static final String INPUT_FEED_PREFIX = "hive-input-feed-";
-    private static final String OUTPUT_FEED_PREFIX = "hive-output-feed-";
+    private static final String INPUT_FEED_SUFFIX = "-hive-input-feed";
+    private static final String OUTPUT_FEED_SUFFIX = "-hive-output-feed";
+    private static final String INPUTNAME = "inputtable";
+    private static final String OUTPUTNAME = "outputtable";
+
     private String hiveScriptPath;
     private TableFeed inputFeed;
     private TableFeed outputFeed;
-    private String clusterName;
 
     public ADFHiveJob(String message, String id) throws FalconException {
         super(message, id);
         type = JobType.HIVE;
 
-        /* ToDo - Why is cluster anme inside input table? Can we move it in activity proeprties? */
-        // get cluster
-        String inputTableName = getInputTables().get(0);
-        clusterName = getTableCluster(inputTableName);
-
         inputFeed = getInputTableFeed();
         outputFeed = getOutputTableFeed();
-
-        try {
-            // set the script path
-            hiveScriptPath = getHiveScriptPath();
-        } catch (FalconException e) {
-            /* TODO - send the error msg to ADF queue */
-        }
+        // set the script path
+        hiveScriptPath = getHiveScriptPath();
     }
 
-    public void submitJob() {
-        try {
-            String template = FSUtils.readTemplateFile(TEMPLATE_PATH_PREFIX + HIVE_PROCESS_TEMPLATE_FILE);
-
-            String message = template.replace("$processName$", jobEntityName())
-                    .replace("$frequency$", frequency)
-                    .replace("$startTime$", startTime)
-                    .replace("$endTime$", endTime)
-                    .replace("$$clusterName$$", clusterName)
-                    .replace("$inputFeedName$", inputFeed.getName())
-                    .replace("$outputFeedName$", outputFeed.getName())
-                    .replace("$engine$", ENGINE_TYPE)
-                    .replace("$scriptPath$", hiveScriptPath)
-                    .replace("$aclowner$", proxyUser);
-        } catch (IOException e) {
-            /* TODO - handle */
-        }
+    @Override
+    public void submitJob() throws FalconException {
+        String request = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
+                .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
+                .withInputName(INPUTNAME).withInputFeedName(inputFeed.getName())
+                .withOutputName(OUTPUTNAME).withOutputFeedName(outputFeed.getName())
+                .withEngineType(ENGINE_TYPE).withWFPath(hiveScriptPath).withAclOwner(proxyUser)
+                .withProperties(getAdditionalScriptProperties()).build().getEntityxml();
+        /* To Remove */
+        LOG.info("Entity: {}", request);
+        LOG.info("Input: {}", inputFeed.getEntityxml());
+        LOG.info("Output: {}", outputFeed.getEntityxml());
     }
 
     private String getHiveScriptPath() throws FalconException {
@@ -87,35 +74,24 @@ public class ADFHiveJob extends ADFJob {
             return getScriptPath();
         } else {
             String content = getScriptContent();
-            String additionalScriptProperties = getHivePropertiesAsString(getAdditionalScriptProperties());
-            return FSUtils.createScriptFile(content, additionalScriptProperties, jobEntityName(),
-                    HIVE_SCRIPT_EXTENSION);
+            // file path is unique as job name is always unique
+            final Path path = new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName() + HIVE_SCRIPT_EXTENSION);
+            return FSUtils.createScriptFile(path, content);
         }
-    }
-
-    private static String getHivePropertiesAsString(final Map<String, String> properties) {
-        if (properties == null || properties.isEmpty()) {
-            return null;
-        }
-
-        StringBuilder content = new StringBuilder();
-        content.append(System.getProperty("line.separator"));
-        for(Map.Entry<String, String> propertyEntry : properties.entrySet()) {
-            content.append(("set " + propertyEntry.getKey() + " = " + propertyEntry.getValue()));
-            content.append(System.getProperty("line.separator"));
-        }
-        return content.toString();
     }
 
     private TableFeed getInputTableFeed() throws FalconException {
-        return getTableFeed(INPUT_FEED_PREFIX + jobEntityName(), getInputTables().get(0));
+        return getTableFeed(jobEntityName() + INPUT_FEED_SUFFIX, getInputTables().get(0),
+                getTableCluster(getInputTables().get(0)));
     }
 
     private TableFeed getOutputTableFeed() throws FalconException {
-        return getTableFeed(OUTPUT_FEED_PREFIX + jobEntityName(), getOutputTables().get(0));
+        return getTableFeed(jobEntityName() + OUTPUT_FEED_SUFFIX, getOutputTables().get(0),
+                getTableCluster(getOutputTables().get(0)));
     }
 
-    private TableFeed getTableFeed(final String feedName, final String tableName) throws FalconException {
+    private TableFeed getTableFeed(final String feedName, final String tableName,
+                                   final String clusterName) throws FalconException {
         JSONObject tableExtendedProperties = getTableExtendedProperties(tableName);
         String tableFeedName;
         String partitions;
@@ -135,10 +111,9 @@ public class ADFHiveJob extends ADFJob {
             throw new FalconException("Error when parsing ADF JSON message: " + tableExtendedProperties, e);
         }
 
-
         return new TableFeed.Builder().withFeedName(feedName).withFrequency(frequency)
                 .withClusterName(clusterName).withStartTime(startTime).withEndTime(endTime).
-                withAclOwner(proxyUser).withTableName(tableFeedName).withPartitions(partitions).build();
+                        withAclOwner(proxyUser).withTableName(tableFeedName).withPartitions(partitions).build();
     }
 
     private JSONObject getTableExtendedProperties(final String tableName) throws FalconException {
