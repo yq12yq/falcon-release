@@ -19,13 +19,13 @@
 package org.apache.falcon.ADFService.util;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.falcon.ADFService.ADFJob;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.hadoop.HadoopClientFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,6 +38,9 @@ import java.net.URISyntaxException;
  * Utility for file operations.
  */
 public final class FSUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(FSUtils.class);
+    private FSUtils() {
+    }
 
     public static String readTemplateFile(final String hdfsUrl, final String templateFilePath)
             throws IOException, URISyntaxException {
@@ -56,30 +59,31 @@ public final class FSUtils {
         return fileContent.toString();
     }
 
-    public static String createScriptFile(final String scriptContent,
-                                          final String additionalProperties,
-                                          final String fileName,
-                                          final String fileExtension) throws FalconException {
-        // path is unique as job name is always unique
+    public static String createScriptFile(final Path scriptPath,
+                                          final String scriptContent) throws FalconException {
         /* TODO - delete the file at the end */
-        final Path path = new Path(ADFJob.PROCESS_SCRIPTS_PATH, fileName + fileExtension);
         OutputStream out = null;
         try {
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
-            HadoopClientFactory.mkdirsWithDefaultPerms(fs, path);
-            out = fs.create(path);
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(scriptPath.toUri());
+            out = fs.create(scriptPath);
             out.write(scriptContent.getBytes());
-            if (StringUtils.isNotBlank(additionalProperties)) {
-                out.write(additionalProperties.getBytes());
-            }
         } catch (IOException e) {
-            throw new FalconException("Error preparing script file: " + path, e);
+            throw new FalconException("Error preparing script file: " + scriptPath, e);
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return path.toString();
+        return scriptPath.toString();
     }
 
-    private FSUtils() {
+    public static void createScriptDir(final Path dirPath) throws FalconException {
+        FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(dirPath.toUri());
+        try {
+            if (!fs.exists(dirPath)) {
+                LOG.info("Creating directory: {}", dirPath);
+                HadoopClientFactory.mkdirsWithDefaultPerms(fs, dirPath);
+            }
+        } catch (IOException e) {
+            throw new FalconException("Error creating directory: " + dirPath, e);
+        }
     }
 }

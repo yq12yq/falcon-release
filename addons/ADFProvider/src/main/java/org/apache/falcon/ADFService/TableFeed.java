@@ -29,17 +29,11 @@ import java.net.URISyntaxException;
 /**
  * Table Feed.
  */
-public class TableFeed {
+public class TableFeed extends Feed {
     private static final String TABLE_FEED_TEMPLATE_FILE = "table-feed.xml";
     private static final String TABLE_PARTITION_SEPARATOR = "#";
 
-    private String feedName;
-    private String clusterName;
-    private String frequency;
-    private String startTime;
-    private String endTime;
     private String tableName;
-    private String aclOwner;
 //    public List<String> partitions;
     private String partitions;
 
@@ -61,6 +55,7 @@ public class TableFeed {
         return tableName + TABLE_PARTITION_SEPARATOR + partitions;
     }
 
+    @Override
     public String getEntityxml() throws FalconException {
         try {
             String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
@@ -77,10 +72,6 @@ public class TableFeed {
         } catch (URISyntaxException e) {
             throw new FalconException("Error when generating entity xml for table feed", e);
         }
-    }
-
-    public String getName() {
-        return feedName;
     }
 
     /**

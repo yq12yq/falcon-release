@@ -40,7 +40,7 @@ public class ADFReplicationJob extends ADFJob {
         type = JobType.REPLICATION;
     }
 
-    public void submitJob() {
+    public void submitJob() throws FalconException {
         try {
             String template = FSUtils.readTemplateFile(HDFS_URL_PORT,
                     TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
