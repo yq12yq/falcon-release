@@ -18,34 +18,43 @@
 
 package org.apache.falcon.ADFService;
 
-import com.sun.jersey.api.client.ClientResponse;
-
-import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Azure ADF Replication Job (hive/hdfs to Azure blobs)
+ * Azure ADF Replication Job (hive/hdfs to Azure blobs).
  */
 public class ADFReplicationJob extends ADFJob {
 
-    public static String TEMPLATE_REPLIACATION_FEED = "replicate-feed.xml";
-    public static String REPLICATION_TARGET_CLUSTER = "adf-replication-target-cluster";
+    private static final Logger LOG = LoggerFactory.getLogger(ADFReplicationJob.class);
+
+    public static final String TEMPLATE_REPLIACATION_FEED = "replicate-feed.xml";
+    public static final String REPLICATION_TARGET_CLUSTER = "adf-replication-target-cluster";
 
     public ADFReplicationJob(String message, String id) throws FalconException {
         super(message, id);
         type = JobType.REPLICATION;
     }
 
-    public void submitJob() throws FalconException {
+    @Override
+    public void startJob() throws FalconException {
         try {
-            String template = FSUtils.readTemplateFile(HDFS_URL_PORT,
-                    TEMPLATE_PATH_PREFIX + TEMPLATE_REPLIACATION_FEED);
+            String template = FSUtils.readHDFSFile(TEMPLATE_PATH_PREFIX, TEMPLATE_REPLIACATION_FEED);
+            LOG.info("template: " + template);
             String inputTableName = getInputTables().get(0);
             String outputTableName = getOutputTables().get(0);
+
+            LOG.info("input table: " + inputTableName);
+            LOG.info("output table: " + outputTableName);
+            LOG.info("feed name: " + jobEntityName());
+            LOG.info("start time: " + startTime);
+            LOG.info("cluster source: " + getTableCluster(inputTableName));
+            LOG.info("source location: " + getADFTablePath(inputTableName));
+            LOG.info("target location: " + getADFTablePath(outputTableName));
             String message = template.replace("$feedName$", jobEntityName())
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
@@ -55,11 +64,11 @@ public class ADFReplicationJob extends ADFJob {
                     .replace("$sourceLocation$", getADFTablePath(inputTableName))
                     .replace("$targetLocation$", getADFTablePath(outputTableName));
 
-            ClientResponse clientResponse = submitAndScheduleJob("feed", message);
-        } catch (IOException e) {
-            /* TODO - handle */
+            LOG.info("submitting/scheduling job: " + message);
+            submitAndScheduleJob("feed", message);
+            LOG.info("submitted and scheduled job");
         } catch (URISyntaxException e) {
-            /* TODO - handle */
+            LOG.info(e.toString());
         }
 
     }

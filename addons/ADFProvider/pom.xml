@@ -49,6 +49,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.falcon</groupId>
+            <artifactId>falcon-prism</artifactId>
+            <version>${project.version}</version>
+            <classifier>classes</classifier>
+        </dependency>
+
+        <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>azure-servicebus</artifactId>
             <version>${azure.version}</version>

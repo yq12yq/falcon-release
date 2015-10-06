@@ -18,24 +18,19 @@
 
 package org.apache.falcon.ADFService;
 
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.WebResource;
-
-import java.io.*;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.MediaType;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.resource.AbstractSchedulableEntityManager;
 import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,13 +46,13 @@ public abstract class ADFJob {
     private static final Logger LOG = LoggerFactory.getLogger(ADFJob.class);
 
     // name prefix for all adf related entity, e.g. an adf hive process and the feeds associated with it
-    public static final String ADF_ENTITY_NAME_PREFIX = "ADF_";
+    public static final String ADF_ENTITY_NAME_PREFIX = "ADF-";
     // name prefix for all adf related job entity, i.e. adf hive/pig process and replication feed
-    public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB_";
+    public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB-";
     public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
 
     // TODO(yzheng): read falcon url from client.properties
-    protected static final String DEFAULT_FALCON_URL = "http://localhost:15000/";
+    protected static final String DEFAULT_FALCON_URL = "http://127.0.0.1:15000/";
     public static final String HDFS_URL_PORT = "hdfs://sandbox.hortonworks.com:8020";
     public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
     public static final String PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX
@@ -97,7 +92,7 @@ public abstract class ADFJob {
         HADOOPREPLICATEDATA, HADOOPHIVE, HADOOPPIG
     }
 
-    private static JobType getJobType(String msg) throws FalconException {
+    public static JobType getJobType(String msg) throws FalconException {
         try {
             JSONObject obj = new JSONObject(msg);
             JSONObject activity = obj.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
@@ -118,21 +113,21 @@ public abstract class ADFJob {
             }
 
             switch (RequestType.valueOf(type.toUpperCase())) {
-                case HADOOPREPLICATEDATA:
-                    return JobType.REPLICATION;
-                case HADOOPHIVE:
-                    return JobType.HIVE;
-                case HADOOPPIG:
-                    return JobType.PIG;
-                default:
-                    throw new FalconException("Unrecognized ADF job type: " + type);
+            case HADOOPREPLICATEDATA:
+                return JobType.REPLICATION;
+            case HADOOPHIVE:
+                return JobType.HIVE;
+            case HADOOPPIG:
+                return JobType.PIG;
+            default:
+                throw new FalconException("Unrecognized ADF job type: " + type);
             }
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }
     }
 
-    public abstract void submitJob() throws FalconException;
+    public abstract void startJob() throws FalconException;
 
     protected JSONObject message;
     protected JSONObject activity;
@@ -142,6 +137,7 @@ public abstract class ADFJob {
     protected String startTime, endTime;
     protected String frequency;
     protected String proxyUser;
+    protected ADFJobManager jobManager = new ADFJobManager();
 
     private Map<String, JSONObject> linkedServicesMap = new HashMap<String, JSONObject>();
     protected Map<String, JSONObject> tablesMap = new HashMap<String, JSONObject>();
@@ -155,8 +151,10 @@ public abstract class ADFJob {
 
             frequency = "days(1)";
             startTime = message.getString(ADFJsonConstants.ADF_REQUEST_START_TIME);
+            startTime = startTime.substring(0, startTime.length()-4) + "Z";
             //TODO(yzheng): set to the next day of start time
             endTime = message.getString(ADFJsonConstants.ADF_REQUEST_END_TIME);
+            endTime = endTime.substring(0, endTime.length()-4) + "Z";
 
             JSONArray linkedServices = message.getJSONArray(ADFJsonConstants.ADF_REQUEST_LINKED_SERVICES);
             for (int i = 0; i < linkedServices.length(); i++) {
@@ -194,7 +192,9 @@ public abstract class ADFJob {
             }
 
             // should be called after setting activityExtendedProperties
-            proxyUser = getRunAsUser();
+            //proxyUser = getRunAsUser();
+            // TODO(yzheng): read from message: "activity" -> "runOnBehalf"
+            proxyUser = "ambari-qa";
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }
@@ -388,17 +388,10 @@ public abstract class ADFJob {
         return getClusterName(getHadoopLinkedService());
     }
 
-    protected ClientResponse submitAndScheduleJob(String entityType, String message)
-    {
-        InputStream stream = IOUtils.toInputStream(message);
-        Client client = Client.create();
-        WebResource resource = client.resource(DEFAULT_FALCON_URL);
-        ClientResponse clientResponse = resource
-                .path("api/entities/submitAndSchedule/").path(entityType)
-                .queryParam("user.name", proxyUser)
-                .accept(MediaType.TEXT_XML).type(MediaType.TEXT_XML)
-                .method(HttpMethod.POST, ClientResponse.class, stream);
-        return clientResponse;
+    protected Entity submitAndScheduleJob(String entityType, String msg) {
+        Entity entity = jobManager.submitJob(entityType, msg);
+        jobManager.scheduleJob(entityType, jobEntityName());
+        return entity;
     }
 
     private String getHadoopLinkedService() throws FalconException {
@@ -415,5 +408,29 @@ public abstract class ADFJob {
                     + " in the activity cannot be empty in ADF request.");
         }
         return hadoopLinkedService;
+    }
+
+    protected static class ADFJobManager extends AbstractSchedulableEntityManager {
+        public Entity submitJob(String entityType, String msg) {
+            InputStream stream = IOUtils.toInputStream(msg);
+            LOG.info("to stream");
+            try {
+                Entity entity = submitInternal(stream, entityType);
+                LOG.info("submitted entity: " + entity.getName());
+                return entity;
+            } catch (Exception e) {
+                LOG.info(e.toString());
+            }
+            return null;
+        }
+
+        public void scheduleJob(String entityType, String entityName) {
+            try {
+                scheduleInternal(entityType, entityName, null);
+                LOG.info("scheduled entity: " + entityName);
+            } catch (Exception e) {
+                LOG.info(e.toString());
+            }
+        }
     }
 }

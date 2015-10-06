@@ -21,7 +21,6 @@ package org.apache.falcon.ADFService.util;
 import org.apache.commons.io.IOUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.hadoop.HadoopClientFactory;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -31,7 +30,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
@@ -42,21 +40,27 @@ public final class FSUtils {
     private FSUtils() {
     }
 
-    public static String readTemplateFile(final String hdfsUrl, final String templateFilePath)
-            throws IOException, URISyntaxException {
-        FileSystem fs = FileSystem.get(new URI(hdfsUrl), new Configuration());
-        Path pt = new Path(templateFilePath);
-        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
-        StringBuilder fileContent = new StringBuilder();
-        String line;
-        while (true) {
-            line = br.readLine();
-            if (line == null) {
-                break;
+    public static String readHDFSFile(final String filePath, final String fileName)
+        throws URISyntaxException, FalconException {
+        BufferedReader br = null;
+        try {
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem((new Path(filePath)).toUri());
+            br = new BufferedReader(new InputStreamReader(fs.open(new Path(fileName))));
+            StringBuilder fileContent = new StringBuilder();
+            String line;
+            while (true) {
+                line = br.readLine();
+                if (line == null) {
+                    break;
+                }
+                fileContent.append(line);
             }
-            fileContent.append(line);
+            return fileContent.toString();
+        } catch (IOException e) {
+            throw new FalconException("Error reading file from hdfs: " + filePath + fileName, e);
+        } finally {
+            IOUtils.closeQuietly(br);
         }
-        return fileContent.toString();
     }
 
     public static String createScriptFile(final Path scriptPath,

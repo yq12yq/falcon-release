@@ -26,10 +26,6 @@ import org.apache.hadoop.fs.Path;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +56,7 @@ public class ADFHiveJob extends ADFJob {
     }
 
     @Override
-    public void submitJob() throws FalconException {
+    public void startJob() throws FalconException {
         String request = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
                 .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
                 .withInputName(INPUTNAME).withInputFeedName(inputFeed.getName())

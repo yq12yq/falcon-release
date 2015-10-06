@@ -30,17 +30,18 @@ import org.apache.falcon.workflow.WorkflowJobEndNotificationService;
 
 import com.microsoft.windowsazure.Configuration;
 import com.microsoft.windowsazure.services.servicebus.ServiceBusService;
+import com.microsoft.windowsazure.services.servicebus.models.BrokeredMessage;
 import com.microsoft.windowsazure.services.servicebus.models.ReceiveMessageOptions;
 import com.microsoft.windowsazure.services.servicebus.models.ReceiveMode;
+import com.microsoft.windowsazure.services.servicebus.models.ReceiveQueueMessageResult;
 import com.microsoft.windowsazure.services.servicebus.ServiceBusConfiguration;
 import com.microsoft.windowsazure.services.servicebus.ServiceBusContract;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.Exception;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -98,23 +99,54 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         LOG.info("Falcon ADFProvider service initialized");
 
         try {
-            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
-                    ADFJob.TEMPLATE_PATH_PREFIX + ADFReplicationJob.TEMPLATE_REPLIACATION_FEED);
-            LOG.info("replication template: " + template);
+            String template = FSUtils.readHDFSFile(
+                    ADFJob.TEMPLATE_PATH_PREFIX, ADFReplicationJob.TEMPLATE_REPLIACATION_FEED);
+            LOG.info("template: " + template);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.info(e.toString());
         }
+
     }
 
-    private static class HandleADFRequests implements Runnable {
+    private class HandleADFRequests implements Runnable {
 
         @Override
         public void run() {
+            try {
+                // TODO(yzheng): read queue name from configuration file
+                ReceiveQueueMessageResult resultQM =
+                        service.receiveQueueMessage("request", opts);
+                BrokeredMessage message = resultQM.getValue();
+                if (message != null && message.getMessageId() != null) {
+                    String sessionID = message.getReplyToSessionId();
+                    BufferedReader rd = new BufferedReader(
+                            new InputStreamReader(message.getBody()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = rd.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    rd.close();
+                    service.deleteMessage(message);
 
-            /* TODO- Handle request */
-
-
-
+                    String msg = sb.toString();
+                    msg = msg.substring(msg.indexOf('{'));
+                    ADFJob.JobType jobType = ADFJob.getJobType(msg);
+                    switch (jobType) {
+                    case REPLICATION:
+                        ADFReplicationJob job = new ADFReplicationJob(msg, sessionID);
+                        LOG.info("To start job");
+                        job.startJob();
+                        break;
+                    case HIVE:
+                    case PIG:
+                    default:
+                        LOG.info("Invalid job type: " + jobType);
+                    }
+                }
+            } catch (Exception e) {
+                LOG.info(e.toString());
+            }
         }
     }
 

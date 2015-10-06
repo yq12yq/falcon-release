@@ -21,8 +21,6 @@ package org.apache.falcon.ADFService;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 
-import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
@@ -67,8 +65,7 @@ public class Process {
 
     public String getEntityxml() throws FalconException {
         try {
-            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
-                    ADFJob.TEMPLATE_PATH_PREFIX + PROCESS_TEMPLATE_FILE);
+            String template = FSUtils.readHDFSFile(ADFJob.TEMPLATE_PATH_PREFIX, PROCESS_TEMPLATE_FILE);
             return template.replace("$processName$", entityName)
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
@@ -82,8 +79,6 @@ public class Process {
                     .replace("$scriptPath$", wfPath)
                     .replace("$aclowner$", aclOwner)
                     .replace("$properties$", properties);
-        } catch (IOException e) {
-            throw new FalconException("Error when generating entity xml for table feed", e);
         } catch (URISyntaxException e) {
             throw new FalconException("Error when generating entity xml for table feed", e);
         }
