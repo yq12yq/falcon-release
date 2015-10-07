@@ -22,7 +22,7 @@ import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 
-import java.io.*;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -97,7 +97,7 @@ public abstract class ADFJob {
         HADOOPREPLICATEDATA, HADOOPHIVE, HADOOPPIG
     }
 
-    private static JobType getJobType(String msg) throws FalconException {
+    public static JobType getJobType(String msg) throws FalconException {
         try {
             JSONObject obj = new JSONObject(msg);
             JSONObject activity = obj.getJSONObject(ADFJsonConstants.ADF_REQUEST_ACTIVITY);
@@ -273,10 +273,11 @@ public abstract class ADFJob {
         return tables;
     }
 
-    protected String getADFTablePath(String tableName) {
+    protected String getADFTablePath(String tableName) throws FalconException {
         JSONObject table = tablesMap.get(tableName);
         if (table == null) {
-            return null;
+            throw new FalconException("JSON object " + tableName + " not"
+                    + " found in ADF request.");
         }
 
         try {
@@ -285,7 +286,7 @@ public abstract class ADFJob {
                     .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
                     .getString(ADFJsonConstants.ADF_REQUEST_FOLDER_PATH);
         } catch (JSONException e) {
-            return null;
+            throw new FalconException("Error when parsing ADF JSON message: " + tableName, e);
         }
     }
 
@@ -388,9 +389,9 @@ public abstract class ADFJob {
         return getClusterName(getHadoopLinkedService());
     }
 
-    protected ClientResponse submitAndScheduleJob(String entityType, String message)
+    protected ClientResponse submitAndScheduleJob(String entityType, String requestMessage)
     {
-        InputStream stream = IOUtils.toInputStream(message);
+        InputStream stream = IOUtils.toInputStream(requestMessage);
         Client client = Client.create();
         WebResource resource = client.resource(DEFAULT_FALCON_URL);
         ClientResponse clientResponse = resource

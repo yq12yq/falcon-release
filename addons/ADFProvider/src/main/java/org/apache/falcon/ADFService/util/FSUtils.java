@@ -43,7 +43,7 @@ public final class FSUtils {
     }
 
     public static String readTemplateFile(final String hdfsUrl, final String templateFilePath)
-            throws IOException, URISyntaxException {
+        throws IOException, URISyntaxException {
         FileSystem fs = FileSystem.get(new URI(hdfsUrl), new Configuration());
         Path pt = new Path(templateFilePath);
         BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));

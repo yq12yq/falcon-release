@@ -18,7 +18,6 @@
 
 package org.apache.falcon.ADFService;
 
-
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 
@@ -26,45 +25,33 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 
 /**
- * Table Feed.
+ * Class for data Feed.
  */
-public class TableFeed extends Feed {
-    private static final String TABLE_FEED_TEMPLATE_FILE = "table-feed.xml";
-    private static final String TABLE_PARTITION_SEPARATOR = "#";
+public class DataFeed extends Feed {
+    private static final String FEED_TEMPLATE_FILE = "feed.xml";
+    private String locationPath;
 
-    private String tableName;
-//    public List<String> partitions;
-    private String partitions;
-
-    public TableFeed(final Builder builder) {
-        this.feedName = builder.tableFeedName;
+    public DataFeed(final Builder builder) {
+        this.feedName = builder.name;
         this.clusterName = builder.feedClusterName;
         this.frequency = builder.feedFrequency;
         this.startTime = builder.feedStartTime;
         this.endTime = builder.feedEndTime;
-        this.tableName = builder.feedTableName;
+        this.locationPath = builder.feedLocationPath;
         this.aclOwner = builder.feedAclOwner;
-        // ToDO - More than 1 partition allowed? Why inisde []?
-//        this.partitions = Arrays.asList(builder.partitions.split("[;]"));
-        this.partitions = builder.feedPartitions;
-    }
-
-    private String getTable() {
-        /* TODO - handle multiple partitions if allowed */
-        return tableName + TABLE_PARTITION_SEPARATOR + partitions;
     }
 
     @Override
     public String getEntityxml() throws FalconException {
         try {
-            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT,
-                    ADFJob.TEMPLATE_PATH_PREFIX + TABLE_FEED_TEMPLATE_FILE);
+            String template = FSUtils.readTemplateFile(ADFJob.HDFS_URL_PORT, ADFJob.TEMPLATE_PATH_PREFIX
+                    + FEED_TEMPLATE_FILE);
             return template.replace("$feedName$", feedName)
                     .replace("$frequency$", frequency)
                     .replace("$startTime$", startTime)
                     .replace("$endTime$", endTime)
                     .replace("$cluster$", clusterName)
-                    .replace("$table$", getTable())
+                    .replace("$location$", locationPath)
                     .replace("$aclowner$", aclOwner);
         } catch (IOException e) {
             throw new FalconException("Error when generating entity xml for table feed", e);
@@ -77,21 +64,20 @@ public class TableFeed extends Feed {
      * Builder for table Feed.
      */
     public static class Builder {
-        private String tableFeedName;
+        private String name;
         private String feedClusterName;
         private String feedFrequency;
         private String feedStartTime;
         private String feedEndTime;
-        private String feedTableName;
+        private String feedLocationPath;
         private String feedAclOwner;
-        private String feedPartitions;
 
-        public TableFeed build() {
-            return new TableFeed(this);
+        public DataFeed build() {
+            return new DataFeed(this);
         }
 
         public Builder withFeedName(final String feedName) {
-            this.tableFeedName = feedName;
+            this.name = feedName;
             return this;
         }
 
@@ -115,8 +101,8 @@ public class TableFeed extends Feed {
             return this;
         }
 
-        public Builder withTableName(final String tableName) {
-            this.feedTableName = tableName;
+        public Builder withLocationPath(final String locationPath) {
+            this.feedLocationPath = locationPath;
             return this;
         }
 
@@ -124,11 +110,5 @@ public class TableFeed extends Feed {
             this.feedAclOwner = aclOwner;
             return this;
         }
-
-        public Builder withPartitions(final String partitions) {
-            this.feedPartitions = partitions;
-            return this;
-        }
     }
-
 }

@@ -38,9 +38,6 @@ import com.microsoft.windowsazure.services.servicebus.ServiceBusContract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.Exception;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
