@@ -228,20 +228,36 @@ public abstract class ADFJob {
     }
 
     protected String getRunAsUser() throws FalconException {
-        String hadoopLinkedService = getHadoopLinkedService();
-        JSONObject linkedService = linkedServicesMap.get(hadoopLinkedService);
-        if (linkedService == null) {
-            throw new FalconException("JSON object " + hadoopLinkedService + " not"
-                    + " found in ADF request.");
-        }
+        if (activityExtendedProperties.has(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER)) {
+            String runAsUser = null;
+            try {
+                runAsUser = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
+            } catch (JSONException e) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
+                        + " found in ADF request.");
+            }
 
-        try {
-            return linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
-                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
-                    .getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
-        } catch (JSONException e) {
-            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
-                    + " found in ADF request.");
+            if (StringUtils.isBlank(runAsUser)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " in"
+                        + " ADF request activity extended properties cannot be empty.");
+            }
+            return runAsUser;
+        } else {
+            String hadoopLinkedService = getHadoopLinkedService();
+            JSONObject linkedService = linkedServicesMap.get(hadoopLinkedService);
+            if (linkedService == null) {
+                throw new FalconException("JSON object " + hadoopLinkedService + " not"
+                        + " found in ADF request.");
+            }
+
+            try {
+                return linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
+                        .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
+                        .getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
+            } catch (JSONException e) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
+                        + " found in ADF request.");
+            }
         }
     }
 
@@ -389,8 +405,7 @@ public abstract class ADFJob {
         return getClusterName(getHadoopLinkedService());
     }
 
-    protected ClientResponse submitAndScheduleJob(String entityType, String requestMessage)
-    {
+    protected ClientResponse submitAndScheduleJob(String entityType, String requestMessage) {
         InputStream stream = IOUtils.toInputStream(requestMessage);
         Client client = Client.create();
         WebResource resource = client.resource(DEFAULT_FALCON_URL);
