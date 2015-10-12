@@ -36,6 +36,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.security.CurrentUser;
 import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -195,6 +196,8 @@ public abstract class ADFJob {
 
             // should be called after setting activityExtendedProperties
             proxyUser = getRunAsUser();
+            // log in the user
+            CurrentUser.authenticate(proxyUser);
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }
