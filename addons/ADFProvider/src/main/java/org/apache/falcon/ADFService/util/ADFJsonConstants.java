@@ -49,6 +49,15 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_TABLE_NAME = "tableName";
     public static final String ADF_REQUEST_TABLE_PARTITION = "partitionedBy";
 
+    public static final String ADF_STATUS_PROTOCOL = "TranportProtocolVersion";
+    public static final String ADF_STATUS_JOBID = "JobId";
+    public static final String ADF_STATUS_STATUS = "Status";
+    public static final String ADF_STATUS_PROGRESS = "Progress";
+    public static final String ADF_STATUS_LOG_URL = "LogURL";
+    public static final String ADF_STATUS_ERROR_TYPE = "ErrorType";
+    public static final String ADF_STATUS_ERROR_MESSAGE = "ErrorMessage";
+    public static final String ADF_STATUS_PROTOCOL_NAME = "2.0-preview";
+
     private ADFJsonConstants() {
     }
 }

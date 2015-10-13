@@ -18,17 +18,8 @@
 
 package org.apache.falcon.ADFService;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.falcon.ADFService.util.FSUtils;
-import org.apache.falcon.FalconException;
-import org.apache.falcon.service.FalconService;
-import org.apache.falcon.service.Services;
-import org.apache.falcon.util.StartupProperties;
-import org.apache.falcon.workflow.WorkflowExecutionListener;
-import org.apache.falcon.workflow.WorkflowExecutionContext;
-import org.apache.falcon.workflow.WorkflowJobEndNotificationService;
-
 import com.microsoft.windowsazure.Configuration;
+import com.microsoft.windowsazure.exception.ServiceException;
 import com.microsoft.windowsazure.services.servicebus.ServiceBusService;
 import com.microsoft.windowsazure.services.servicebus.models.BrokeredMessage;
 import com.microsoft.windowsazure.services.servicebus.models.ReceiveMessageOptions;
@@ -37,17 +28,33 @@ import com.microsoft.windowsazure.services.servicebus.models.ReceiveQueueMessage
 import com.microsoft.windowsazure.services.servicebus.ServiceBusConfiguration;
 import com.microsoft.windowsazure.services.servicebus.ServiceBusContract;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.falcon.ADFService.util.ADFJsonConstants;
+import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.FalconException;
+import org.apache.falcon.service.FalconService;
+import org.apache.falcon.service.Services;
+import org.apache.falcon.util.StartupProperties;
+import org.apache.falcon.workflow.WorkflowExecutionListener;
+import org.apache.falcon.workflow.WorkflowExecutionContext;
+import org.apache.falcon.workflow.WorkflowJobEndNotificationService;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Falcon ADF provider to handle requests from Azure Data Factory.
  */
+//TODO(yzheng): Integrate with latest instance status update
 public class ADFProviderService implements FalconService, WorkflowExecutionListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(ADFProviderService.class);
@@ -208,11 +215,51 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
     @Override
     public void onSuccess(WorkflowExecutionContext context) throws FalconException {
-
+        updateJobStatus(context, "Succeeded", 100);
     }
 
     @Override
     public void onFailure(WorkflowExecutionContext context) throws FalconException {
+        updateJobStatus(context, "Failed", 0);
+    }
 
+    private void updateJobStatus(WorkflowExecutionContext context, String status, int progress) {
+        // Filter non-adf jobs
+        String entityName = context.getEntityName();
+        if (!ADFJob.isADFJobEntity(entityName)) {
+            return;
+        }
+
+        try {
+            String sessionID = ADFJob.getSessionID(entityName);
+            String logUrl = context.getLogFile();
+            LOG.info("To update job status: " + sessionID + ", " + entityName + ", " + status + ", " + logUrl);
+            JSONObject obj = new JSONObject();
+            obj.put(ADFJsonConstants.ADF_STATUS_PROTOCOL, ADFJsonConstants.ADF_STATUS_PROTOCOL_NAME);
+            obj.put(ADFJsonConstants.ADF_STATUS_JOBID, sessionID);
+            obj.put(ADFJsonConstants.ADF_STATUS_LOG_URL, logUrl);
+            obj.put(ADFJsonConstants.ADF_STATUS_STATUS, status);
+            obj.put(ADFJsonConstants.ADF_STATUS_PROGRESS, progress);
+            sendStatusUpdate(sessionID, obj.toString());
+        } catch (JSONException e) {
+            LOG.info("Error when updating job status: " + e.toString());
+        } catch (FalconException e) {
+            LOG.info("Error when updating job status: " + e.toString());
+        }
+    }
+
+    private void sendStatusUpdate(String sessionID, String message) {
+        LOG.info("sending update for session " + sessionID + ": " + message);
+        try {
+            InputStream in = IOUtils.toInputStream(message, "UTF-8");
+            BrokeredMessage updateMessage = new BrokeredMessage(in);
+            updateMessage.setSessionId(sessionID);
+            // TODO(yzheng): read queue name from configuration file
+            service.sendQueueMessage("status", updateMessage);
+        } catch (IOException e) {
+            LOG.info("Error when sending status update: " + e.toString());
+        } catch (ServiceException e) {
+            LOG.info("Error when sending status update: " + e.toString());
+        }
     }
 }
