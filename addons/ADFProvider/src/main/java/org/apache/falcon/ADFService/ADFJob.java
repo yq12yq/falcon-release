@@ -31,6 +31,7 @@ import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.resource.AbstractSchedulableEntityManager;
+import org.apache.falcon.security.CurrentUser;
 import org.apache.hadoop.fs.Path;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -195,6 +196,8 @@ public abstract class ADFJob {
             //proxyUser = getRunAsUser();
             // TODO(yzheng): read from message: "activity" -> "runOnBehalf"
             proxyUser = "ambari-qa";
+            // log in the user
+            CurrentUser.authenticate(proxyUser);
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + msg, e);
         }
@@ -228,20 +231,36 @@ public abstract class ADFJob {
     }
 
     protected String getRunAsUser() throws FalconException {
-        String hadoopLinkedService = getHadoopLinkedService();
-        JSONObject linkedService = linkedServicesMap.get(hadoopLinkedService);
-        if (linkedService == null) {
-            throw new FalconException("JSON object " + hadoopLinkedService + " not"
-                    + " found in ADF request.");
-        }
+        if (activityExtendedProperties.has(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER)) {
+            String runAsUser = null;
+            try {
+                runAsUser = activityExtendedProperties.getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
+            } catch (JSONException e) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
+                        + " found in ADF request.");
+            }
 
-        try {
-            return linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
-                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
-                    .getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
-        } catch (JSONException e) {
-            throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
-                    + " found in ADF request.");
+            if (StringUtils.isBlank(runAsUser)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " in"
+                        + " ADF request activity extended properties cannot be empty.");
+            }
+            return runAsUser;
+        } else {
+            String hadoopLinkedService = getHadoopLinkedService();
+            JSONObject linkedService = linkedServicesMap.get(hadoopLinkedService);
+            if (linkedService == null) {
+                throw new FalconException("JSON object " + hadoopLinkedService + " not"
+                        + " found in ADF request.");
+            }
+
+            try {
+                return linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
+                        .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
+                        .getString(ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER);
+            } catch (JSONException e) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_RUN_ON_BEHALF_USER + " not"
+                        + " found in ADF request.");
+            }
         }
     }
 
@@ -273,10 +292,11 @@ public abstract class ADFJob {
         return tables;
     }
 
-    protected String getADFTablePath(String tableName) {
+    protected String getADFTablePath(String tableName) throws FalconException {
         JSONObject table = tablesMap.get(tableName);
         if (table == null) {
-            return null;
+            throw new FalconException("JSON object " + tableName + " not"
+                    + " found in ADF request.");
         }
 
         try {
@@ -285,7 +305,7 @@ public abstract class ADFJob {
                     .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
                     .getString(ADFJsonConstants.ADF_REQUEST_FOLDER_PATH);
         } catch (JSONException e) {
-            return null;
+            throw new FalconException("Error when parsing ADF JSON message: " + tableName, e);
         }
     }
 

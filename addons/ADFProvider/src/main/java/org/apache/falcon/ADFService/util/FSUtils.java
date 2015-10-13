@@ -44,8 +44,11 @@ public final class FSUtils {
         throws URISyntaxException, FalconException {
         BufferedReader br = null;
         try {
+            LOG.info("to read from hdfs: " + filePath + fileName);
             FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem((new Path(filePath)).toUri());
+            LOG.info("created filesystem");
             br = new BufferedReader(new InputStreamReader(fs.open(new Path(fileName))));
+            LOG.info("BufferredReader");
             StringBuilder fileContent = new StringBuilder();
             String line;
             while (true) {
@@ -57,7 +60,7 @@ public final class FSUtils {
             }
             return fileContent.toString();
         } catch (IOException e) {
-            throw new FalconException("Error reading file from hdfs: " + filePath + fileName, e);
+            throw new FalconException("Error reading file from hdfs: " + filePath + fileName + ": " + e.toString(), e);
         } finally {
             IOUtils.closeQuietly(br);
         }
