@@ -32,6 +32,7 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +41,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.store.ConfigurationStore;
+import org.apache.falcon.entity.v0.EntityType;
+import org.apache.falcon.resource.AbstractInstanceManager;
+import org.apache.falcon.resource.InstancesResult;
+import org.apache.falcon.resource.InstancesResult.Instance;
+import org.apache.falcon.resource.InstancesResult.WorkflowStatus;
 import org.apache.falcon.service.FalconService;
 import org.apache.falcon.service.Services;
 import org.apache.falcon.util.StartupProperties;
@@ -64,12 +71,6 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
      */
     public static final String SERVICE_NAME = ADFProviderService.class.getSimpleName();
 
-    private ServiceBusContract service;
-
-    private ScheduledExecutorService adfScheduledExecutorService;
-
-    private ReceiveMessageOptions opts = ReceiveMessageOptions.DEFAULT;
-
     private static final int AZURE_SERVICEBUS_RECEIVEMESSGAEOPT_TIMEOUT = 60;
     // polling frequency in seconds
     private static final int AZURE_SERVICEBUS_DEFAULT_POLLING_FREQUENCY = 60;
@@ -83,6 +84,13 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
     private static final String  AZURE_SERVICEBUS_CONF_NAMESPACE = "namespace";
     private static final String  AZURE_SERVICEBUS_CONF_POLLING_FREQUENCY = "polling.frequency";
     private static final String AZURE_SERVICEBUS_CONF_PREFIX = "microsoft.windowsazure.services.servicebus.";
+
+    private static final ConfigurationStore STORE = ConfigurationStore.get();
+
+    private ServiceBusContract service;
+    private ScheduledExecutorService adfScheduledExecutorService;
+    private ReceiveMessageOptions opts = ReceiveMessageOptions.DEFAULT;
+    private ADFInstanceManager instanceManager = new ADFInstanceManager();
 
     @Override
     public String getName() {
@@ -104,6 +112,15 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
 
         LOG.info("Falcon ADFProvider service initialized");
+
+        // restart handling
+        for (EntityType entityType : EntityType.values()) {
+            LOG.info("restart handling: " + entityType.toString());
+            Collection<String> entities = STORE.getEntities(entityType);
+            for (String entityName : entities) {
+                updateJobStatus(entityName, entityType.toString());
+            }
+        }
 
         try {
             String template = FSUtils.readHDFSFile(
@@ -215,12 +232,40 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
     @Override
     public void onSuccess(WorkflowExecutionContext context) throws FalconException {
-        updateJobStatus(context, "Succeeded", 100);
+        updateJobStatus(context, ADFJsonConstants.ADF_STATUS_SUCCEEDED, 100);
     }
 
     @Override
     public void onFailure(WorkflowExecutionContext context) throws FalconException {
-        updateJobStatus(context, "Failed", 0);
+        updateJobStatus(context, ADFJsonConstants.ADF_STATUS_FAILED, 0);
+    }
+
+    private void updateJobStatus(String entityName, String entityType) throws FalconException{
+        // Filter non-adf jobs
+        if (!ADFJob.isADFJobEntity(entityName)) {
+            return;
+        }
+
+        Instance instance = instanceManager.getInstance(entityName, entityType);
+        WorkflowStatus workflowStatus = instance.getStatus();
+        String status;
+        int progress = 0;
+        switch (workflowStatus) {
+        case SUCCEEDED:
+            progress = 100;
+            status = ADFJsonConstants.ADF_STATUS_SUCCEEDED;
+            break;
+        case FAILED:
+        case KILLED:
+        case ERROR:
+        case SKIPPED:
+        case UNDEFINED:
+            status = ADFJsonConstants.ADF_STATUS_FAILED;
+            break;
+        default:
+            status = ADFJsonConstants.ADF_STATUS_EXECUTING;
+        }
+        updateJobStatus(entityName, status, progress, instance.getLogFile());
     }
 
     private void updateJobStatus(WorkflowExecutionContext context, String status, int progress) {
@@ -230,9 +275,12 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             return;
         }
 
+        updateJobStatus(entityName, status, progress, context.getLogFile());
+    }
+
+    private void updateJobStatus(String entityName, String status, int progress, String logUrl) {
         try {
             String sessionID = ADFJob.getSessionID(entityName);
-            String logUrl = context.getLogFile();
             LOG.info("To update job status: " + sessionID + ", " + entityName + ", " + status + ", " + logUrl);
             JSONObject obj = new JSONObject();
             obj.put(ADFJsonConstants.ADF_STATUS_PROTOCOL, ADFJsonConstants.ADF_STATUS_PROTOCOL_NAME);
@@ -241,11 +289,15 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             obj.put(ADFJsonConstants.ADF_STATUS_STATUS, status);
             obj.put(ADFJsonConstants.ADF_STATUS_PROGRESS, progress);
             sendStatusUpdate(sessionID, obj.toString());
+
+            // TODO(yzheng): clean up jobs after finished, i.e. succeeded or failed
+
         } catch (JSONException e) {
             LOG.info("Error when updating job status: " + e.toString());
         } catch (FalconException e) {
             LOG.info("Error when updating job status: " + e.toString());
         }
+
     }
 
     private void sendStatusUpdate(String sessionID, String message) {
@@ -260,6 +312,18 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             LOG.info("Error when sending status update: " + e.toString());
         } catch (ServiceException e) {
             LOG.info("Error when sending status update: " + e.toString());
+        }
+    }
+
+    private static class ADFInstanceManager extends AbstractInstanceManager {
+        public Instance getInstance(String entityName, String entityType) throws FalconException {
+            InstancesResult result = getStatus(entityType, entityName, null, null, null, null, "", "", "", 0, null);
+            Instance[] instances = result.getInstances();
+            if (instances.length != 1) {
+                throw new FalconException("Entity " + entityName + " have " + instances.length
+                        + " instances. Should have exactly one instance.");
+            }
+            return instances[0];
         }
     }
 }
