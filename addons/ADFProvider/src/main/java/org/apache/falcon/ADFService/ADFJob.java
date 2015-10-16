@@ -47,9 +47,10 @@ public abstract class ADFJob {
 
     // name prefix for all adf related entity, e.g. an adf hive process and the feeds associated with it
     public static final String ADF_ENTITY_NAME_PREFIX = "ADF-";
+    public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
     // name prefix for all adf related job entity, i.e. adf hive/pig process and replication feed
     public static final String ADF_JOB_ENTITY_NAME_PREFIX = ADF_ENTITY_NAME_PREFIX + "JOB-";
-    public static final int ADF_ENTITY_NAME_PREFIX_LENGTH = ADF_ENTITY_NAME_PREFIX.length();
+    public static final int ADF_JOB_ENTITY_NAME_PREFIX_LENGTH = ADF_JOB_ENTITY_NAME_PREFIX.length();
 
     // TODO(yzheng): read falcon url from client.properties
     protected static final String DEFAULT_FALCON_URL = "http://127.0.0.1:15000/";
@@ -78,7 +79,7 @@ public abstract class ADFJob {
         if (!isADFJobEntity(entityName)) {
             throw new FalconException("The entity, " + entityName + ", is not an ADF Job Entity.");
         }
-        return entityName.substring(ADF_ENTITY_NAME_PREFIX_LENGTH);
+        return entityName.substring(ADF_JOB_ENTITY_NAME_PREFIX_LENGTH);
     }
 
     /**
