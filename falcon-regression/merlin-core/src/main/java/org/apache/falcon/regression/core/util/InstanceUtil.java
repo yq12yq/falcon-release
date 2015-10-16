@@ -1178,19 +1178,11 @@ public final class InstanceUtil {
             CoordinatorAction.Status expectedStatus) {
         switch (expectedStatus) {
         case RUNNING:
-            if (entityType == EntityType.PROCESS) {
-                return OSUtil.IS_WINDOWS ? 20 : 10;
-            } else if (entityType == EntityType.FEED) {
-                return OSUtil.IS_WINDOWS ? 10 : 5;
-            }
+            return OSUtil.IS_WINDOWS ? 20 : 15;
         case WAITING:
-            return OSUtil.IS_WINDOWS ? 6 : 3;
+            return OSUtil.IS_WINDOWS ? 15 : 10;
         case SUCCEEDED:
-            if (entityType == EntityType.PROCESS) {
-                return OSUtil.IS_WINDOWS ? 25 : 15;
-            } else if (entityType == EntityType.FEED) {
-                return OSUtil.IS_WINDOWS ? 20 : 10;
-            }
+            return OSUtil.IS_WINDOWS ? 40 : 25;
         case KILLED:
         case TIMEDOUT:
             return OSUtil.IS_WINDOWS ? 40 : 20;
