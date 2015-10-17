@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.io.IOUtils;
@@ -129,6 +130,7 @@ public abstract class ADFJob {
     }
 
     public abstract void startJob() throws FalconException;
+    public abstract void cleanup() throws FalconException;
 
     protected JSONObject message;
     protected JSONObject activity;
@@ -138,6 +140,7 @@ public abstract class ADFJob {
     protected String startTime, endTime;
     protected String frequency;
     protected String proxyUser;
+    protected long timeout;
     protected ADFJobManager jobManager = new ADFJobManager();
 
     private Map<String, JSONObject> linkedServicesMap = new HashMap<String, JSONObject>();
@@ -145,7 +148,7 @@ public abstract class ADFJob {
 
     public ADFJob(String msg, String id) throws FalconException {
         this.id = id;
-        FSUtils.createScriptDir(new Path(TEMPLATE_PATH_PREFIX));
+        FSUtils.createDir(new Path(PROCESS_SCRIPTS_PATH));
         try {
             this.id = id;
             message = new JSONObject(msg);
@@ -175,15 +178,29 @@ public abstract class ADFJob {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_ACTIVITY + " not found in ADF"
                         + " request.");
             }
+
+            JSONObject scheduler = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
+            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
+                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
+
+            JSONObject policy = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_POLICY);
+            /* IS policy mandatory */
+            if (policy == null) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_POLICY + " not found"
+                        + " in ADF request.");
+            }
+            String adfTimeout = policy.getString(ADFJsonConstants.ADF_REQUEST_TIMEOUT);
+            if (StringUtils.isBlank(adfTimeout)) {
+                throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_TIMEOUT + " not found"
+                        + " in ADF request.");
+            }
+            timeout = parseADFRequestTimeout(adfTimeout);
+
             JSONObject activityProperties = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_TRANSFORMATION);
             if (activityProperties == null) {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_TRANSFORMATION + " not found"
                         + " in ADF request.");
             }
-
-            JSONObject scheduler = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
-            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
-                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
 
             activityExtendedProperties = activityProperties.getJSONObject(
                     ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES);
@@ -369,8 +386,20 @@ public abstract class ADFJob {
                     + activityExtendedProperties, jsonException);
         }
     }
+    protected String getAdditionalProperties() throws FalconException {
+        // get timeout
+        String timeoutValue = "minutes(" + timeout + ")";
+        if (this.jobType() == JobType.REPLICATION) {
+            return getProperty(ADFJsonConstants.ADF_REQUEST_TIMEOUT, timeoutValue).toString();
+        } else {
+            // get the script properties
+            StringBuilder properties = getAdditionalScriptProperties();
+            properties.append(getProperty(ADFJsonConstants.ADF_REQUEST_TIMEOUT, timeoutValue));
+            return properties.toString();
+        }
+    }
 
-    protected String getAdditionalScriptProperties() throws FalconException {
+    protected StringBuilder getAdditionalScriptProperties() throws FalconException {
         String[] propertyObjects = JSONObject.getNames(activityExtendedProperties);
         StringBuilder properties = new StringBuilder();
         for (String obj : propertyObjects) {
@@ -388,20 +417,26 @@ public abstract class ADFJob {
                 throw new FalconException("Error when parsing ADF JSON object: "
                         + activityExtendedProperties, jsonException);
             }
-            properties.append(PROPERTY_START);
-            properties.append(PROPERTY_NAME);
-            properties.append(PROPERTY_DOUBLE_QUOTES);
-            properties.append(key);
-            properties.append(PROPERTY_DOUBLE_QUOTES);
-            properties.append(" ");
-            properties.append(PROPERTY_VALUE);
-            properties.append(PROPERTY_DOUBLE_QUOTES);
-            properties.append(value);
-            properties.append(PROPERTY_DOUBLE_QUOTES);
-            properties.append(PROPERTY_END);
-            properties.append(System.lineSeparator());
+            properties.append(getProperty(key, value));
         }
-        return properties.toString();
+        return properties;
+    }
+
+    private StringBuilder getProperty(final String key, final String value) {
+        StringBuilder property = new StringBuilder();
+        property.append(PROPERTY_START);
+        property.append(PROPERTY_NAME);
+        property.append(PROPERTY_DOUBLE_QUOTES);
+        property.append(key);
+        property.append(PROPERTY_DOUBLE_QUOTES);
+        property.append(" ");
+        property.append(PROPERTY_VALUE);
+        property.append(PROPERTY_DOUBLE_QUOTES);
+        property.append(value);
+        property.append(PROPERTY_DOUBLE_QUOTES);
+        property.append(PROPERTY_END);
+        property.append(System.lineSeparator());
+        return property;
     }
 
     protected String getClusterNameToRunProcessOn() throws FalconException {
@@ -452,5 +487,76 @@ public abstract class ADFJob {
                 LOG.info(e.toString());
             }
         }
+
+        public void deleteEntity(String entityType, String entityName) throws FalconException {
+            delete(entityType, entityName, null);
+        }
+    }
+
+    private static long parseADFRequestTimeout(String timeout) throws FalconException {
+        timeout = timeout.trim();
+        //  [ws][-]{ d | d.hh:mm[:ss[.ff]] | hh:mm[:ss[.ff]] }[ws]
+        if (timeout.startsWith("-")) {
+            return -1;
+        }
+
+        long totalMinutes = 0;
+        String [] dotParts = timeout.split(Pattern.quote("."));
+        if (dotParts.length == 1) {
+            // no d or ff
+            // chk if only d
+            // Formats can be d|hh:mm[:ss]
+            String[] parts = timeout.split(":");
+            if (parts.length == 1) {
+                // only day. Convert days to minutes
+                return Integer.valueOf(parts[0]) * 1440;
+            } else {
+                // hh:mm[:ss]
+                return computeMinutes(parts);
+            }
+        }
+
+        // if . is present, formats can be d.hh:mm[:ss[.ff]] | hh:mm[:ss[.ff]]
+        if (dotParts.length == 2) {
+            // can be d.hh:mm[:ss] or hh:mm[:ss[.ff]
+            // check if first part has colons
+            String [] parts = dotParts[0].split(":");
+            if (parts.length == 1) {
+                // format is d.hh:mm[:ss]
+                totalMinutes = Integer.valueOf(dotParts[0]) * 1440;
+                parts = dotParts[1].split(":");
+                totalMinutes += computeMinutes(parts);
+                return totalMinutes;
+            } else {
+                // format is hh:mm[:ss[.ff]
+                parts = dotParts[0].split(":");
+                totalMinutes += computeMinutes(parts);
+                // round off ff
+                totalMinutes +=  1;
+                return totalMinutes;
+            }
+        } else if (dotParts.length == 3) {
+            // will be d.hh:mm[:ss[.ff]
+            totalMinutes = Integer.valueOf(dotParts[0]) * 1440;
+            String [] parts = dotParts[1].split(":");
+            totalMinutes += computeMinutes(parts);
+            // round off ff
+            totalMinutes +=  1;
+            return totalMinutes;
+        } else {
+            throw new FalconException("Error parsing policy timeout: " + timeout);
+        }
+    }
+
+    // format hh:mm[:ss]
+    private static long computeMinutes(String[] parts) {
+        // hh:mm[:ss]
+        int totalMinutes = Integer.valueOf(parts[0]) * 60;
+        totalMinutes += Integer.valueOf(parts[1]);
+        if (parts.length == 3) {
+            // Second round off to minutes
+            totalMinutes +=  1;
+        }
+        return totalMinutes;
     }
 }

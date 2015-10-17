@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.ADFService.util.ADFJsonConstants;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.v0.EntityType;
 import org.apache.hadoop.fs.Path;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -57,16 +58,45 @@ public class ADFHiveJob extends ADFJob {
 
     @Override
     public void startJob() throws FalconException {
-        String request = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
+        // submit feeds
+        LOG.info("submitting/scheduling input table feed: {}", inputFeed.getName());
+        submitAndScheduleJob(EntityType.FEED.name(), inputFeed.getEntityxml());
+
+        LOG.info("submitting/scheduling output table feed: {}", outputFeed.getName());
+        submitAndScheduleJob(EntityType.FEED.name(), outputFeed.getEntityxml());
+
+        String processRequest = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
                 .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
                 .withInputName(INPUTNAME).withInputFeedName(inputFeed.getName())
                 .withOutputName(OUTPUTNAME).withOutputFeedName(outputFeed.getName())
                 .withEngineType(ENGINE_TYPE).withWFPath(hiveScriptPath).withAclOwner(proxyUser)
-                .withProperties(getAdditionalScriptProperties()).build().getEntityxml();
-        /* To Remove */
-        LOG.info("Entity: {}", request);
-        LOG.info("Input: {}", inputFeed.getEntityxml());
-        LOG.info("Output: {}", outputFeed.getEntityxml());
+                .withProperties(getAdditionalProperties()).build().getEntityxml();
+
+        LOG.info("submitting/scheduling hive process job: {}", processRequest);
+        submitAndScheduleJob(EntityType.PROCESS.name(), processRequest);
+        LOG.info("submitted and scheduled hive process job: {}", jobEntityName());
+    }
+
+    @Override
+    public void cleanup() throws FalconException {
+        // Delete the entities. Should be called after the job execution success/failure.
+        try {
+            // delete the feeds
+            jobManager.deleteEntity(EntityType.FEED.name(), inputFeed.getName());
+            jobManager.deleteEntity(EntityType.FEED.name(), outputFeed.getName());
+
+            //delete the process
+            jobManager.deleteEntity(EntityType.PROCESS.name(), jobEntityName());
+        } catch (FalconException e) {
+            LOG.error("Exception while cleanup {}", e);
+        }
+
+        try {
+            // cleanup script files
+            FSUtils.removeDir(new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName()));
+        } catch (FalconException e) {
+            LOG.error("Couldn't delete the dirs {}", e);
+        }
     }
 
     private String getHiveScriptPath() throws FalconException {
@@ -75,8 +105,12 @@ public class ADFHiveJob extends ADFJob {
         } else {
             String content = getScriptContent();
             // file path is unique as job name is always unique
-            final Path path = new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName() + HIVE_SCRIPT_EXTENSION);
-            return FSUtils.createScriptFile(path, content);
+            final Path dir = new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName());
+            // create dir
+            FSUtils.createDir(dir);
+            final Path path = new Path(dir, jobEntityName() + HIVE_SCRIPT_EXTENSION);
+            // create script file
+            return FSUtils.createFile(path, content);
         }
     }
 

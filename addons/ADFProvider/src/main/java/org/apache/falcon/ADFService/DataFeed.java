@@ -21,7 +21,6 @@ package org.apache.falcon.ADFService;
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 
 /**

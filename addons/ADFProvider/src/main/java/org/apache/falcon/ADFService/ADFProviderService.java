@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
  * Falcon ADF provider to handle requests from Azure Data Factory.
  */
 //TODO(yzheng): Integrate with latest instance status update
+//TODO- Move WorkflowExecutionListener logic to ADF job to handle cleanup
 public class ADFProviderService implements FalconService, WorkflowExecutionListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(ADFProviderService.class);
@@ -124,7 +125,7 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
         try {
             String template = FSUtils.readHDFSFile(
-                    ADFJob.TEMPLATE_PATH_PREFIX, ADFReplicationJob.TEMPLATE_REPLIACATION_FEED);
+                    ADFJob.TEMPLATE_PATH_PREFIX, ADFReplicationJob.TEMPLATE_REPLICATION_FEED);
             LOG.info("template: " + template);
         } catch (Exception e) {
             LOG.info(e.toString());
@@ -163,12 +164,21 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                         job.startJob();
                         break;
                     case HIVE:
+                        ADFHiveJob hiveJob = new ADFHiveJob(msg, sessionID);
+                        LOG.info("Start hive job");
+                        hiveJob.startJob();
+                        break;
                     case PIG:
+                        ADFPigJob pigJob = new ADFPigJob(msg, sessionID);
+                        LOG.info("Start pig job");
+                        pigJob.startJob();
+                        break;
                     default:
-                        LOG.info("Invalid job type: " + jobType);
+                        LOG.info("Invalid job type: {}", jobType);
                     }
                 }
             } catch (Exception e) {
+                // TODO- Send error meesage to ADF service bus
                 LOG.info(e.toString());
             }
         }

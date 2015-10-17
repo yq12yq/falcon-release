@@ -22,6 +22,7 @@ import java.net.URISyntaxException;
 
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.v0.EntityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,7 @@ public class ADFReplicationJob extends ADFJob {
 
     private static final Logger LOG = LoggerFactory.getLogger(ADFReplicationJob.class);
 
-    public static final String TEMPLATE_REPLIACATION_FEED = "replicate-feed.xml";
+    public static final String TEMPLATE_REPLICATION_FEED = "replicate-feed.xml";
     public static final String REPLICATION_TARGET_CLUSTER = "adf-replication-target-cluster";
 
     public ADFReplicationJob(String message, String id) throws FalconException {
@@ -43,7 +44,7 @@ public class ADFReplicationJob extends ADFJob {
     @Override
     public void startJob() throws FalconException {
         try {
-            String template = FSUtils.readHDFSFile(TEMPLATE_PATH_PREFIX, TEMPLATE_REPLIACATION_FEED);
+            String template = FSUtils.readHDFSFile(TEMPLATE_PATH_PREFIX, TEMPLATE_REPLICATION_FEED);
             LOG.info("template: " + template);
             String inputTableName = getInputTables().get(0);
             String outputTableName = getOutputTables().get(0);
@@ -62,14 +63,28 @@ public class ADFReplicationJob extends ADFJob {
                     .replace("$clusterSource$", getTableCluster(inputTableName))
                     .replace("$clusterTarget$", REPLICATION_TARGET_CLUSTER)
                     .replace("$sourceLocation$", getADFTablePath(inputTableName))
-                    .replace("$targetLocation$", getADFTablePath(outputTableName));
+                    .replace("$targetLocation$", getADFTablePath(outputTableName))
+                    .replace("$properties$", getAdditionalProperties());
 
             LOG.info("submitting/scheduling job: " + message);
-            submitAndScheduleJob("feed", message);
+            submitAndScheduleJob(EntityType.FEED.name(), message);
             LOG.info("submitted and scheduled job");
         } catch (URISyntaxException e) {
             LOG.info(e.toString());
         }
 
+    }
+
+    @Override
+    public void cleanup() throws FalconException {
+        // Delete the entities. Should be called after the job execution success/failure.
+        try {
+            // delete the cluster
+            jobManager.deleteEntity(EntityType.CLUSTER.name(), ADFReplicationJob.REPLICATION_TARGET_CLUSTER);
+            // delete the replication feed
+            jobManager.deleteEntity(EntityType.FEED.name(), jobEntityName());
+        } catch (FalconException e) {
+            LOG.error("Exception while cleanup {}", e);
+        }
     }
 }

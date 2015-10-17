@@ -20,6 +20,7 @@ package org.apache.falcon.ADFService;
 
 import org.apache.falcon.ADFService.util.FSUtils;
 import org.apache.falcon.FalconException;
+import org.apache.falcon.entity.v0.EntityType;
 import org.apache.hadoop.fs.Path;
 
 import org.slf4j.Logger;
@@ -47,31 +48,50 @@ public class ADFPigJob extends ADFJob {
 
         inputDataFeed = getInputFeed();
         outputDataFeed = getOutputFeed();
-
-        try {
-            // set the script path
-            pigScriptPath = getPigScriptPath();
-        } catch (FalconException e) {
-            /* TODO - send the error msg to ADF queue */
-        }
+        // set the script path
+        pigScriptPath = getPigScriptPath();
     }
 
     @Override
     public void startJob() throws FalconException {
+        // submit feeds
+        LOG.info("submitting/scheduling input data feed: {}", inputDataFeed.getName());
+        submitAndScheduleJob(EntityType.FEED.name(), inputDataFeed.getEntityxml());
+
+        LOG.info("submitting/scheduling output data feed: {}", outputDataFeed.getName());
+        submitAndScheduleJob(EntityType.FEED.name(), outputDataFeed.getEntityxml());
+
+        String processRequest = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
+                .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
+                .withInputName(INPUTNAME).withInputFeedName(inputDataFeed.getName())
+                .withOutputName(OUTPUTNAME).withOutputFeedName(outputDataFeed.getName())
+                .withEngineType(ENGINE_TYPE).withWFPath(pigScriptPath).withAclOwner(proxyUser)
+                .withProperties(getAdditionalProperties()).build().getEntityxml();
+
+        LOG.info("submitting/scheduling pig process job: {}", processRequest);
+        submitAndScheduleJob(EntityType.PROCESS.name(), processRequest);
+        LOG.info("submitted and scheduled pig process job: {}", jobEntityName());
+    }
+
+    @Override
+    public void cleanup() throws FalconException {
+        // Delete the entities. Should be called after the job execution success/failure.
         try {
-            String request = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
-                    .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
-                    .withInputName(INPUTNAME).withInputFeedName(inputDataFeed.getName())
-                    .withOutputName(OUTPUTNAME).withOutputFeedName(outputDataFeed.getName())
-                    .withEngineType(ENGINE_TYPE).withWFPath(pigScriptPath).withAclOwner(proxyUser)
-                    .withProperties(getAdditionalScriptProperties()).build().getEntityxml();
+            // delete the feeds
+            jobManager.deleteEntity(EntityType.FEED.name(), inputDataFeed.getName());
+            jobManager.deleteEntity(EntityType.FEED.name(), outputDataFeed.getName());
 
-
-            LOG.info("Entity: {}", request);
-            LOG.info("Input: {}", inputDataFeed.getEntityxml());
-            LOG.info("Output: {}", outputDataFeed.getEntityxml());
+            //delete the process
+            jobManager.deleteEntity(EntityType.PROCESS.name(), jobEntityName());
         } catch (FalconException e) {
-            /* TODO - Handle */
+            LOG.error("Exception while cleanup {}", e);
+        }
+
+        try {
+            // cleanup script files
+            FSUtils.removeDir(new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName()));
+        } catch (FalconException e) {
+            LOG.error("Couldn't delete the dirs {}", e);
         }
     }
 
@@ -98,8 +118,13 @@ public class ADFPigJob extends ADFJob {
         } else {
             String content = getScriptContent();
             // file path is unique as job name is always unique
-            final Path path = new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName() + PIG_SCRIPT_EXTENSION);
-            return FSUtils.createScriptFile(path, content);
+            final Path dir = new Path(ADFJob.PROCESS_SCRIPTS_PATH, jobEntityName());
+            // create dir
+            FSUtils.createDir(dir);
+
+            final Path path = new Path(dir, jobEntityName() + PIG_SCRIPT_EXTENSION);
+            // create script file
+            return FSUtils.createFile(path, content);
         }
     }
 

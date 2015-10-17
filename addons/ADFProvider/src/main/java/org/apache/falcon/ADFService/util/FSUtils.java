@@ -66,29 +66,37 @@ public final class FSUtils {
         }
     }
 
-    public static String createScriptFile(final Path scriptPath,
-                                          final String scriptContent) throws FalconException {
-        /* TODO - delete the file at the end */
+    public static String createFile(final Path path,
+                                    final String content) throws FalconException {
         OutputStream out = null;
         try {
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(scriptPath.toUri());
-            out = fs.create(scriptPath);
-            out.write(scriptContent.getBytes());
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
+            out = fs.create(path);
+            out.write(content.getBytes());
         } catch (IOException e) {
-            throw new FalconException("Error preparing script file: " + scriptPath, e);
+            throw new FalconException("Error preparing script file: " + path, e);
         } finally {
             IOUtils.closeQuietly(out);
         }
-        return scriptPath.toString();
+        return path.toString();
     }
 
-    public static void createScriptDir(final Path dirPath) throws FalconException {
+    public static void createDir(final Path dirPath) throws FalconException {
         FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(dirPath.toUri());
         try {
             if (!fs.exists(dirPath)) {
                 LOG.info("Creating directory: {}", dirPath);
                 HadoopClientFactory.mkdirsWithDefaultPerms(fs, dirPath);
             }
+        } catch (IOException e) {
+            throw new FalconException("Error creating directory: " + dirPath, e);
+        }
+    }
+
+    public static void removeDir(final Path dirPath) throws FalconException {
+        FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(dirPath.toUri());
+        try {
+            fs.delete(dirPath, true);
         } catch (IOException e) {
             throw new FalconException("Error creating directory: " + dirPath, e);
         }
