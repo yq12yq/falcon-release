@@ -57,6 +57,7 @@ public final class ADFJsonConstants {
     public static final String ADF_STATUS_ERROR_TYPE = "ErrorType";
     public static final String ADF_STATUS_ERROR_MESSAGE = "ErrorMessage";
     public static final String ADF_STATUS_PROTOCOL_NAME = "2.0-preview";
+    public static final String ADF_STATUS_ERROR_TYPE_VALUE = "UserError";
     public static final String ADF_STATUS_SUCCEEDED = "Succeeded";
     public static final String ADF_STATUS_FAILED = "Failed";
     public static final String ADF_STATUS_CANCEL = "Canceled";

@@ -136,13 +136,14 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
         @Override
         public void run() {
+            String sessionID = null;
             try {
                 // TODO(yzheng): read queue name from configuration file
                 ReceiveQueueMessageResult resultQM =
                         service.receiveQueueMessage("request", opts);
                 BrokeredMessage message = resultQM.getValue();
                 if (message != null && message.getMessageId() != null) {
-                    String sessionID = message.getReplyToSessionId();
+                    sessionID = message.getReplyToSessionId();
                     BufferedReader rd = new BufferedReader(
                             new InputStreamReader(message.getBody()));
                     StringBuilder sb = new StringBuilder();
@@ -168,7 +169,14 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                         LOG.info("Invalid job type: " + jobType);
                     }
                 }
-            } catch (Exception e) {
+            } catch (FalconException e) {
+                if (sessionID != null) {
+                    sendErrorMessage(sessionID, e.toString());
+                }
+                LOG.info(e.toString());
+            } catch (ServiceException e) {
+                LOG.info(e.toString());
+            } catch (IOException e) {
                 LOG.info(e.toString());
             }
         }
@@ -240,7 +248,7 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         updateJobStatus(context, ADFJsonConstants.ADF_STATUS_FAILED, 0);
     }
 
-    private void updateJobStatus(String entityName, String entityType) throws FalconException{
+    private void updateJobStatus(String entityName, String entityType) throws FalconException {
         // Filter non-adf jobs
         if (!ADFJob.isADFJobEntity(entityName)) {
             return;
@@ -297,7 +305,22 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         } catch (FalconException e) {
             LOG.info("Error when updating job status: " + e.toString());
         }
+    }
 
+    private void sendErrorMessage(String sessionID, String errorMessage) {
+        LOG.info("sending error message for session " + sessionID + ": " + errorMessage);
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put(ADFJsonConstants.ADF_STATUS_PROTOCOL, ADFJsonConstants.ADF_STATUS_PROTOCOL_NAME);
+            obj.put(ADFJsonConstants.ADF_STATUS_JOBID, sessionID);
+            obj.put(ADFJsonConstants.ADF_STATUS_STATUS, ADFJsonConstants.ADF_STATUS_FAILED);
+            obj.put(ADFJsonConstants.ADF_STATUS_PROGRESS, 0);
+            obj.put(ADFJsonConstants.ADF_STATUS_ERROR_TYPE, ADFJsonConstants.ADF_STATUS_ERROR_TYPE_VALUE);
+            obj.put(ADFJsonConstants.ADF_STATUS_ERROR_MESSAGE, errorMessage);
+            sendStatusUpdate(sessionID, obj.toString());
+        } catch (JSONException e) {
+            LOG.info("Error when sending error message: " + e.toString());
+        }
     }
 
     private void sendStatusUpdate(String sessionID, String message) {
