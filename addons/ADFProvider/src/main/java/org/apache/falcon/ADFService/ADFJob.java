@@ -210,9 +210,8 @@ public abstract class ADFJob {
             }
 
             // should be called after setting activityExtendedProperties
-            //proxyUser = getRunAsUser();
-            // TODO(yzheng): read from message: "activity" -> "runOnBehalf"
-            proxyUser = "ambari-qa";
+            proxyUser = getRunAsUser();
+            LOG.info("proxy user: " + proxyUser);
             // log in the user
             CurrentUser.authenticate(proxyUser);
         } catch (JSONException e) {
