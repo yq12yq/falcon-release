@@ -30,6 +30,8 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_START_TIME = "dataSliceStart";
     public static final String ADF_REQUEST_END_TIME = "dataSliceEnd";
     public static final String ADF_REQUEST_SCHEDULER = "scheduler";
+    public static final String ADF_REQUEST_POLICY = "policy";
+    public static final String ADF_REQUEST_TIMEOUT = "timeout";
     public static final String ADF_REQUEST_FREQUENCY = "frequency";
     public static final String ADF_REQUEST_INTERVAL = "interval";
     public static final String ADF_REQUEST_LINKED_SERVICES = "linkedServices";

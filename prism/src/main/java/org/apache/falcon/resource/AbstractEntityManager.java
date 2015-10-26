@@ -266,6 +266,9 @@ public abstract class AbstractEntityManager {
             throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
         }
     }
+    public APIResult delete(final String type, final String entity, final String colo) {
+        return delete(null, type, entity, colo);
+    }
 
     public APIResult update(HttpServletRequest request, String type, String entityName,
                             String colo, Boolean skipDryRun) {
