@@ -47,6 +47,7 @@ import org.apache.falcon.resource.AbstractInstanceManager;
 import org.apache.falcon.resource.InstancesResult;
 import org.apache.falcon.resource.InstancesResult.Instance;
 import org.apache.falcon.resource.InstancesResult.WorkflowStatus;
+import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.service.FalconService;
 import org.apache.falcon.service.Services;
 import org.apache.falcon.util.StartupProperties;
@@ -74,7 +75,7 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
     private static final int AZURE_SERVICEBUS_RECEIVEMESSGAEOPT_TIMEOUT = 60;
     // polling frequency in seconds
-    private static final int AZURE_SERVICEBUS_DEFAULT_POLLING_FREQUENCY = 60;
+    private static final int AZURE_SERVICEBUS_DEFAULT_POLLING_FREQUENCY = 10;
 
     // Number of threads to handle ADF requests
     private static final int AZURE_SERVICEBUS_REQUEST_HANDLING_THREADS = 5;
@@ -82,8 +83,10 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
     private static final String AZURE_SERVICEBUS_CONF_SASKEYNAME = "sasKeyName";
     private static final String AZURE_SERVICEBUS_CONF_SASKEY = "sasKey";
     private static final String AZURE_SERVICEBUS_CONF_SERVICEBUSROOTURI = "serviceBusRootUri";
-    private static final String  AZURE_SERVICEBUS_CONF_NAMESPACE = "namespace";
-    private static final String  AZURE_SERVICEBUS_CONF_POLLING_FREQUENCY = "polling.frequency";
+    private static final String AZURE_SERVICEBUS_CONF_NAMESPACE = "namespace";
+    private static final String AZURE_SERVICEBUS_CONF_POLLING_FREQUENCY = "polling.frequency";
+    private static final String AZURE_SERVICEBUS_CONF_REQUEST_QUEUE_NAME = "requestqueuename";
+    private static final String AZURE_SERVICEBUS_CONF_STATUS_QUEUE_NAME = "statusqueuename";
     private static final String AZURE_SERVICEBUS_CONF_PREFIX = "microsoft.windowsazure.services.servicebus.";
 
     private static final ConfigurationStore STORE = ConfigurationStore.get();
@@ -92,6 +95,8 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
     private ScheduledExecutorService adfScheduledExecutorService;
     private ReceiveMessageOptions opts = ReceiveMessageOptions.DEFAULT;
     private ADFInstanceManager instanceManager = new ADFInstanceManager();
+    private String requestQueueName;
+    private String statusQueueName;
 
     @Override
     public String getName() {
@@ -100,21 +105,29 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
     @Override
     public void init() throws FalconException {
+        // read start up properties for adf configuration
         service = ServiceBusService.create(getServiceBusConfig());
+
+        requestQueueName = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_REQUEST_QUEUE_NAME);
+        if (requestQueueName == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_REQUEST_QUEUE_NAME
+                    + " property not set in startup properties. Please add it.");
+        }
+        statusQueueName = StartupProperties.get().getProperty(AZURE_SERVICEBUS_CONF_PREFIX
+                + AZURE_SERVICEBUS_CONF_STATUS_QUEUE_NAME);
+        if (statusQueueName == null) {
+            throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_STATUS_QUEUE_NAME
+                    + " property not set in startup properties. Please add it.");
+        }
+        LOG.info("request queue: " + requestQueueName + ", status queue: " + statusQueueName);
 
         // init opts
         opts.setReceiveMode(ReceiveMode.PEEK_LOCK);
         opts.setTimeout(AZURE_SERVICEBUS_RECEIVEMESSGAEOPT_TIMEOUT);
 
-        Services.get().<WorkflowJobEndNotificationService>getService(
-                WorkflowJobEndNotificationService.SERVICE_NAME).registerListener(this);
-
-        adfScheduledExecutorService = new ADFScheduledExecutor(AZURE_SERVICEBUS_REQUEST_HANDLING_THREADS);
-        adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
-
-        LOG.info("Falcon ADFProvider service initialized");
-
         // restart handling
+        CurrentUser.authenticate("ambari-qa");
         for (EntityType entityType : EntityType.values()) {
             LOG.info("restart handling: " + entityType.toString());
             Collection<String> entities = STORE.getEntities(entityType);
@@ -123,14 +136,13 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             }
         }
 
-        try {
-            String template = FSUtils.readHDFSFile(
-                    ADFJob.TEMPLATE_PATH_PREFIX, ADFReplicationJob.TEMPLATE_REPLICATION_FEED);
-            LOG.info("template: " + template);
-        } catch (Exception e) {
-            LOG.info(e.toString());
-        }
+        Services.get().<WorkflowJobEndNotificationService>getService(
+                WorkflowJobEndNotificationService.SERVICE_NAME).registerListener(this);
 
+        adfScheduledExecutorService = new ADFScheduledExecutor(AZURE_SERVICEBUS_REQUEST_HANDLING_THREADS);
+        adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
+
+        LOG.info("Falcon ADFProvider service initialized");
     }
 
     private class HandleADFRequests implements Runnable {
@@ -139,9 +151,10 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         public void run() {
             String sessionID = null;
             try {
-                // TODO(yzheng): read queue name from configuration file
+                LOG.info("to read message from adf...");
                 ReceiveQueueMessageResult resultQM =
-                        service.receiveQueueMessage("request", opts);
+                        service.receiveQueueMessage(requestQueueName, opts);
+                LOG.info("received queue message result");
                 BrokeredMessage message = resultQM.getValue();
                 if (message != null && message.getMessageId() != null) {
                     sessionID = message.getReplyToSessionId();
@@ -153,13 +166,13 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                         sb.append(line);
                     }
                     rd.close();
-                    service.deleteMessage(message);
-
                     String msg = sb.toString();
-                    msg = msg.substring(msg.indexOf('{'));
+                    LOG.info("adf message: " + msg);
+
                     ADFJob.JobType jobType = ADFJob.getJobType(msg);
                     switch (jobType) {
                     case REPLICATION:
+                        LOG.info("To parse replication job");
                         ADFReplicationJob job = new ADFReplicationJob(msg, sessionID);
                         LOG.info("To start job");
                         job.startJob();
@@ -177,6 +190,11 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                     default:
                         LOG.info("Invalid job type: {}", jobType);
                     }
+
+                    service.deleteMessage(message);
+                    LOG.info("deleted adf message");
+                } else {
+                    LOG.info("no message from adf");
                 }
             } catch (FalconException e) {
                 if (sessionID != null) {
@@ -219,6 +237,8 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                     + " property not set in startup properties. Please add it.");
         }
 
+        LOG.info("namespace: " + namespace + ", sas key name: " + sasKeyName
+                + ", sas key: " + sasKey + ", root uri: " + serviceBusRootUri);
         return ServiceBusConfiguration.configureWithSASAuthentication(namespace, sasKeyName, sasKey,
                 serviceBusRootUri);
     }
@@ -262,8 +282,13 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         if (!ADFJob.isADFJobEntity(entityName)) {
             return;
         }
+        LOG.info("to update job status for " + entityName);
 
-        Instance instance = instanceManager.getInstance(entityName, entityType);
+        Instance instance = instanceManager.getFirstInstance(entityName, entityType);
+        if (instance == null) {
+            return;
+        }
+
         WorkflowStatus workflowStatus = instance.getStatus();
         String status;
         int progress = 0;
@@ -338,8 +363,7 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             InputStream in = IOUtils.toInputStream(message, "UTF-8");
             BrokeredMessage updateMessage = new BrokeredMessage(in);
             updateMessage.setSessionId(sessionID);
-            // TODO(yzheng): read queue name from configuration file
-            service.sendQueueMessage("status", updateMessage);
+            service.sendQueueMessage(statusQueueName, updateMessage);
         } catch (IOException e) {
             LOG.info("Error when sending status update: " + e.toString());
         } catch (ServiceException e) {
@@ -348,14 +372,13 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
     }
 
     private static class ADFInstanceManager extends AbstractInstanceManager {
-        public Instance getInstance(String entityName, String entityType) throws FalconException {
-            InstancesResult result = getStatus(entityType, entityName, null, null, null, null, "", "", "", 0, null);
+        public Instance getFirstInstance(String entityName, String entityType) throws FalconException {
+            InstancesResult result = getStatus(entityType, entityName, null, null, null, null, "", "", "", 0, 1);
             Instance[] instances = result.getInstances();
-            if (instances.length != 1) {
-                throw new FalconException("Entity " + entityName + " have " + instances.length
-                        + " instances. Should have exactly one instance.");
+            if (instances.length > 0) {
+                return instances[0];
             }
-            return instances[0];
+            return null;
         }
     }
 }

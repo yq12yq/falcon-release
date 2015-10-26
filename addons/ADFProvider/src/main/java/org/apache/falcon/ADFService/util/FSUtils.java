@@ -45,9 +45,10 @@ public final class FSUtils {
         BufferedReader br = null;
         try {
             LOG.info("to read from hdfs: " + filePath + fileName);
-            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem((new Path(filePath)).toUri());
+            Path path = new Path(filePath, fileName);
+            FileSystem fs = HadoopClientFactory.get().createProxiedFileSystem(path.toUri());
             LOG.info("created filesystem");
-            br = new BufferedReader(new InputStreamReader(fs.open(new Path(fileName))));
+            br = new BufferedReader(new InputStreamReader(fs.open(path)));
             LOG.info("BufferredReader");
             StringBuilder fileContent = new StringBuilder();
             String line;
