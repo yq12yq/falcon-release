@@ -21,6 +21,7 @@ package org.apache.falcon.ADFService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.Throwable;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -62,9 +63,9 @@ public class ADFScheduledExecutor extends ScheduledThreadPoolExecutor {
         public void run() {
             try {
                 runnable.run();
-            } catch (Exception e) {
-                LOG.info("Error while executing: {}", e);
-                throw new RuntimeException(e);
+            } catch (Throwable t) {
+                LOG.info("Error while executing: {}", t.getMessage());
+                throw new RuntimeException(t);
             }
         }
     }

@@ -50,6 +50,9 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_LINKED_SERVICE_NAME = "linkedServiceName";
     public static final String ADF_REQUEST_TABLE_NAME = "tableName";
     public static final String ADF_REQUEST_TABLE_PARTITION = "partitionedBy";
+    public static final String ADF_REQUEST_LOCATION_TYPE_AZURE_BLOB = "AzureBlobLocation";
+    public static final String ADF_REQUEST_CONNECTION_STRING = "connectionString";
+    public static final String ADF_REQUEST_BLOB_ACCOUNT_NAME = "AccountName=";
 
     public static final String ADF_STATUS_PROTOCOL = "TranportProtocolVersion";
     public static final String ADF_STATUS_JOBID = "JobId";

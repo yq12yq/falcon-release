@@ -19,6 +19,7 @@
 package org.apache.falcon.ADFService;
 
 import java.io.InputStream;
+import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -91,7 +92,7 @@ public abstract class ADFJob {
     }
 
     private static enum RequestType {
-        HADOOPREPLICATEDATA, HADOOPHIVE, HADOOPPIG
+        HADOOPMIRROR, HADOOPHIVE, HADOOPPIG
     }
 
     public static JobType getJobType(String msg) throws FalconException {
@@ -115,7 +116,7 @@ public abstract class ADFJob {
             }
 
             switch (RequestType.valueOf(type.toUpperCase())) {
-            case HADOOPREPLICATEDATA:
+            case HADOOPMIRROR:
                 return JobType.REPLICATION;
             case HADOOPHIVE:
                 return JobType.HIVE;
@@ -178,10 +179,6 @@ public abstract class ADFJob {
                 throw new FalconException("JSON object " + ADFJsonConstants.ADF_REQUEST_ACTIVITY + " not found in ADF"
                         + " request.");
             }
-
-            JSONObject scheduler = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_SCHEDULER);
-            frequency = scheduler.getString(ADFJsonConstants.ADF_REQUEST_FREQUENCY).toLowerCase() + "s("
-                    + scheduler.getInt(ADFJsonConstants.ADF_REQUEST_INTERVAL) + ")";
 
             JSONObject policy = activity.getJSONObject(ADFJsonConstants.ADF_REQUEST_POLICY);
             /* IS policy mandatory */
@@ -316,9 +313,35 @@ public abstract class ADFJob {
         }
 
         try {
-            return table.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
-                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_LOCATION)
-                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
+            JSONObject location = table.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
+                    .getJSONObject(ADFJsonConstants.ADF_REQUEST_LOCATION);
+            String type = location.getString(ADFJsonConstants.ADF_REQUEST_TYPE);
+            if (type.equals(ADFJsonConstants.ADF_REQUEST_LOCATION_TYPE_AZURE_BLOB)) {
+                String blobPath = location.getString(ADFJsonConstants.ADF_REQUEST_FOLDER_PATH);
+                int index = blobPath.indexOf('/');
+                if (index == -1) {
+                    throw new FalconException("Invalid azure blob path: " + blobPath);
+                }
+
+                String linkedServiceName = location.getString(ADFJsonConstants.ADF_REQUEST_LINKED_SERVICE_NAME);
+                JSONObject linkedService = linkedServicesMap.get(linkedServiceName);
+                if (linkedService == null) {
+                    throw new FalconException("Can't find linked service " + linkedServiceName + " for azure blob");
+                }
+                String connectionString = linkedService.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
+                        .getString(ADFJsonConstants.ADF_REQUEST_CONNECTION_STRING);
+                int accountNameIndex = connectionString.indexOf(ADFJsonConstants.ADF_REQUEST_BLOB_ACCOUNT_NAME)
+                        + ADFJsonConstants.ADF_REQUEST_BLOB_ACCOUNT_NAME.length();
+                String accountName = connectionString.substring(accountNameIndex,
+                        connectionString.indexOf(';', accountNameIndex));
+
+                StringBuilder blobUrl = new StringBuilder("wasb://")
+                        .append(blobPath.substring(0, index)).append("@")
+                        .append(accountName).append(".blob.core.windows.net")
+                        .append(blobPath.substring(index));
+                return blobUrl.toString();
+            }
+            return location.getJSONObject(ADFJsonConstants.ADF_REQUEST_EXTENDED_PROPERTIES)
                     .getString(ADFJsonConstants.ADF_REQUEST_FOLDER_PATH);
         } catch (JSONException e) {
             throw new FalconException("Error when parsing ADF JSON message: " + tableName, e);

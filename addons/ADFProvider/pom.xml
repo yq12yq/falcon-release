@@ -59,6 +59,16 @@
             <groupId>com.microsoft.azure</groupId>
             <artifactId>azure-servicebus</artifactId>
             <version>${azure.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.codehaus.jackson</groupId>
+                    <artifactId>jackson-core-asl</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.codehaus.jackson</groupId>
+                    <artifactId>jackson-mapper-asl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 
