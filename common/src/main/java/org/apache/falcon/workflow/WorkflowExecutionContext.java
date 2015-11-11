@@ -74,7 +74,7 @@ public class WorkflowExecutionContext {
      * Entity operations supported.
      */
     public enum EntityOperations {
-        GENERATE, DELETE, ARCHIVE, REPLICATE, CHMOD
+        GENERATE, DELETE, ARCHIVE, REPLICATE, CHMOD, IMPORT
     }
 
     public static final WorkflowExecutionArgs[] USER_MESSAGE_ARGS = {
@@ -280,6 +280,7 @@ public class WorkflowExecutionContext {
     }
 
     public long getExecutionCompletionTime() {
+
         return creationTime;
     }
 
@@ -300,6 +301,8 @@ public class WorkflowExecutionContext {
     public void serialize() throws IOException, FalconException {
         serialize(getContextFile());
     }
+
+    public String getDatasourceName() { return getValue(WorkflowExecutionArgs.DATASOURCE_NAME); }
 
     /**
      * this method is invoked from with in the workflow.

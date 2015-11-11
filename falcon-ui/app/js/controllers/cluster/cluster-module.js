@@ -87,6 +87,11 @@
       }
 
       function cleanModel() {
+
+        if (!$scope.clusterEntity.clusterModel.cluster._description) {
+          $scope.clusterEntity.clusterModel.cluster._description = '';
+        }
+
         //if registry check is false backups the object and removes it from array
         if (!$scope.registry.check) {
           $scope.clusterEntity.clusterModel.cluster.interfaces.interface.forEach(function(registry, index) {
@@ -97,28 +102,41 @@
           });
         }
         //deletes property empty last object and array if empty
-        var lastOne = $scope.clusterEntity.clusterModel.cluster.properties.property.length - 1;
-        if (
-          $scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._name === "" ||
-          $scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._name === undefined ||
-          $scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._value === "" ||
-          $scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._value === undefined
-        ) {
 
-          $scope.removeProperty(lastOne);
-        }
-        if ($scope.clusterEntity.clusterModel.cluster.properties.property.length === 0) {
+        if($scope.clusterEntity.clusterModel.cluster.properties
+          && $scope.clusterEntity.clusterModel.cluster.properties.property
+          && $scope.clusterEntity.clusterModel.cluster.properties.property.length > 0){
+          var lastOne = $scope.clusterEntity.clusterModel.cluster.properties.property.length - 1;
+          if (
+            !$scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._name ||
+            !$scope.clusterEntity.clusterModel.cluster.properties.property[lastOne]._value
+          ) {
+            $scope.removeProperty(lastOne);
+            if($scope.clusterEntity.clusterModel.cluster.properties.property.length < 1){
+              delete $scope.clusterEntity.clusterModel.cluster.properties;
+            }
+          }
+        }else{
           delete $scope.clusterEntity.clusterModel.cluster.properties;
         }
-        var lastLocationIndex = $scope.clusterEntity.clusterModel.cluster.locations.location.length - 1;
-        if (
-          $scope.clusterEntity.clusterModel.cluster.locations.location[lastLocationIndex]._name === "" ||
-          $scope.clusterEntity.clusterModel.cluster.locations.location[lastLocationIndex]._name === undefined ||
-          $scope.clusterEntity.clusterModel.cluster.locations.location[lastLocationIndex]._path === "" ||
-          $scope.clusterEntity.clusterModel.cluster.locations.location[lastLocationIndex]._path === undefined
-        ) {
-          $scope.removeLocation(lastLocationIndex);
+
+        if($scope.clusterEntity.clusterModel.cluster.locations
+          && $scope.clusterEntity.clusterModel.cluster.locations.location
+          && $scope.clusterEntity.clusterModel.cluster.locations.location.length > 0){
+          var lastOne = $scope.clusterEntity.clusterModel.cluster.locations.location.length - 1;
+          if (
+            !$scope.clusterEntity.clusterModel.cluster.locations.location[lastOne]._name ||
+            !$scope.clusterEntity.clusterModel.cluster.locations.location[lastOne]._path
+          ) {
+            $scope.removeLocation(lastOne);
+            if($scope.clusterEntity.clusterModel.cluster.locations.location.length < 1){
+              delete $scope.clusterEntity.clusterModel.cluster.locations;
+            }
+          }
+        }else{
+          delete $scope.clusterEntity.clusterModel.cluster.locations;
         }
+
         //deletes ACL if empty
         /*if ($scope.clusterEntity.clusterModel.cluster.ACL &&
             $scope.clusterEntity.clusterModel.cluster.ACL._owner === "") {
@@ -219,9 +237,33 @@
           $scope.clusterEntity.clusterModel.cluster.properties.property.splice(index, 1);
         }
       };
+
+      $scope.validateLocations = function(){
+        var stagingLoc;
+        var workingLoc;
+        $scope.clusterEntity.clusterModel.cluster.locations.location.forEach(function(location){
+          if(location._name == "staging"){
+            stagingLoc = location._path;
+          }
+          if(location._name == "working"){
+            workingLoc = location._path;
+          }
+        });
+        if(stagingLoc && workingLoc && stagingLoc == workingLoc){
+          $scope.locationsEqualError = true;
+        }else{
+          $scope.locationsEqualError = false;
+        }
+        return $scope.locationsEqualError;
+      };
+
       //--------------------------------------//
       $scope.goSummaryStep = function (formInvalid) {
         SpinnersFlag.show = true;
+        if($scope.validateLocations()){
+          SpinnersFlag.show = false;
+          return;
+        }
         if (!$scope.validations.nameAvailable || formInvalid) {
           validationService.displayValidations.show = true;
           validationService.displayValidations.nameShow = true;

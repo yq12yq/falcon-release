@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -26,12 +27,23 @@ import org.apache.falcon.entity.v0.SchemaHelper;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.cluster.Properties;
 import org.apache.falcon.entity.v0.cluster.Property;
+import org.apache.falcon.entity.v0.feed.Argument;
+import org.apache.falcon.entity.v0.feed.Arguments;
+import org.apache.falcon.entity.v0.feed.ExtractMethod;
 import org.apache.falcon.entity.v0.feed.Clusters;
+import org.apache.falcon.entity.v0.feed.ClusterType;
+import org.apache.falcon.entity.v0.feed.Extract;
 import org.apache.falcon.entity.v0.feed.Feed;
+import org.apache.falcon.entity.v0.feed.FieldsType;
+import org.apache.falcon.entity.v0.feed.FieldIncludeExclude;
+import org.apache.falcon.entity.v0.feed.Import;
 import org.apache.falcon.entity.v0.feed.Location;
-import org.apache.falcon.entity.v0.feed.LocationType;
 import org.apache.falcon.entity.v0.feed.Locations;
+import org.apache.falcon.entity.v0.feed.LocationType;
+import org.apache.falcon.entity.v0.feed.MergeType;
+import org.apache.falcon.entity.v0.feed.Source;
 import org.apache.falcon.entity.v0.feed.Validity;
+
 import org.apache.falcon.entity.v0.process.Input;
 import org.apache.falcon.entity.v0.process.Inputs;
 import org.apache.falcon.entity.v0.process.Output;
@@ -52,6 +64,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.List;
 
 /**
  * Test for feed helper methods.
@@ -672,7 +685,6 @@ public class FeedHelperTest extends AbstractTestBase {
         Assert.assertEquals(result, expected);
     }
 
-    @Test
     public void testGetConsumerWithLatest() throws Exception {
         Cluster cluster = publishCluster();
         Feed feed = publishFeed(cluster, "hours(1)", "2012-02-27 00:00 UTC", "2016-02-28 00:00 UTC");
@@ -735,8 +747,12 @@ public class FeedHelperTest extends AbstractTestBase {
         return cluster;
 
     }
-
     private Feed publishFeed(Cluster cluster, String frequency, String start, String end)
+        throws FalconException, ParseException {
+        return publishFeed(cluster, frequency, start, end, null);
+    }
+
+    private Feed publishFeed(Cluster cluster, String frequency, String start, String end, Import imp)
         throws FalconException, ParseException {
 
         Feed feed = new Feed();
@@ -746,6 +762,8 @@ public class FeedHelperTest extends AbstractTestBase {
         feed.setTimezone(UTC);
         Clusters fClusters = new Clusters();
         org.apache.falcon.entity.v0.feed.Cluster fCluster = new org.apache.falcon.entity.v0.feed.Cluster();
+        fCluster.setType(ClusterType.SOURCE);
+        fCluster.setImport(imp);
         fCluster.setName(cluster.getName());
         fCluster.setValidity(getFeedValidity(start, end));
         fClusters.getClusters().add(fCluster);
@@ -769,5 +787,93 @@ public class FeedHelperTest extends AbstractTestBase {
         Frequency f = new Frequency(frequency);
         process.setFrequency(f);
         return process;
+    }
+
+    @Test
+    public void testFeedImportSnapshot() throws Exception {
+        Cluster cluster = publishCluster();
+        Feed feed = importFeedSnapshot(cluster, "hours(1)", "2012-02-07 00:00 UTC", "2020-02-25 00:00 UTC");
+        org.apache.falcon.entity.v0.feed.Cluster feedCluster = FeedHelper.getCluster(feed, cluster.getName());
+        Date startInstResult = FeedHelper.getImportInitalInstance(feedCluster);
+        Assert.assertNotNull(feed.getClusters().getClusters());
+        Assert.assertNotNull(feed.getClusters().getClusters().get(0));
+        Assert.assertNotNull(feed.getClusters().getClusters().get(0).getValidity());
+        Assert.assertNotNull(feed.getClusters().getClusters().get(0).getValidity().getStart());
+        Assert.assertNotNull(startInstResult);
+        Assert.assertNotNull(feedCluster.getValidity().getStart());
+        Assert.assertEquals(getDate("2012-02-07 00:00 UTC"), feedCluster.getValidity().getStart());
+        Assert.assertTrue(FeedHelper.isImportEnabled(feedCluster));
+        Assert.assertEquals(MergeType.SNAPSHOT, FeedHelper.getImportMergeType(feedCluster));
+        Assert.assertNotEquals(startInstResult, feedCluster.getValidity().getStart());
+    }
+
+    @Test
+    public void testFeedImportFields() throws Exception {
+        Cluster cluster = publishCluster();
+        Feed feed = importFeedSnapshot(cluster, "hours(1)", "2012-02-07 00:00 UTC", "2020-02-25 00:00 UTC");
+        org.apache.falcon.entity.v0.feed.Cluster feedCluster = FeedHelper.getCluster(feed, cluster.getName());
+        Date startInstResult = FeedHelper.getImportInitalInstance(feedCluster);
+        List<String> fieldList = FeedHelper.getFieldList(feedCluster);
+        Assert.assertEquals(2, fieldList.size());
+        Assert.assertFalse(FeedHelper.isFieldExcludes(feedCluster));
+    }
+
+    @Test
+    public void testFeedImportAppend() throws Exception {
+        Cluster cluster = publishCluster();
+        Feed feed = importFeedAppend(cluster, "hours(1)", "2012-02-07 00:00 UTC", "2020-02-25 00:00 UTC");
+        org.apache.falcon.entity.v0.feed.Cluster feedCluster = FeedHelper.getCluster(feed, cluster.getName());
+        Date startInstResult = FeedHelper.getImportInitalInstance(feedCluster);
+        Assert.assertEquals(startInstResult, feed.getClusters().getClusters().get(0).getValidity().getStart());
+    }
+
+    private Feed importFeedSnapshot(Cluster cluster, String frequency, String start, String end)
+            throws FalconException, ParseException {
+
+        Import imp = getAnImport(MergeType.SNAPSHOT);
+        Feed feed = publishFeed(cluster, frequency, start, end, imp);
+        return feed;
+    }
+
+    private Feed importFeedAppend(Cluster cluster, String frequency, String start, String end)
+            throws FalconException, ParseException {
+
+        Import imp = getAnImport(MergeType.APPEND);
+        Feed feed = publishFeed(cluster, frequency, start, end);
+        return feed;
+    }
+
+    private Import getAnImport(MergeType mergeType) {
+        Extract extract = new Extract();
+        extract.setType(ExtractMethod.FULL);
+        extract.setMergepolicy(mergeType);
+
+        FieldIncludeExclude fieldInclude = new FieldIncludeExclude();
+        fieldInclude.getFields().add("id");
+        fieldInclude.getFields().add("name");
+        FieldsType fields = new FieldsType();
+        fields.setIncludes(fieldInclude);
+
+        Source source = new Source();
+        source.setName("test-db");
+        source.setTableName("test-table");
+        source.setExtract(extract);
+        source.setFields(fields);
+
+        Argument a1 = new Argument();
+        a1.setName("--split_by");
+        a1.setValue("id");
+        Argument a2 = new Argument();
+        a2.setName("--num-mappers");
+        a2.setValue("2");
+        Arguments args = new Arguments();
+        List<Argument> argList = args.getArguments();
+        argList.add(a1);
+        argList.add(a2);
+
+        Import imp = new Import();
+        imp.setSource(source);
+        imp.setArguments(args);
+        return imp;
     }
 }

@@ -25,6 +25,7 @@ import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.feed.Feed;
 import org.apache.falcon.oozie.workflow.ACTION;
 import org.apache.falcon.oozie.workflow.WORKFLOWAPP;
+import org.apache.falcon.workflow.WorkflowExecutionArgs;
 
 import java.util.Arrays;
 import java.util.Properties;
@@ -56,6 +57,7 @@ public class FSReplicationWorkflowBuilder extends FeedReplicationWorkflowBuilder
         ACTION replication = unmarshalAction(REPLICATION_ACTION_TEMPLATE);
         addHDFSServersConfig(replication, src, target);
         addAdditionalReplicationProperties(replication);
+        enableCounters(replication);
         addTransition(replication, SUCCESS_POSTPROCESS_ACTION_NAME, FAIL_POSTPROCESS_ACTION_NAME);
         workflow.getDecisionOrForkOrJoin().add(replication);
 
@@ -81,7 +83,7 @@ public class FSReplicationWorkflowBuilder extends FeedReplicationWorkflowBuilder
         } else {
             props.put("availabilityFlag", entity.getAvailabilityFlag());
         }
-
+        props.put(WorkflowExecutionArgs.DATASOURCE_NAME.getName(), "NA");
         return props;
     }
 }

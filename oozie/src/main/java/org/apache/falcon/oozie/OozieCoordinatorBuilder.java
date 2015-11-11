@@ -49,8 +49,6 @@ public abstract class OozieCoordinatorBuilder<T extends Entity> extends OozieEnt
     protected static final String NOMINAL_TIME_EL = "${coord:formatTime(coord:nominalTime(), 'yyyy-MM-dd-HH-mm')}";
     protected static final String ACTUAL_TIME_EL = "${coord:formatTime(coord:actualTime(), 'yyyy-MM-dd-HH-mm')}";
 
-
-    protected static final String IGNORE = "IGNORE";
     private static final Object USER_JMS_NOTIFICATION_ENABLED = "userJMSNotificationEnabled";
     protected final LifeCycle lifecycle;
 
@@ -76,6 +74,9 @@ public abstract class OozieCoordinatorBuilder<T extends Entity> extends OozieEnt
 
             case REPLICATION:
                 return new FeedReplicationCoordinatorBuilder((Feed)entity);
+
+            case IMPORT:
+                return new FeedImportCoordinatorBuilder((Feed)entity);
 
             default:
                 throw new IllegalArgumentException("Unhandled type " + entity.getEntityType() + ", lifecycle " + tag);
