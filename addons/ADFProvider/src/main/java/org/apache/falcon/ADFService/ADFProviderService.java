@@ -138,10 +138,8 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
 
         Services.get().<WorkflowJobEndNotificationService>getService(
                 WorkflowJobEndNotificationService.SERVICE_NAME).registerListener(this);
-
         adfScheduledExecutorService = new ADFScheduledExecutor(AZURE_SERVICEBUS_REQUEST_HANDLING_THREADS);
         adfScheduledExecutorService.scheduleWithFixedDelay(new HandleADFRequests(), 0, getDelay(), TimeUnit.SECONDS);
-
         LOG.info("Falcon ADFProvider service initialized");
     }
 
