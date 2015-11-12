@@ -168,7 +168,7 @@ public class ProcessInstanceRerunTest extends BaseTestClass {
         prism.getProcessHelper().getProcessInstanceRerun(processName,
             start + "&end=2010-01-02T01:11Z");
         TimeUtil.sleepSeconds(TIMEOUT);
-        InstanceUtil.areWorkflowsRunning(clusterOC, wfIDs, 6, 6, 0, 0);
+        InstanceUtil.areWorkflowsRunningorSuccess(clusterOC, wfIDs, 6, 6, 0);
     }
 
     /**

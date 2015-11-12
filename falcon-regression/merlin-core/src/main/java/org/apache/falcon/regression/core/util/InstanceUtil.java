@@ -407,6 +407,42 @@ public final class InstanceUtil {
         }
     }
 
+    public static void areWorkflowsRunningorSuccess(OozieClient oozieClient, List<String> wfIDs,
+            int totalWorkflows,
+            int runningsuccessWorkflows, int killedWorkflows ) throws OozieClientException {
+
+        List<WorkflowJob> wfJobs = new ArrayList<WorkflowJob>();
+        for (String wdID : wfIDs) {
+            wfJobs.add(oozieClient.getJobInfo(wdID));
+        }
+        if (totalWorkflows != -1) {
+            Assert.assertEquals(wfJobs.size(), totalWorkflows);
+        }
+        int actualRunningWorkflows = 0;
+        int actualKilledWorkflows = 0;
+        int actualSucceededWorkflows = 0;
+        LOGGER.info("wfJobs: " + wfJobs);
+        for (int instanceIndex = 0; instanceIndex < wfJobs.size(); instanceIndex++) {
+            LOGGER.info("was.get(" + instanceIndex + ").getStatus(): "
+                    +
+                    wfJobs.get(instanceIndex).getStatus());
+
+            if (wfJobs.get(instanceIndex).getStatus().toString().equals("RUNNING")) {
+                actualRunningWorkflows++;
+            } else if (wfJobs.get(instanceIndex).getStatus().toString().equals("KILLED")) {
+                actualKilledWorkflows++;
+            } else if (wfJobs.get(instanceIndex).getStatus().toString().equals("SUCCEEDED")) {
+                actualSucceededWorkflows++;
+            }
+        }
+        if (runningsuccessWorkflows != -1) {
+            Assert.assertEquals((actualRunningWorkflows + actualSucceededWorkflows), runningsuccessWorkflows);
+        }
+        if (killedWorkflows != -1) {
+            Assert.assertEquals(actualKilledWorkflows, killedWorkflows);
+        }
+    }
+    
     public static List<CoordinatorAction> getProcessInstanceList(ColoHelper coloHelper,
             String processName,
             EntityType entityType)
