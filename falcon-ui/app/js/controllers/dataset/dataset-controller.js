@@ -36,7 +36,11 @@
       });
 
       $scope.isActive = function (route) {
-        return $state.current.name === route;
+        return route === $state.current.name;
+      };
+
+      $scope.isCompleted = function (route) {
+        return $state.get(route).data && $state.get(route).data.completed;
       };
 
       $scope.clone = $scope.$parent.cloningMode;
@@ -159,6 +163,9 @@
       //-------------------------------------//
 
       $scope.goNext = function (formInvalid, stateName) {
+        $state.current.data = $state.current.data || {};
+        $state.current.data.completed = !formInvalid;
+
         SpinnersFlag.show = true;
         if (!validationService.nameAvailable || formInvalid) {
           validationService.displayValidations.show = true;
@@ -194,7 +201,7 @@
               EntityModel.datasetModel.UIModel.hiveOptions.source.stagingPath = findLocation($scope.sourceClusterModel.cluster.locations.location, 'staging');
             }
             if (!EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
-              EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint = replacePortInInterface(findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'registry'));
+              EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint = replaceHive(findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'registry'));
             }
 
           })
@@ -210,8 +217,8 @@
             if (!EntityModel.datasetModel.UIModel.hiveOptions.target.stagingPath && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
               EntityModel.datasetModel.UIModel.hiveOptions.target.stagingPath = findLocation($scope.targetClusterModel.cluster.locations.location, 'staging');
             }
-            if (!EntityModel.datasetModel.UIModel.hiveOptions.source.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
-              EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint = replacePortInInterface(findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'registry'));
+            if (!EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint && EntityModel.datasetModel.UIModel.formType === 'HIVE') {
+              EntityModel.datasetModel.UIModel.hiveOptions.target.hiveServerToEndpoint = replaceHive(findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'registry'));
             }
           })
           .error(function (err) {
@@ -239,10 +246,11 @@
         return inter;
       }
 
-      function replacePortInInterface(string) {
+      function replaceHive(string) {
         if (string) {
           var splitted = string.split(':');
-          return splitted[0] + ':' + splitted[1] + ':10000';
+          var uri = 'hive2' + ':' + splitted[1] + ':10000';
+          return uri;
         }
       }
 
@@ -277,20 +285,7 @@
               item._value = $scope.UIModel.allocation.hdfs.maxBandwidth;
             }
             if (item._name === 'drSourceDir') {
-              item._value = "";
-              var values = $scope.UIModel.source.path.split(",");
-              var drSourceClusterFS;
-              if ($scope.UIModel.source.location === 'HDFS') {
-                drSourceClusterFS = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'write');
-              } else {
-                drSourceClusterFS = $scope.UIModel.source.url;
-              }
-              for(var i=0; i<values.length; i++){
-                item._value += drSourceClusterFS+"/"+values[i];
-                if(i < values.length-1){
-                  item._value += ",";
-                }
-              }
+              item._value = $scope.UIModel.source.path;
             }
             if (item._name === 'drTargetDir') {
               item._value = $scope.UIModel.target.path;
@@ -354,11 +349,7 @@
               item._value = $scope.UIModel.hiveOptions.source.stagingPath;
             }
             if (item._name === 'targetStagingPath') {
-              if ($scope.UIModel.source.hiveDatabaseType === "databases") {
-                item._value = "*";
-              } else {
-                item._value = $scope.UIModel.hiveOptions.target.stagingPath;
-              }
+              item._value = $scope.UIModel.hiveOptions.target.stagingPath;
             }
             if (item._name === 'sourceNN') {
               item._value = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'write');
@@ -410,7 +401,13 @@
               item._value = $scope.UIModel.name;
             }
             if (item._name === 'drNotificationReceivers') {
-              item._value = $scope.UIModel.alerts.alertsArray.join();
+              item._value = (function () {
+                if ($scope.UIModel.alerts.alertsArray.length === 0) {
+                  return "NA";
+                } else {
+                  return $scope.UIModel.alerts.alertsArray.join();
+                }
+              }());
             }
 
           });
@@ -622,7 +619,13 @@
               }
             }
             if (item._name === 'drNotificationReceivers') {
-              EntityModel.datasetModel.UIModel.alerts.alertsArray = item._value.split(',');
+              EntityModel.datasetModel.UIModel.alerts.alertsArray = (function () {
+                if (item._value !== "NA") {
+                  return item._value.split(',');
+                } else {
+                  return [];
+                }
+              }());
             }
 
           });
