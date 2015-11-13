@@ -47,16 +47,6 @@ public class ADFReplicationJob extends ADFJob {
             // Note: in first clickstop, we support only one input table and one output table for replication job
             String inputTableName = getInputTables().get(0);
             String outputTableName = getOutputTables().get(0);
-            LOG.info("input table: " + inputTableName);
-            LOG.info("output table: " + outputTableName);
-            LOG.info("feed name: " + jobEntityName());
-            LOG.info("start time: " + startTime);
-            LOG.info("end time: " + endTime);
-            LOG.info("frequency: " + frequency);
-            LOG.info("cluster source: " + getTableCluster(inputTableName));
-            LOG.info("source location: " + getADFTablePath(inputTableName));
-            LOG.info("target location: " + getADFTablePath(outputTableName));
-
             String template = FSUtils.readHDFSFile(TEMPLATE_PATH_PREFIX, TEMPLATE_REPLICATION_FEED);
             LOG.info("template: " + template);
             String message = template.replace("$feedName$", jobEntityName())
@@ -68,10 +58,7 @@ public class ADFReplicationJob extends ADFJob {
                     .replace("$sourceLocation$", getADFTablePath(inputTableName))
                     .replace("$targetLocation$", getADFTablePath(outputTableName))
                     .replace("$properties$", getAdditionalProperties());
-
-            LOG.info("submitting/scheduling job: " + message);
             submitAndScheduleJob(EntityType.FEED.name(), message);
-            LOG.info("submitted and scheduled job");
         } catch (URISyntaxException e) {
             LOG.info(e.toString());
         }

@@ -120,7 +120,6 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
             throw new FalconException(AZURE_SERVICEBUS_CONF_PREFIX + AZURE_SERVICEBUS_CONF_STATUS_QUEUE_NAME
                     + " property not set in startup properties. Please add it.");
         }
-        LOG.info("request queue: " + requestQueueName + ", status queue: " + statusQueueName);
 
         // init opts
         opts.setReceiveMode(ReceiveMode.PEEK_LOCK);
@@ -129,7 +128,6 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         // restart handling
         CurrentUser.authenticate("ambari-qa");
         for (EntityType entityType : EntityType.values()) {
-            LOG.info("restart handling: " + entityType.toString());
             Collection<String> entities = STORE.getEntities(entityType);
             for (String entityName : entities) {
                 updateJobStatus(entityName, entityType.toString());
@@ -149,10 +147,9 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         public void run() {
             String sessionID = null;
             try {
-                LOG.info("to read message from adf...");
+                LOG.info("To read message from adf...");
                 ReceiveQueueMessageResult resultQM =
                         service.receiveQueueMessage(requestQueueName, opts);
-                LOG.info("received queue message result");
                 BrokeredMessage message = resultQM.getValue();
                 if (message != null && message.getMessageId() != null) {
                     sessionID = message.getReplyToSessionId();
@@ -165,34 +162,28 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                     }
                     rd.close();
                     String msg = sb.toString();
-                    LOG.info("adf message: " + msg);
+                    LOG.info("ADF message: " + msg);
 
                     ADFJob.JobType jobType = ADFJob.getJobType(msg);
                     switch (jobType) {
                     case REPLICATION:
-                        LOG.info("To parse replication job");
                         ADFReplicationJob job = new ADFReplicationJob(msg, sessionID);
-                        LOG.info("To start job");
                         job.startJob();
                         break;
                     case HIVE:
                         ADFHiveJob hiveJob = new ADFHiveJob(msg, sessionID);
-                        LOG.info("Start hive job");
                         hiveJob.startJob();
                         break;
                     case PIG:
                         ADFPigJob pigJob = new ADFPigJob(msg, sessionID);
-                        LOG.info("Start pig job");
                         pigJob.startJob();
                         break;
                     default:
-                        LOG.info("Invalid job type: {}", jobType);
                     }
 
                     service.deleteMessage(message);
-                    LOG.info("deleted adf message");
                 } else {
-                    LOG.info("no message from adf");
+                    LOG.info("No message from adf");
                 }
             } catch (FalconException e) {
                 if (sessionID != null) {
@@ -280,7 +271,6 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
         if (!ADFJob.isADFJobEntity(entityName)) {
             return;
         }
-        LOG.info("to update job status for " + entityName);
 
         Instance instance = instanceManager.getFirstInstance(entityName, entityType);
         if (instance == null) {
@@ -356,7 +346,7 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
     }
 
     private void sendStatusUpdate(String sessionID, String message) {
-        LOG.info("sending update for session " + sessionID + ": " + message);
+        LOG.info("Sending update for session " + sessionID + ": " + message);
         try {
             InputStream in = IOUtils.toInputStream(message, "UTF-8");
             BrokeredMessage updateMessage = new BrokeredMessage(in);

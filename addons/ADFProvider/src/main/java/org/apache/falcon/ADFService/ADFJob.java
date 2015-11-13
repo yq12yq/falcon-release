@@ -208,7 +208,7 @@ public abstract class ADFJob {
 
             // should be called after setting activityExtendedProperties
             proxyUser = getRunAsUser();
-            LOG.info("proxy user: " + proxyUser);
+
             // log in the user
             CurrentUser.authenticate(proxyUser);
         } catch (JSONException e) {
@@ -490,10 +490,8 @@ public abstract class ADFJob {
     protected static class ADFJobManager extends AbstractSchedulableEntityManager {
         public Entity submitJob(String entityType, String msg) {
             InputStream stream = IOUtils.toInputStream(msg);
-            LOG.info("to stream");
             try {
                 Entity entity = submitInternal(stream, entityType);
-                LOG.info("submitted entity: " + entity.getName());
                 return entity;
             } catch (Exception e) {
                 LOG.info(e.toString());
@@ -504,7 +502,6 @@ public abstract class ADFJob {
         public void scheduleJob(String entityType, String entityName) {
             try {
                 scheduleInternal(entityType, entityName, null);
-                LOG.info("scheduled entity: " + entityName);
             } catch (Exception e) {
                 LOG.info(e.toString());
             }
