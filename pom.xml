@@ -451,6 +451,12 @@
             </modules>
         </profile>
         <profile>
+            <id>adfprovider</id>
+            <modules>
+                <module>addons/ADFProvider</module>
+            </modules>
+        </profile>
+        <profile>
             <id>hwx-common</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
@@ -605,13 +611,13 @@
             <dependency>
                 <groupId>org.codehaus.jackson</groupId>
                 <artifactId>jackson-core-asl</artifactId>
-                <version>1.5.2</version>
+                <version>1.9.2</version>
             </dependency>
 
             <dependency>
                 <groupId>org.codehaus.jackson</groupId>
                 <artifactId>jackson-mapper-asl</artifactId>
-                <version>1.5.2</version>
+                <version>1.9.2</version>
             </dependency>
 
             <dependency>

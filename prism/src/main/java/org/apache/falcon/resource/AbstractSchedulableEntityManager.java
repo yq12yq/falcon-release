@@ -78,9 +78,10 @@ public abstract class AbstractSchedulableEntityManager extends AbstractInstanceM
         }
     }
 
-    private synchronized void scheduleInternal(String type, String entity, Boolean skipDryRun)
+    protected synchronized void scheduleInternal(String type, String entity, Boolean skipDryRun)
         throws FalconException, AuthorizationException {
 
+        LOG.info("schedule " + type + ": " + entity + ", " + skipDryRun);
         checkSchedulableEntity(type);
         Entity entityObj = null;
         try {
