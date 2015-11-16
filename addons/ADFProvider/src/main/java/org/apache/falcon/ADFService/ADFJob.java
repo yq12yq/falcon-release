@@ -19,7 +19,6 @@
 package org.apache.falcon.ADFService;
 
 import java.io.InputStream;
-import java.lang.StringBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -315,8 +314,8 @@ public abstract class ADFJob {
         try {
             JSONObject location = table.getJSONObject(ADFJsonConstants.ADF_REQUEST_PROPERTIES)
                     .getJSONObject(ADFJsonConstants.ADF_REQUEST_LOCATION);
-            String type = location.getString(ADFJsonConstants.ADF_REQUEST_TYPE);
-            if (type.equals(ADFJsonConstants.ADF_REQUEST_LOCATION_TYPE_AZURE_BLOB)) {
+            String requestType = location.getString(ADFJsonConstants.ADF_REQUEST_TYPE);
+            if (requestType.equals(ADFJsonConstants.ADF_REQUEST_LOCATION_TYPE_AZURE_BLOB)) {
                 String blobPath = location.getString(ADFJsonConstants.ADF_REQUEST_FOLDER_PATH);
                 int index = blobPath.indexOf('/');
                 if (index == -1) {
