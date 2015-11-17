@@ -171,9 +171,7 @@ public abstract class AbstractInstanceManager extends AbstractEntityManager {
             lifeCycles = checkAndUpdateLifeCycle(lifeCycles, type);
             validateParams(type, entity);
             validateInstanceFilterByClause(filterBy);
-            LOG.info("to get entity " + type + ": " + entity);
             Entity entityObject = EntityUtil.getEntity(type, entity);
-            LOG.info("to get instance result");
             Pair<Date, Date> startAndEndDate = getStartAndEndDate(entityObject, startStr, endStr, numResults);
 
             // LifeCycle lifeCycleObject = EntityUtil.getLifeCycle(lifeCycle);
