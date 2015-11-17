@@ -1,3 +1,5 @@
+Usage:
+$FALCON_HOME/bin/falcon metadata -list -type [cluster_entity|datasource_entity|feed_entity|process_entity|user|colo|tags|groups|pipelines]
 ---+FalconCLI
 
 FalconCLI is a interface between user and Falcon. It is a command line utility provided by Falcon. FalconCLI supports Entity Management, Instance Management and Admin operations.There is a set of web services that are used by FalconCLI to interact with Falcon.
@@ -8,6 +10,8 @@ FalconCLI is a interface between user and Falcon. It is a command line utility p
 
 Submit option is used to set up entity definition.
 
+Usage:
+$FALCON_HOME/bin/falcon entity -submit -type [cluster|datasource|feed|process] -file <entity-definition.xml>
 Example: 
 $FALCON_HOME/bin/falcon entity -submit -type cluster -file /cluster/definition.xml
 
@@ -44,7 +48,7 @@ Usage:
 Delete removes the submitted entity definition for the specified entity and put it into the archive.
 
 Usage:
-$FALCON_HOME/bin/falcon entity  -type [cluster|feed|process] -name <<name>> -delete
+$FALCON_HOME/bin/falcon entity  -type [cluster|datasource|feed|process] -name <<name>> -delete
 
 ---+++List
 
@@ -54,7 +58,7 @@ Usage:
 $FALCON_HOME/bin/falcon entity -list
 
 Optional Args : -fields <<field1,field2>>
--type <<[cluster|feed|process],[cluster|feed|process]>>
+-type <<[cluster|datasource|feed|process],[cluster|datasource|feed|process]>>
 -nameseq <<namesubsequence>> -tagkeys <<tagkeyword1,tagkeyword2>>
 -filterBy <<field1:value1,field2:value2>> -tags <<tagkey=tagvalue,tagkey=tagvalue>>
 -orderBy <<field>> -sortOrder <<sortOrder>> -offset 0 -numResults 10
@@ -77,8 +81,8 @@ Optional Args : -start "yyyy-MM-dd'T'HH:mm'Z'" -end "yyyy-MM-dd'T'HH:mm'Z'" -fie
 
 ---+++Update
 
-Update operation allows an already submitted/scheduled entity to be updated. Cluster update is currently
-not allowed.
+Update operation allows an already submitted/scheduled entity to be updated. Cluster and datasource updates are
+currently not allowed.
 
 Usage:
 $FALCON_HOME/bin/falcon entity  -type [feed|process] -name <<name>> -update -file <<path_to_file>>
@@ -102,21 +106,23 @@ Optional Arg : -skipDryRun. When this argument is specified, Falcon skips oozie 
 Status returns the current status of the entity.
 
 Usage:
-$FALCON_HOME/bin/falcon entity -type [cluster|feed|process] -name <<name>> -status
+$FALCON_HOME/bin/falcon entity -type [cluster|datasource|feed|process] -name <<name>> -status
 
 ---+++Dependency
 
-With the use of dependency option, we can list all the entities on which the specified entity is dependent. For example for a feed, dependency return the cluster name and for process it returns all the input feeds, output feeds and cluster names.
+With the use of dependency option, we can list all the entities on which the specified entity is dependent.
+For example for a feed, dependency return the cluster name and for process it returns all the input feeds,
+output feeds and cluster names.
 
 Usage:
-$FALCON_HOME/bin/falcon entity -type [cluster|feed|process] -name <<name>> -dependency
+$FALCON_HOME/bin/falcon entity -type [cluster|datasource|feed|process] -name <<name>> -dependency
 
 ---+++Definition
 
 Definition option returns the entity definition submitted earlier during submit step.
 
 Usage:
-$FALCON_HOME/bin/falcon entity -type [cluster|feed|process] -name <<name>> -definition
+$FALCON_HOME/bin/falcon entity -type [cluster|datasource|feed|process] -name <<name>> -definition
 
 
 ---+++Lookup

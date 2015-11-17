@@ -60,7 +60,7 @@
         <profile>
             <id>hadoop-2</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>false</activeByDefault>
             </activation>
             <dependencies>
                 <dependency>
@@ -89,6 +89,14 @@
     </profiles>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.falcon</groupId>
+            <artifactId>falcon-common</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.falcon</groupId>
             <artifactId>falcon-common</artifactId>
@@ -417,6 +425,28 @@
             </plugin>
 
             <plugin>
+                <groupId>com.google.code.maven-replacer-plugin</groupId>
+                <artifactId>replacer</artifactId>
+                <version>1.5.3</version>
+                <executions>
+                    <execution>
+                        <phase>generate-test-resources</phase>
+                        <goals>
+                            <goal>replace</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>${project.build.directory}/test-classes/runtime.properties</include>
+                        <include>${project.build.directory}/webapps/oozie/conf/oozie-site.xml</include>
+                    </includes>
+                    <token>#USER#</token>
+                    <value>${user.name}</value>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.mortbay.jetty</groupId>
                 <artifactId>maven-jetty-plugin</artifactId>
                 <version>${jetty.version}</version>
@@ -542,6 +572,9 @@
 	          <exclude>**/data.txt</exclude>
 	          <exclude>**/maven-eclipse.xml</exclude>
 	          <exclude>**/.externalToolBuilders/**</exclude>
+                  <exclude>**/db1.log</exclude>
+                  <exclude>**/db1.properties</exclude>
+                  <exclude>**/db1.script</exclude>
                 </excludes>
               </configuration>
       	    </plugin>	

@@ -54,6 +54,7 @@ public class AbstractTestBase {
     protected static final String PROCESS_XML = "/config/process/process-0.1.xml";
     protected static final String FEED_XML = "/config/feed/feed-0.1.xml";
     protected static final String CLUSTER_XML = "/config/cluster/cluster-0.1.xml";
+    protected static final String DATASOURCE_XML = "/config/datasource/datasource-0.1.xml";
     protected EmbeddedCluster dfsCluster;
     protected Configuration conf = new Configuration();
     private ConfigurationStore store;

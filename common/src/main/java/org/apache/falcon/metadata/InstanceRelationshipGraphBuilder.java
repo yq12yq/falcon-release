@@ -51,6 +51,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(InstanceRelationshipGraphBuilder.class);
 
     private static final String FEED_INSTANCE_FORMAT = "yyyyMMddHHmm"; // computed
+    private static final String NONE = "NONE";
     private static final String IGNORE = "IGNORE";
 
     // process workflow properties from message
@@ -90,16 +91,20 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
             addPipelines(process.getPipelines(), processInstance);
         }
 
-        String counterString = getCounterString(context);
-        if (!StringUtils.isEmpty(counterString)) {
-            addCountersToInstance(counterString, processInstance);
-        }
+        addCounters(processInstance, context);
 
         return processInstance;
     }
 
+    private void addCounters(Vertex processInstance, WorkflowExecutionContext context) throws FalconException {
+        String counterString = getCounterString(context);
+        if (!StringUtils.isBlank(counterString)) {
+            addCountersToInstance(counterString, processInstance);
+        }
+    }
+
     private String getCounterString(WorkflowExecutionContext context) {
-        if (!StringUtils.isEmpty(context.getCounters())) {
+        if (!StringUtils.isBlank(context.getCounters())) {
             return context.getCounters();
         }
         return null;
@@ -129,11 +134,16 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
         vertex.setProperty(optionName.getName(), value);
     }
 
-    private void addCountersToInstance(String counter, Vertex vertex) {
-        int index = counter.indexOf(":");
-        String counterKey = counter.substring(0, index);
-        String counterValue = counter.substring(index+1, counter.length());
-        vertex.setProperty(counterKey, counterValue);
+    private void addCountersToInstance(String counterString, Vertex vertex) throws FalconException {
+        String[] counterKeyValues = counterString.split(",");
+        try {
+            for (String counter : counterKeyValues) {
+                String[] keyVals = counter.split(":", 2);
+                vertex.setProperty(keyVals[0], Long.parseLong(keyVals[1]));
+            }
+        } catch (NumberFormatException e) {
+            throw new FalconException("Invalid values for counter:"  +e);
+        }
     }
 
     public void addInstanceToEntity(Vertex instanceVertex, String entityName,
@@ -157,7 +167,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     public void addOutputFeedInstances(WorkflowExecutionContext context,
                                        Vertex processInstance) throws FalconException {
         String outputFeedNamesArg = context.getOutputFeedNames();
-        if ("NONE".equals(outputFeedNamesArg)) {
+        if (NONE.equals(outputFeedNamesArg) || IGNORE.equals(outputFeedNamesArg)) {
             return; // there are no output feeds for this process
         }
 
@@ -175,7 +185,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     public void addInputFeedInstances(WorkflowExecutionContext context,
                                       Vertex processInstance) throws FalconException {
         String inputFeedNamesArg = context.getInputFeedNames();
-        if ("NONE".equals(inputFeedNamesArg)) {
+        if (NONE.equals(inputFeedNamesArg) || IGNORE.equals(inputFeedNamesArg)) {
             return; // there are no input feeds for this process
         }
 
@@ -218,6 +228,8 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
 
         addInstanceToEntity(feedInstanceVertex, targetClusterName, RelationshipType.CLUSTER_ENTITY,
                 RelationshipLabel.FEED_CLUSTER_REPLICATED_EDGE, context.getTimeStampAsISO8601());
+
+        addCounters(feedInstanceVertex, context);
     }
 
     public void addEvictedInstance(WorkflowExecutionContext context) throws FalconException {
@@ -253,6 +265,39 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
             addInstanceToEntity(feedInstanceVertex, clusterName, RelationshipType.CLUSTER_ENTITY,
                     RelationshipLabel.FEED_CLUSTER_EVICTED_EDGE, context.getTimeStampAsISO8601());
         }
+    }
+
+
+    public void addImportedInstance(WorkflowExecutionContext context) throws FalconException {
+
+        String feedName = context.getOutputFeedNames();
+        String feedInstanceDataPath = context.getOutputFeedInstancePaths();
+        String datasourceName = context.getDatasourceName();
+        String sourceClusterName = context.getSrcClusterName();
+
+        LOG.info("Computing import feed instance for : name= {} path= {}, in cluster: {} "
+                       +  "from datasource: {}", feedName,
+                feedInstanceDataPath, sourceClusterName, datasourceName);
+        String feedInstanceName = getFeedInstanceName(feedName, sourceClusterName,
+                feedInstanceDataPath, context.getNominalTimeAsISO8601());
+        Vertex feedInstanceVertex = findVertex(feedInstanceName, RelationshipType.FEED_INSTANCE);
+
+        LOG.info("Vertex exists? name={}, type={}, v={}",
+                feedInstanceName, RelationshipType.FEED_INSTANCE, feedInstanceVertex);
+        if (feedInstanceVertex == null) { // No record of instances NOT generated by Falcon
+            LOG.info("{} instance vertex {} does not exist, add it",
+                    RelationshipType.FEED_INSTANCE, feedInstanceName);
+            feedInstanceVertex = addFeedInstance(// add a new instance
+                    feedInstanceName, context, feedName, context.getSrcClusterName());
+        }
+        addInstanceToEntity(feedInstanceVertex, datasourceName, RelationshipType.DATASOURCE_ENTITY,
+                RelationshipLabel.DATASOURCE_IMPORT_EDGE, context.getTimeStampAsISO8601());
+        addInstanceToEntity(feedInstanceVertex, sourceClusterName, RelationshipType.CLUSTER_ENTITY,
+                RelationshipLabel.FEED_CLUSTER_EDGE, context.getTimeStampAsISO8601());
+    }
+
+    public String getImportInstanceName(WorkflowExecutionContext context) {
+        return context.getEntityName() + "/" + context.getNominalTimeAsISO8601();
     }
 
     private void addFeedInstance(Vertex processInstance, RelationshipLabel edgeLabel,

@@ -103,12 +103,12 @@
         <include.prism>true</include.prism>
 
         <slf4j.version>1.7.5</slf4j.version>
-        <oozie.version>4.2.0</oozie.version>
+        <oozie.version>4.2.0.2.3.4.0-3162</oozie.version>
         <oozie.buildversion>${oozie.version}</oozie.buildversion>
         <oozie.forcebuild>false</oozie.forcebuild>
         <activemq.version>5.4.3</activemq.version>
-        <hive.version>1.2.1</hive.version>
-        <hcatalog.version>1.2.1</hcatalog.version>
+        <hive.version>1.2.1.2.3.4.0-3162</hive.version>
+        <hcatalog.version>1.2.1.2.3.4.0-3162</hcatalog.version>
         <jetty.version>6.1.26</jetty.version>
         <jersey.version>1.9</jersey.version>
         <internal.maven.repo>file:///tmp/falcontemprepo</internal.maven.repo>
@@ -120,10 +120,10 @@
         <profile>
             <id>hadoop-2</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>false</activeByDefault>
             </activation>
             <properties>
-                <hadoop.version>2.6.0</hadoop.version>
+                <hadoop.version>2.7.1.2.3.4.0-3162</hadoop.version>
             </properties>
             <dependencyManagement>
                 <dependencies>
@@ -338,6 +338,9 @@
                                 <exclude>**/maven-eclipse.xml</exclude>
                                 <exclude>**/.externalToolBuilders/**</exclude>
                                 <exclude>html5-ui/**</exclude>
+                                <exclude>**/db1.log</exclude>
+                                <exclude>**/db1.properties</exclude>
+                                <exclude>**/db1.script</exclude>
                             </excludes>
                         </configuration>
                         <executions>

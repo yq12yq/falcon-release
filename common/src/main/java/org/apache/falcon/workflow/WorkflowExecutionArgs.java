@@ -35,6 +35,11 @@ public enum WorkflowExecutionArgs {
     // where
     CLUSTER_NAME("cluster", "name of the current cluster"),
     OPERATION("operation", "operation like generate, delete, replicate"),
+    // Exactly same as the above. Introduced to ensure compatibility between messages produced by POST-PROCESSING and
+    // the values in conf.
+    DATA_OPERATION("falconDataOperation", "operation like generate, delete, replicate", false),
+    DATASOURCE_NAME("datasource", "name of the datasource", false),
+
 
     // who
     WORKFLOW_USER("workflowUser", "user who owns the feed instance (partition)"),
