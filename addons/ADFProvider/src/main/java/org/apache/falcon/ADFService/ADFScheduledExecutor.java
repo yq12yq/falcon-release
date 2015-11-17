@@ -21,6 +21,7 @@ package org.apache.falcon.ADFService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.Throwable;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
