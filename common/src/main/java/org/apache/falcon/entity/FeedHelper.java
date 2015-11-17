@@ -868,7 +868,7 @@ public final class FeedHelper {
      * @throws FalconException
      */
     public static Map<String, String> getImportArguments(org.apache.falcon.entity.v0.feed.Cluster feedCluster)
-            throws FalconException {
+        throws FalconException {
 
         Map<String, String> argsMap = new HashMap<String, String>();
         if (feedCluster.getImport().getArguments() == null) {
@@ -889,7 +889,7 @@ public final class FeedHelper {
      * @throws FalconException
      */
     public static List<String> getFieldList(org.apache.falcon.entity.v0.feed.Cluster feedCluster)
-            throws FalconException {
+        throws FalconException {
         if (feedCluster.getImport().getSource().getFields() == null) {
             return null;
         }
@@ -911,7 +911,7 @@ public final class FeedHelper {
      */
 
     public static boolean isFieldExcludes(org.apache.falcon.entity.v0.feed.Cluster feedCluster)
-            throws FalconException {
+        throws FalconException {
         if (feedCluster.getImport().getSource().getFields() != null) {
             org.apache.falcon.entity.v0.feed.FieldsType fieldType = feedCluster.getImport().getSource().getFields();
             FieldIncludeExclude excludeFileds = fieldType.getExcludes();

@@ -1,4 +1,3 @@
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -828,7 +827,7 @@ public class FeedHelperTest extends AbstractTestBase {
     }
 
     private Feed importFeedSnapshot(Cluster cluster, String frequency, String start, String end)
-            throws FalconException, ParseException {
+        throws FalconException, ParseException {
 
         Import imp = getAnImport(MergeType.SNAPSHOT);
         Feed feed = publishFeed(cluster, frequency, start, end, imp);
@@ -836,7 +835,7 @@ public class FeedHelperTest extends AbstractTestBase {
     }
 
     private Feed importFeedAppend(Cluster cluster, String frequency, String start, String end)
-            throws FalconException, ParseException {
+        throws FalconException, ParseException {
 
         Import imp = getAnImport(MergeType.APPEND);
         Feed feed = publishFeed(cluster, frequency, start, end);
