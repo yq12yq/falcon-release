@@ -267,6 +267,9 @@ public abstract class AbstractEntityManager {
             throw FalconWebException.newException(e, Response.Status.BAD_REQUEST);
         }
     }
+    public APIResult delete(final String type, final String entity, final String colo) {
+        return delete(null, type, entity, colo);
+    }
 
     public APIResult update(HttpServletRequest request, String type, String entityName,
                             String colo, Boolean skipDryRun) {
@@ -389,11 +392,11 @@ public abstract class AbstractEntityManager {
         }
     }
 
-    protected synchronized Entity submitInternal(HttpServletRequest request, String type)
+    protected synchronized Entity submitInternal(InputStream xmlStream, String type, String doAsUser)
         throws IOException, FalconException {
 
         EntityType entityType = EntityType.getEnum(type);
-        Entity entity = deserializeEntity(request, entityType);
+        Entity entity = deserializeEntity(xmlStream, entityType);
         // KLUDGE - Until ACL is mandated entity passed should be decorated for equals check to pass
         decorateEntityWithACL(entity);
 
@@ -408,12 +411,16 @@ public abstract class AbstractEntityManager {
                             + "Can't be submitted again. Try removing before submitting.");
         }
 
-        String doAsUser = request.getParameter(DO_AS_PARAM);
         SecurityUtil.tryProxy(entity, doAsUser); // proxy before validating since FS/Oozie needs to be proxied
         validate(entity);
         configStore.publish(entityType, entity);
         LOG.info("Submit successful: ({}): {}", type, entity.getName());
         return entity;
+    }
+
+    protected Entity submitInternal(HttpServletRequest request, String type)
+        throws IOException, FalconException {
+        return submitInternal(request.getInputStream(), type, request.getParameter(DO_AS_PARAM));
     }
 
     /**
@@ -460,11 +467,10 @@ public abstract class AbstractEntityManager {
         }
     }
 
-    protected Entity deserializeEntity(HttpServletRequest request, EntityType entityType)
+    protected Entity deserializeEntity(InputStream xmlStream, EntityType entityType)
         throws IOException, FalconException {
 
         EntityParser<?> entityParser = EntityParserFactory.getParser(entityType);
-        InputStream xmlStream = request.getInputStream();
         if (xmlStream.markSupported()) {
             xmlStream.mark(XML_DEBUG_LEN); // mark up to debug len
         }
@@ -482,6 +488,11 @@ public abstract class AbstractEntityManager {
             }
             throw e;
         }
+    }
+
+    protected Entity deserializeEntity(HttpServletRequest request, EntityType entityType)
+        throws IOException, FalconException {
+        return deserializeEntity(request.getInputStream(), entityType);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
