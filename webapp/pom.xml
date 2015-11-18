@@ -86,6 +86,16 @@
                 </dependency>
             </dependencies>
         </profile>
+        <profile>
+            <id>adfprovider</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.falcon</groupId>
+                    <artifactId>falcon-adf-provider</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
     </profiles>
 
     <dependencies>
