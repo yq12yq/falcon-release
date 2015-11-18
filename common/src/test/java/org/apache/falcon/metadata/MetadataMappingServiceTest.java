@@ -42,6 +42,7 @@ import org.apache.falcon.entity.v0.process.Output;
 import org.apache.falcon.entity.v0.process.Outputs;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.hadoop.HadoopClientFactory;
+import org.apache.falcon.metadata.util.MetadataUtil;
 import org.apache.falcon.retention.EvictedInstanceSerDe;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.service.Services;
@@ -957,7 +958,7 @@ public class MetadataMappingServiceTest {
     private void verifyLineageGraphForReplicationOrEviction(String feedName, String feedInstanceDataPath,
                                                             WorkflowExecutionContext context,
                                                             RelationshipLabel edgeLabel) throws Exception {
-        String feedInstanceName = InstanceRelationshipGraphBuilder.getFeedInstanceName(feedName
+        String feedInstanceName = MetadataUtil.getFeedInstanceName(feedName
                 , context.getClusterName(), feedInstanceDataPath, context.getNominalTimeAsISO8601());
         Vertex feedVertex = getEntityVertex(feedInstanceName, RelationshipType.FEED_INSTANCE);
 

@@ -454,6 +454,12 @@
             </modules>
         </profile>
         <profile>
+            <id>atlas</id>
+            <modules>
+                <module>addons/atlas</module>
+            </modules>
+        </profile>
+        <profile>
             <id>hwx-common</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
