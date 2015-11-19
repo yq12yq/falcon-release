@@ -454,10 +454,16 @@
             </modules>
         </profile>
         <profile>
-            <id>adfprovider</id>
+            <id>atlas</id>
             <modules>
-                <module>addons/ADFProvider</module>
+                <module>addons/atlas</module>
             </modules>
+        </profile>
+        <profile>
+        <id>adfprovider</id>
+        <modules>
+            <module>addons/ADFProvider</module>
+        </modules>
         </profile>
         <profile>
             <id>hwx-common</id>

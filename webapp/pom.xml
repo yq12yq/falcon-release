@@ -87,6 +87,16 @@
             </dependencies>
         </profile>
         <profile>
+            <id>atlas</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.falcon</groupId>
+                    <artifactId>falcon-atlas</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
             <id>adfprovider</id>
             <dependencies>
                 <dependency>
