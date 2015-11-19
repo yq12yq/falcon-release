@@ -147,21 +147,6 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         // do nothing since lineage is only recorded for successful workflow
     }
 
-    @Override
-    public void onStart(WorkflowExecutionContext context) throws FalconException {
-        // Do nothing
-    }
-
-    @Override
-    public void onSuspend(WorkflowExecutionContext context) throws FalconException {
-        // Do nothing
-    }
-
-    @Override
-    public void onWait(WorkflowExecutionContext context) throws FalconException {
-        // TBD
-    }
-
     private FalconEventPublisher getPublisher() throws FalconException {
         String publishClassName = StartupProperties.get().getProperty(PUBLISHER_CLASS_NAME);
         if (StringUtils.isBlank(publishClassName)) {
@@ -179,9 +164,9 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
                 throw new FalconException("Object not instance of Falcon publisher");
             }
         } catch (ClassNotFoundException ex) {
-            throw new FalconException("Not able to find the publisher class" + ex.getMessage(), ex);
+            throw new FalconException("Not able to find the publisher class: " + ex.getMessage(), ex);
         } catch (InstantiationException | IllegalAccessException e) {
-            throw new FalconException("Not able to instantiate the publisher class" + e.getMessage(), e);
+            throw new FalconException("Not able to instantiate the publisher class: " + e.getMessage(), e);
         }
         return publisher;
     }
@@ -297,8 +282,8 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         List<String> paths = new ArrayList<>();
         paths.add(feedInstanceDataPath);
         FalconFeedEvent feedEvent = constructFeedEvent(feedInstanceName,
-                FalconEvent.OPERATION.ADD_REPLICATED_FEED_INSTANCE,
-                context, "REPLICATEDFEED", feed, context.getDatasourceName(), paths);
+                FalconEvent.OPERATION.ADD_GENERATED_FEED_INSTANCE,
+                context, "IMPORTEDFEED", feed, context.getDatasourceName(), paths);
 
         publishDataToAtlas(feedEvent);
     }
