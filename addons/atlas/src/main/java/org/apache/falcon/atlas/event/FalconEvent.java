@@ -49,16 +49,9 @@ public abstract class FalconEvent {
     }
 
     public enum OPERATION {
-        // Does support update? Else remove and add
         ADD_CLUSTER_ENTITY,
-//        UPDATE_CLUSTER_ENTITY,
-//        REMOVE_CLUSTER_ENTITY,
-//        ADD_FEED_ENTITY,
-//        UPDATE_FEED_ENTITY,
-//        REMOVE_FEED_ENTITY,
-//        ADD_PROCESS_ENTITY,
-//        UPDATE_PROCESS_ENTITY,
-//        REMOVE_PROCESS_ENTITY,
+        ADD_FEED_ENTITY,
+        ADD_PROCESS_ENTITY,
         ADD_DATASOURCE_ENTITY,
         ADD_GENERATED_FEED_INSTANCE,
         ADD_REPLICATED_FEED_INSTANCE,

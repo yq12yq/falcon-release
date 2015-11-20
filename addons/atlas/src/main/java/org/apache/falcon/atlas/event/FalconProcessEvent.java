@@ -27,29 +27,31 @@ import java.util.Map;
  * Falcon process event to interface with Atlas Service.
  */
 public class FalconProcessEvent extends FalconEvent {
-    private String cluster;
+    private List<String> clusters;
     private List<FalconFeedEvent> inputs;
     private List<FalconFeedEvent> outputs;
+    private String processEntity;
     private List<String> pipelines;
     private Map<String, String> wfProperties;
     private Map<String, String> counters;
 
     public FalconProcessEvent(String doAsUser, UserGroupInformation ugi, OPERATION falconOperation,
                               String name, String type, long timestamp, Map<String, String> tags,
-                              List<FalconFeedEvent> inputs, List<FalconFeedEvent> outputs, String cluster,
-                              List<String> pipelines, Map<String, String> wfProperties,
+                              List<FalconFeedEvent> inputs, List<FalconFeedEvent> outputs, List<String> clusters,
+                              String processEntity, List<String> pipelines, Map<String, String> wfProperties,
                               Map<String, String> counters) {
         this(doAsUser, ugi, falconOperation, name, type, timestamp, tags, inputs,
-                outputs, cluster, pipelines, wfProperties, counters, true);    }
+                outputs, clusters, processEntity, pipelines, wfProperties, counters, true);    }
 
     public FalconProcessEvent(String doAsUser, UserGroupInformation ugi, OPERATION falconOperation,
                               String name, String type, long timestamp, Map<String, String> tags,
-                              List<FalconFeedEvent> inputs, List<FalconFeedEvent> outputs, String cluster,
-                              List<String> pipelines,
+                              List<FalconFeedEvent> inputs, List<FalconFeedEvent> outputs, List<String> clusters,
+                              String processEntity, List<String> pipelines,
                               Map<String, String> wfProperties,
                               Map<String, String> counters, boolean sync) {
         super(doAsUser, ugi, falconOperation, name, type, timestamp, tags, sync);
-        this.cluster = cluster;
+        this.clusters = clusters;
+        this.processEntity = processEntity;
         this.inputs = inputs;
         this.outputs = outputs;
         this.pipelines = pipelines;
@@ -57,8 +59,12 @@ public class FalconProcessEvent extends FalconEvent {
         this.counters = counters;
     }
 
-    public String getCluster() {
-        return cluster;
+    public List<String> getClusters() {
+        return clusters;
+    }
+
+    public String getProcessEntity() {
+        return processEntity;
     }
 
     public List<FalconFeedEvent> getInputs() {

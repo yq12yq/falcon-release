@@ -20,7 +20,6 @@ package org.apache.falcon.metadata;
 
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
-import org.apache.falcon.entity.FeedHelper;
 import org.apache.falcon.entity.ProcessHelper;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
@@ -34,6 +33,7 @@ import org.apache.falcon.entity.v0.process.Output;
 import org.apache.falcon.entity.v0.process.Outputs;
 import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.entity.v0.process.Workflow;
+import org.apache.falcon.metadata.util.MetadataUtil;
 import org.apache.falcon.workflow.WorkflowExecutionArgs;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -98,12 +98,8 @@ public class EntityRelationshipGraphBuilder extends RelationshipGraphBuilder {
             }
         }
 
-        for (org.apache.falcon.entity.v0.feed.Cluster feedCluster : feed.getClusters().getClusters()) {
-            if (FeedHelper.isImportEnabled(feedCluster)) {
-                addRelationToDatasource(feedVertex, FeedHelper.getImportDatasourceName(feedCluster),
-                        RelationshipLabel.DATASOURCE_IMPORT_EDGE);
-            }
-        }
+        addRelationToDatasource(feedVertex, MetadataUtil.getImportDatasourceName(feed),
+                RelationshipLabel.DATASOURCE_IMPORT_EDGE);
     }
 
     public void addDatasourceEntity(Datasource dsEntity) {

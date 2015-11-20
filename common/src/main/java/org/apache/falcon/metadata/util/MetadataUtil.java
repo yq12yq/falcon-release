@@ -68,10 +68,7 @@ public final class MetadataUtil {
     }
 
     public static boolean hasFeeds(final String feedNames) {
-        if (NONE.equals(feedNames) || IGNORE.equals(feedNames)) {
-            return false; // there are no feeds for this process
-        }
-        return true;
+        return !(NONE.equals(feedNames) || IGNORE.equals(feedNames));
     }
 
 
@@ -101,5 +98,18 @@ public final class MetadataUtil {
                 ? feed.getName() + "/" + nominalTime
                 : feed.getName() + "/"
                 + SchemaHelper.formatDateUTC(instanceTime);
+    }
+
+    public static String getImportDatasourceName(Feed feed) {
+        String feedDatasourceName = null;
+        for (org.apache.falcon.entity.v0.feed.Cluster feedCluster : feed.getClusters().getClusters()) {
+            if (FeedHelper.isImportEnabled(feedCluster)) {
+                feedDatasourceName = FeedHelper.getImportDatasourceName(feedCluster);
+                if (feedDatasourceName != null) {
+                    break;
+                }
+            }
+        }
+        return feedDatasourceName;
     }
 }
