@@ -20,13 +20,15 @@ package org.apache.falcon.atlas.Util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.falcon.FalconException;
-import org.apache.falcon.metadata.RelationshipProperty;
+import org.apache.falcon.entity.ProcessHelper;
+import org.apache.falcon.entity.v0.process.Workflow;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.workflow.WorkflowExecutionArgs;
 import org.apache.falcon.workflow.WorkflowExecutionContext;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -96,5 +98,26 @@ public final class EventUtil {
             wfProperties.put(instanceWorkflowProperty.getName(), value);
         }
         return wfProperties;
+    }
+
+    public static Map<String, String> getProcessEntityWFProperties(final Workflow workflow,
+                                                                   final String processName) {
+        Map<String, String> wfProperties = new HashMap<>();
+        wfProperties.put(WorkflowExecutionArgs.USER_WORKFLOW_NAME.getName(),
+                ProcessHelper.getProcessWorkflowName(workflow.getName(), processName));
+        wfProperties.put(WorkflowExecutionArgs.USER_WORKFLOW_VERSION.getName(),
+                workflow.getVersion());
+        wfProperties.put(WorkflowExecutionArgs.USER_WORKFLOW_ENGINE.getName(),
+                workflow.getEngine().value());
+
+        return wfProperties;
+    }
+
+    public static List<String> getClusters (org.apache.falcon.entity.v0.process.Process process) {
+        List<String> clusterList = new ArrayList<>();
+        for (org.apache.falcon.entity.v0.process.Cluster cluster : process.getClusters().getClusters()) {
+            clusterList.add(cluster.getName());
+        }
+        return clusterList;
     }
 }

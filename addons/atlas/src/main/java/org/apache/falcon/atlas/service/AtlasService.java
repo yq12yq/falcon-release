@@ -32,7 +32,11 @@ import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.falcon.entity.v0.cluster.Cluster;
 import org.apache.falcon.entity.v0.datasource.Datasource;
+import org.apache.falcon.entity.v0.feed.ClusterType;
 import org.apache.falcon.entity.v0.feed.Feed;
+import org.apache.falcon.entity.v0.process.Input;
+import org.apache.falcon.entity.v0.process.Output;
+import org.apache.falcon.entity.v0.process.Process;
 import org.apache.falcon.metadata.util.MetadataUtil;
 import org.apache.falcon.security.CurrentUser;
 import org.apache.falcon.service.ConfigurationChangeListener;
@@ -48,6 +52,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Atlas service to publish Falcon events
@@ -63,6 +68,12 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
      */
     public static final String SERVICE_NAME = AtlasService.class.getSimpleName();
 
+    /**
+     * If enabled, preserves history of tags and groups for instances else will only
+     * be available for entities.
+     */
+    private static boolean preserveHistory;
+
     @Override
     public String getName() {
         return SERVICE_NAME;
@@ -75,6 +86,8 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
                 WorkflowJobEndNotificationService.SERVICE_NAME).registerListener(this);
 
         publisher = getPublisher();
+        preserveHistory = Boolean.valueOf(StartupProperties.get().getProperty(
+                "falcon.graph.preserve.history", "false"));
     }
 
 
@@ -93,8 +106,10 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
                 addClusterEntity((Cluster) entity);
                 break;
             case PROCESS:
+                addProcessEntity((Process) entity);
+                break;
             case FEED:
-                LOG.info("Feed or process entities not added to Atlas");
+                addFeedEntity((Feed) entity);
                 break;
             case DATASOURCE:
                 addDatasourceEntity((Datasource) entity);
@@ -153,13 +168,13 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
             throw new FalconException(PUBLISHER_CLASS_NAME + " not set in startup properties, please add it.");
         }
 
-        FalconEventPublisher publisher;
+        FalconEventPublisher falconEventPublisher;
         try {
             Class publishClass = Class.forName(publishClassName);
 
             Object o = publishClass.newInstance();
             if (o instanceof FalconEventPublisher) {
-                publisher = (FalconEventPublisher) o;
+                falconEventPublisher = (FalconEventPublisher) o;
             } else {
                 throw new FalconException("Object not instance of Falcon publisher");
             }
@@ -168,7 +183,7 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         } catch (InstantiationException | IllegalAccessException e) {
             throw new FalconException("Not able to instantiate the publisher class: " + e.getMessage(), e);
         }
-        return publisher;
+        return falconEventPublisher;
     }
 
     private void publishDataToAtlas(FalconEvent event) throws FalconException {
@@ -192,6 +207,76 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         publishDataToAtlas(clusterEvent);
     }
 
+    private void addFeedEntity(Feed entity) throws FalconException {
+        LOG.info("Adding feed entity to Atlas: {}", entity.getName());
+        publishDataToAtlas(constructFeedEntity(entity));
+    }
+
+    private static FalconFeedEvent constructFeedEntity(Feed entity) throws FalconException {
+        String srcCluster = null;
+        String tgtCluster = null;
+
+        // Get the clusters
+        for (org.apache.falcon.entity.v0.feed.Cluster feedCluster : entity.getClusters().getClusters()) {
+            if (ClusterType.SOURCE == feedCluster.getType()) {
+                srcCluster = feedCluster.getName();
+            } else if (ClusterType.TARGET == feedCluster.getType()) {
+                tgtCluster = feedCluster.getName();
+            }
+        }
+        return new FalconFeedEvent(CurrentUser.getUser(), EventUtil.getUgi(),
+                FalconEvent.OPERATION.ADD_FEED_ENTITY,
+                entity.getName(), "FEEDENTITY", System.currentTimeMillis(),
+                EventUtil.convertKeyValueStringToMap(entity.getTags()),
+                MetadataUtil.getImportDatasourceName(entity),
+                srcCluster, tgtCluster, null, EventUtil.convertStringToList(entity.getGroups()),
+                null, null);
+    }
+
+    private void addProcessEntity(Process entity) throws FalconException {
+        LOG.info("Adding process entity to Atlas: {}", entity.getName());
+
+        FalconProcessEvent processEvent = new FalconProcessEvent(CurrentUser.getUser(), EventUtil.getUgi(),
+                FalconEvent.OPERATION.ADD_PROCESS_ENTITY,
+                entity.getName(), "PROCESSENTITY", System.currentTimeMillis(),
+                EventUtil.convertKeyValueStringToMap(entity.getTags()),
+                getInputFeedEntities(entity), getOutputFeedEntities(entity),
+                EventUtil.getClusters(entity), null,
+                EventUtil.convertStringToList(entity.getPipelines()),
+                EventUtil.getProcessEntityWFProperties(entity.getWorkflow(), entity.getName()),
+                null);
+
+        publishDataToAtlas(processEvent);
+    }
+
+    private static List<FalconFeedEvent> getInputFeedEntities(Process processEntity) throws FalconException {
+        if (processEntity.getInputs() == null) {
+            return null;
+        }
+
+        List<FalconFeedEvent> events = new ArrayList<>();
+        for (Input input : processEntity.getInputs().getInputs()) {
+            String feedName = input.getFeed();
+            Feed feed = ConfigurationStore.get().get(EntityType.FEED, feedName);
+            events.add(constructFeedEntity(feed));
+        }
+        return events;
+    }
+
+    private static List<FalconFeedEvent> getOutputFeedEntities(Process processEntity) throws FalconException {
+        if (processEntity.getOutputs() == null) {
+            return null;
+        }
+
+        List<FalconFeedEvent> events = new ArrayList<>();
+        for (Output output : processEntity.getOutputs().getOutputs()) {
+            String feedName = output.getFeed();
+            Feed feed = ConfigurationStore.get().get(EntityType.FEED, feedName);
+            events.add(constructFeedEntity(feed));
+        }
+        return events;
+    }
+
     private void addDatasourceEntity(Datasource entity) throws FalconException {
         LOG.info("Adding data source entity to Atlas: {}", entity.getName());
 
@@ -213,14 +298,23 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         org.apache.falcon.entity.v0.process.Process process =
                 ConfigurationStore.get().get(EntityType.PROCESS, context.getEntityName());
 
-        // TODO : verify counter is speartaed by = and ,
+
+        List<String> pipelines = null;
+        Map<String, String> tags = null;
+
+        if (preserveHistory) {
+            pipelines = EventUtil.convertStringToList(process.getPipelines());
+            tags = EventUtil.convertKeyValueStringToMap(process.getTags());
+        }
+
+        List<String> clusters = new ArrayList<>();
+        clusters.add(context.getClusterName());
         FalconProcessEvent processEvent = new FalconProcessEvent(CurrentUser.getUser(), EventUtil.getUgi(),
                 FalconEvent.OPERATION.ADD_PROCESS_INSTANCE,
                 processInstanceName, "PROCESS", context.getTimeStampAsLong(),
-                EventUtil.convertKeyValueStringToMap(process.getTags()),
+                tags,
                 getInputFeedInstances(context), getOutputFeedInstances(context),
-                context.getClusterName(),
-                EventUtil.convertStringToList(process.getPipelines()),
+                clusters, context.getEntityName(), pipelines,
                 EventUtil.getWFProperties(context),
                 EventUtil.convertKeyValueStringToMap(context.getCounters()));
 
@@ -314,7 +408,6 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
         String[] inputFeedNames = context.getInputFeedNamesList();
         String[] inputFeedInstancePaths = context.getInputFeedInstancePathsList();
 
-        /* TODO : verify paths in feed */
         return getFeedInstances(inputFeedNames, inputFeedInstancePaths, context,
                 "INPUTFEED", null, FalconEvent.OPERATION.ADD_GENERATED_FEED_INSTANCE,
                 Arrays.asList(inputFeedInstancePaths));
@@ -327,7 +420,7 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
                                                           final String datasource,
                                                           final FalconEvent.OPERATION operation,
                                                           final List<String> paths
-                                                          ) throws FalconException {
+    ) throws FalconException {
         List<FalconFeedEvent> feedEvents = new ArrayList<>();
         for (int index = 0; index < feedInstancePaths.length; ++index) {
             String feedName;
@@ -347,11 +440,11 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
     }
 
     private static FalconFeedEvent getFeedInstance(WorkflowExecutionContext context, String feedName,
-                                        String feedInstanceDataPath,
-                                        final String feedType,
-                                        final String datasource,
-                                        final FalconEvent.OPERATION operation,
-                                        final List<String> paths) throws FalconException {
+                                                   String feedInstanceDataPath,
+                                                   final String feedType,
+                                                   final String datasource,
+                                                   final FalconEvent.OPERATION operation,
+                                                   final List<String> paths) throws FalconException {
         String clusterName = context.getClusterName();
         LOG.info("Computing feed instance for : name= {} path= {}, in cluster: {} for Atlas", feedName,
                 feedInstanceDataPath, clusterName);
@@ -372,14 +465,23 @@ public class AtlasService implements FalconService, ConfigurationChangeListener,
     ) throws FalconException {
         LOG.info("Constructing feed entity for Atlas: {}", feedInstanceName);
 
+        Map<String, String> tags = null;
+        List<String> groups = null;
+
+        if (preserveHistory) {
+            tags = EventUtil.convertKeyValueStringToMap(feedEntity.getTags());
+            groups = EventUtil.convertStringToList(feedEntity.getGroups());
+        }
+
         return new FalconFeedEvent(CurrentUser.getUser(), EventUtil.getUgi(),
                 operation,
                 feedInstanceName, feedType, context.getTimeStampAsLong(),
-                EventUtil.convertKeyValueStringToMap(feedEntity.getTags()),
+                tags,
                 dataSource,
                 context.getSrcClusterName(),
                 context.getClusterName(),
-                EventUtil.convertStringToList(feedEntity.getGroups()),
+                feedEntity.getName(),
+                groups,
                 paths,
                 EventUtil.convertKeyValueStringToMap(context.getCounters()));
     }

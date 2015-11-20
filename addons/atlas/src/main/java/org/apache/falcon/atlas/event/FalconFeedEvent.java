@@ -30,26 +30,27 @@ public class FalconFeedEvent extends FalconEvent {
     private String srcCluster;
     private String targetCluster;
     private String dataSource;
+    private String feedEntity;
     private List<String> groups;
     private Map<String, String> counters;
     private List<String> paths;
 
     public FalconFeedEvent(String doAsUser, UserGroupInformation ugi, OPERATION falconOperation,
                            String name, String type, long timestamp, Map<String, String> tags, String dataSource,
-                           String srcCluster, String targetCluster, List<String> groups, List<String> paths,
-                           Map<String, String> counters) {
+                           String srcCluster, String targetCluster, String feedEntity, List<String> groups,
+                           List<String> paths, Map<String, String> counters) {
         this(doAsUser, ugi, falconOperation, name, type, timestamp, tags, dataSource, srcCluster, targetCluster,
-                groups, paths,
-             counters, true);
+                feedEntity, groups, paths, counters, true);
     }
 
     public FalconFeedEvent(String doAsUser, UserGroupInformation ugi, OPERATION falconOperation,
                     String name, String type, long timestamp, Map<String, String> tags, String dataSource,
-                    String srcCluster, String targetCluster, List<String> groups, List<String> paths,
+                    String srcCluster, String targetCluster, String feedEntity, List<String> groups, List<String> paths,
                     Map<String, String> counters, boolean sync) {
         super(doAsUser, ugi, falconOperation, name, type, timestamp, tags, sync);
         this.srcCluster = srcCluster;
         this.targetCluster = targetCluster;
+        this.feedEntity = feedEntity;
         this.dataSource = dataSource;
         this.groups = groups;
         this.paths = paths;
@@ -61,6 +62,10 @@ public class FalconFeedEvent extends FalconEvent {
     }
     public String getTargetCluster() {
         return targetCluster;
+    }
+
+    public String getFeedEntity() {
+        return feedEntity;
     }
 
     public String getDataSource() {
