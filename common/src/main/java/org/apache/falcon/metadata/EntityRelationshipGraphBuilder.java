@@ -197,13 +197,11 @@ public class EntityRelationshipGraphBuilder extends RelationshipGraphBuilder {
     }
 
     public void addRelationToDatasource(Vertex fromVertex, String datasourceName, RelationshipLabel edgeLabel) {
-        Vertex clusterVertex = findVertex(datasourceName, RelationshipType.DATASOURCE_ENTITY);
-        if (clusterVertex == null) { // cluster must exist before adding other entities
-            LOG.error("Illegal State: Datasource entity vertex must exist for {}", datasourceName);
-            throw new IllegalStateException("Datasource entity vertex must exist: " + datasourceName);
+        Vertex dataSourceVertex = findVertex(datasourceName, RelationshipType.DATASOURCE_ENTITY);
+        if (dataSourceVertex == null) {
+            return;
         }
-
-        addEdge(fromVertex, clusterVertex, edgeLabel.getName());
+        addEdge(fromVertex, dataSourceVertex, edgeLabel.getName());
     }
 
     public void addInputFeeds(Inputs inputs, Vertex processVertex) {
