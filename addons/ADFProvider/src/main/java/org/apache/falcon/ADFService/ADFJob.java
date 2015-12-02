@@ -56,7 +56,7 @@ public abstract class ADFJob {
     // TODO(yzheng): read falcon url from client.properties
     protected static final String DEFAULT_FALCON_URL = "http://127.0.0.1:15000/";
     public static final String HDFS_URL_PORT = "hdfs://sandbox.hortonworks.com:8020";
-    public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/";
+    public static final String TEMPLATE_PATH_PREFIX = "/apps/falcon/adf/";
     public static final String PROCESS_SCRIPTS_PATH = TEMPLATE_PATH_PREFIX
             + Path.SEPARATOR + "generatedscripts";
 
