@@ -54,7 +54,7 @@ public final class ADFJsonConstants {
     public static final String ADF_REQUEST_CONNECTION_STRING = "connectionString";
     public static final String ADF_REQUEST_BLOB_ACCOUNT_NAME = "AccountName=";
 
-    public static final String ADF_STATUS_PROTOCOL = "TranportProtocolVersion";
+    public static final String ADF_STATUS_PROTOCOL = "TransportProtocolVersion";
     public static final String ADF_STATUS_JOBID = "JobId";
     public static final String ADF_STATUS_STATUS = "Status";
     public static final String ADF_STATUS_PROGRESS = "Progress";
