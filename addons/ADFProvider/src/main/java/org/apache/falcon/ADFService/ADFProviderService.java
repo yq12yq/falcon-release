@@ -163,6 +163,8 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                     String msg = sb.toString();
                     LOG.info("ADF message: " + msg);
 
+                    service.deleteMessage(message);
+
                     ADFJob.JobType jobType = ADFJob.getJobType(msg);
                     switch (jobType) {
                     case REPLICATION:
@@ -179,8 +181,6 @@ public class ADFProviderService implements FalconService, WorkflowExecutionListe
                         break;
                     default:
                     }
-
-                    service.deleteMessage(message);
                 } else {
                     LOG.info("No message from adf");
                 }
