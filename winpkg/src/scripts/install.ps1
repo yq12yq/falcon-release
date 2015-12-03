@@ -94,7 +94,7 @@ function Main( $scriptDir )
 	
     Write-Log "Roles are $roles"
     Install "falcon" $nodeInstallRoot $serviceCredential $roles $falcontype
-    Configure "falcon" $nodeInstallRoot
+    Configure "falcon" $nodeInstallRoot $serviceCredential
     Write-Log "Installation of falcon completed successfully"
 }
 
@@ -105,11 +105,11 @@ try
     $apiModule = Import-Module -Name "$scriptDir\InstallApi.psm1" -PassThru
     Main $scriptDir
 }
-catch [Exception]
-	{
-		Write-Log $_.Exception.Message $_
-		exit 1
-	}
+catch
+{
+	Write-Log $_.Exception.Message $_
+	exit 1
+}
 finally
 {
     if( $apiModule -ne $null )
