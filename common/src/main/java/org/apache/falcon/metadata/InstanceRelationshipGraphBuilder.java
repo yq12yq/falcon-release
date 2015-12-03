@@ -42,6 +42,8 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(InstanceRelationshipGraphBuilder.class);
 
     private static final String FEED_INSTANCE_FORMAT = "yyyyMMddHHmm"; // computed
+    private static final String NONE = "NONE";
+    private static final String IGNORE = "IGNORE";
 
     // process workflow properties from message
     private static final WorkflowExecutionArgs[] INSTANCE_WORKFLOW_PROPERTIES = {
@@ -152,7 +154,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     public void addOutputFeedInstances(WorkflowExecutionContext context,
                                        Vertex processInstance) throws FalconException {
         String outputFeedNamesArg = context.getOutputFeedNames();
-        if (!MetadataUtil.hasFeeds(outputFeedNamesArg)) {
+        if (NONE.equals(outputFeedNamesArg) || IGNORE.equals(outputFeedNamesArg)) {
             return; // there are no output feeds for this process
         }
 
@@ -170,7 +172,7 @@ public class InstanceRelationshipGraphBuilder extends RelationshipGraphBuilder {
     public void addInputFeedInstances(WorkflowExecutionContext context,
                                       Vertex processInstance) throws FalconException {
         String inputFeedNamesArg = context.getInputFeedNames();
-        if (!MetadataUtil.hasFeeds(inputFeedNamesArg)) {
+        if (NONE.equals(inputFeedNamesArg) || IGNORE.equals(inputFeedNamesArg)) {
             return; // there are no input feeds for this process
         }
 

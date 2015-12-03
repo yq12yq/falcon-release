@@ -341,6 +341,7 @@
                                 <exclude>**/db1.log</exclude>
                                 <exclude>**/db1.properties</exclude>
                                 <exclude>**/db1.script</exclude>
+                                <exclude>**/metastore_db/**</exclude>
                             </excludes>
                         </configuration>
                         <executions>

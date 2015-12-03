@@ -352,6 +352,9 @@ function Configure(
     if ( $component -eq "falcon" )
     {
         Write-Log "Starting Falcon configuration"
+        $username = $serviceCredential.UserName
+        $username = $username.Split("\")[1]    
+        Write-Log "USername is: $username"
         Write-Log "Changing log4j.xml"
         $myXML = Get-Content "$ENV:FALCON_HOME\conf\log4j.xml"
         for ($i=1; $i -le $myXML.Count; $i++)
@@ -423,7 +426,7 @@ function Configure(
         if (Test-Path $ENV:OOZIE_HOME)
         {
             $xmlFile = Join-Path $ENV:OOZIE_HOME "conf/oozie-site.xml"
-            UpdateXmlConfig $xmlFile @{
+            $config =  @{
                 "oozie.service.ProxyUserService.proxyuser.${username}.hosts" = "*";
                 "oozie.service.ProxyUserService.proxyuser.${username}.groups" = "*";
                 "oozie.service.URIHandlerService.uri.handlers" = "org.apache.oozie.dependency.FSURIHandler,
@@ -511,6 +514,8 @@ function Configure(
 
                 "oozie.service.ELService.ext.functions.coord-sla-create" = "instanceTime=org.apache.oozie.coord.CoordELFunctions#ph2_coord_nominalTime,
                 user=org.apache.oozie.coord.CoordELFunctions#coord_user"}
+                
+            UpdateXmlConfig $xmlFile $config
 
             Write-Log "Calling Oozie Setup script to add Oozie el-extension to the generated oozie.war file"
 
@@ -524,13 +529,6 @@ function Configure(
         {
             Write-Log "Configuring the Falcon configurations for hive hive-site.xml"
             $xml = Join-Path $ENV:HIVE_HOME "conf\hive-site.xml"
-            $config = @{ "hive.metastore.event.listeners"="org.apache.hive.hcatalog.listener.DbNotificationListener";
-            "hive.metastore.dml.events"="true";
-            "hive.server2.enable.doAs"="true"
-            }
-            UpdateXmlConfig $xml $config
-        }
-        
         Write-Log "Falcon configuration finished"
     }
     else
@@ -669,6 +667,52 @@ function ReplaceString($file,$find,$replace)
     }
     Set-Content -Value $content -Path $file -Force
 }
+
+### Helper routine that updates the given fileName XML file with the given
+### key/value configuration values. The XML file is expected to be in the
+### Hadoop format. For example:
+### <configuration>
+###   <property>
+###     <name.../><value.../>
+###   </property>
+### </configuration>
+function UpdateXmlConfig(
+    [string]
+    [parameter( Position=0, Mandatory=$true )]
+    $fileName, 
+    [hashtable]
+    [parameter( Position=1 )]
+    $config = @{} )
+{
+    $xml = New-Object System.Xml.XmlDocument
+    $xml.PreserveWhitespace = $true
+    $xml.Load($fileName)
+
+    foreach( $key in empty-null $config.Keys )
+    {
+        $value = $config[$key]
+        $found = $False
+        $xml.SelectNodes('/configuration/property') | ? { $_.name -eq $key } | % { $_.value = $value; $found = $True }
+        if ( -not $found )
+        {
+            $newItem = $xml.CreateElement("property")
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n    ")) | Out-Null
+            $newItem.AppendChild($xml.CreateElement("name")) | Out-Null
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n    ")) | Out-Null
+            $newItem.AppendChild($xml.CreateElement("value")) | Out-Null
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n  ")) | Out-Null
+            $newItem.name = $key
+            $newItem.value = $value
+            $xml["configuration"].AppendChild($xml.CreateSignificantWhitespace("`r`n  ")) | Out-Null
+            $xml["configuration"].AppendChild($newItem) | Out-Null
+            $xml["configuration"].AppendChild($xml.CreateSignificantWhitespace("`r`n")) | Out-Null
+        }
+    }
+    
+    $xml.Save($fileName)
+    $xml.ReleasePath
+}
+
 ###
 ### Public API
 ###
@@ -677,3 +721,4 @@ Export-ModuleMember -Function Uninstall
 Export-ModuleMember -Function Configure
 Export-ModuleMember -Function StartService
 Export-ModuleMember -Function StopService
+Export-ModuleMember -Function UpdateXmlConfig
