@@ -59,11 +59,11 @@ public class ADFHiveJob extends ADFJob {
     @Override
     public void startJob() throws FalconException {
         // submit feeds
-        LOG.info("submitting/scheduling input table feed: {}", inputFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), inputFeed.getEntityxml());
+        LOG.info("submitting input table feed: {}", inputFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), inputFeed.getEntityxml());
 
-        LOG.info("submitting/scheduling output table feed: {}", outputFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), outputFeed.getEntityxml());
+        LOG.info("submitting output table feed: {}", outputFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), outputFeed.getEntityxml());
 
         String processRequest = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
                 .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
