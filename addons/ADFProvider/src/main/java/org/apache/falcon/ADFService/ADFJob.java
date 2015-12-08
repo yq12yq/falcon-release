@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -27,8 +27,8 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.falcon.ADFService.util.ADFJsonConstants;
-import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.adfservice.util.ADFJsonConstants;
+import org.apache.falcon.adfservice.util.FSUtils;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.resource.AbstractSchedulableEntityManager;

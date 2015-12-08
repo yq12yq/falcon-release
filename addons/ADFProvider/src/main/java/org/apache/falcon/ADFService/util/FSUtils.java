@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService.util;
+package org.apache.falcon.adfservice.util;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.falcon.FalconException;

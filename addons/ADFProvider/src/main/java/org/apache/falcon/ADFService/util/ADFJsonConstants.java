@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService.util;
+package org.apache.falcon.adfservice.util;
 
 /**
  * ADF JSON Constants in ADF request.

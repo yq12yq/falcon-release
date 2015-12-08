@@ -463,7 +463,7 @@
         <profile>
         <id>adfprovider</id>
         <modules>
-            <module>addons/ADFProvider</module>
+            <module>addons/adfprovider</module>
         </modules>
         </profile>
         <profile>
