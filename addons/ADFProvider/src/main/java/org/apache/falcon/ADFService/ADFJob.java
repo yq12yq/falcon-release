@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -27,8 +27,8 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.falcon.ADFService.util.ADFJsonConstants;
-import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.adfservice.util.ADFJsonConstants;
+import org.apache.falcon.adfservice.util.FSUtils;
 import org.apache.falcon.entity.v0.Entity;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.resource.AbstractSchedulableEntityManager;
@@ -464,7 +464,7 @@ public abstract class ADFJob {
         return getClusterName(getHadoopLinkedService());
     }
 
-    protected Entity submitAndScheduleJob(String entityType, String msg) {
+    protected Entity submitAndScheduleJob(String entityType, String msg) throws FalconException {
         Entity entity = jobManager.submitJob(entityType, msg);
         jobManager.scheduleJob(entityType, jobEntityName());
         return entity;
@@ -487,22 +487,23 @@ public abstract class ADFJob {
     }
 
     protected class ADFJobManager extends AbstractSchedulableEntityManager {
-        public Entity submitJob(String entityType, String msg) {
-            InputStream stream = IOUtils.toInputStream(msg);
+        public Entity submitJob(String entityType, String msg) throws FalconException {
             try {
+                InputStream stream = IOUtils.toInputStream(msg);
                 Entity entity = submitInternal(stream, entityType, proxyUser);
                 return entity;
             } catch (Exception e) {
                 LOG.info(e.toString());
+                throw new FalconException("Error when submitting job: " + e.toString());
             }
-            return null;
         }
 
-        public void scheduleJob(String entityType, String entityName) {
+        public void scheduleJob(String entityType, String entityName) throws FalconException {
             try {
                 scheduleInternal(entityType, entityName, null);
             } catch (Exception e) {
                 LOG.info(e.toString());
+                throw new FalconException("Error when scheduling job: " + e.toString());
             }
         }
 

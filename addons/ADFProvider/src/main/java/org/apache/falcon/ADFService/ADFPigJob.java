@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
-import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.adfservice.util.FSUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.hadoop.fs.Path;
@@ -55,11 +55,11 @@ public class ADFPigJob extends ADFJob {
     @Override
     public void startJob() throws FalconException {
         // submit feeds
-        LOG.info("submitting/scheduling input data feed: {}", inputDataFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), inputDataFeed.getEntityxml());
+        LOG.info("submitting input data feed: {}", inputDataFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), inputDataFeed.getEntityxml());
 
-        LOG.info("submitting/scheduling output data feed: {}", outputDataFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), outputDataFeed.getEntityxml());
+        LOG.info("submitting output data feed: {}", outputDataFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), outputDataFeed.getEntityxml());
 
         String processRequest = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
                 .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
-
-import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.adfservice.util.FSUtils;
 import org.apache.falcon.FalconException;
 
 import java.net.URISyntaxException;

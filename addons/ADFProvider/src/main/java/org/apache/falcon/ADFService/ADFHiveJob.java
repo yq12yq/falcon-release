@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.falcon.ADFService;
+package org.apache.falcon.adfservice;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.falcon.ADFService.util.ADFJsonConstants;
-import org.apache.falcon.ADFService.util.FSUtils;
+import org.apache.falcon.adfservice.util.ADFJsonConstants;
+import org.apache.falcon.adfservice.util.FSUtils;
 import org.apache.falcon.FalconException;
 import org.apache.falcon.entity.v0.EntityType;
 import org.apache.hadoop.fs.Path;
@@ -59,11 +59,11 @@ public class ADFHiveJob extends ADFJob {
     @Override
     public void startJob() throws FalconException {
         // submit feeds
-        LOG.info("submitting/scheduling input table feed: {}", inputFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), inputFeed.getEntityxml());
+        LOG.info("submitting input table feed: {}", inputFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), inputFeed.getEntityxml());
 
-        LOG.info("submitting/scheduling output table feed: {}", outputFeed.getName());
-        submitAndScheduleJob(EntityType.FEED.name(), outputFeed.getEntityxml());
+        LOG.info("submitting output table feed: {}", outputFeed.getName());
+        jobManager.submitJob(EntityType.FEED.name(), outputFeed.getEntityxml());
 
         String processRequest = new Process.Builder().withProcessName(jobEntityName()).withFrequency(frequency)
                 .withStartTime(startTime).withEndTime(endTime).withClusterName(getClusterNameToRunProcessOn())
