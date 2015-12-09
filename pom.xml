@@ -461,9 +461,9 @@
             </modules>
         </profile>
         <profile>
-        <id>adfprovider</id>
+        <id>adf</id>
         <modules>
-            <module>addons/adfprovider</module>
+            <module>addons/adf</module>
         </modules>
         </profile>
         <profile>
