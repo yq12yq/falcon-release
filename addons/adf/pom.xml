@@ -27,9 +27,9 @@
         <version>0.7-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-    <artifactId>falcon-adf-provider</artifactId>
-    <description>Apache Falcon ADF Provider</description>
-    <name>Apache Falcon ADF Provider</name>
+    <artifactId>falcon-adf</artifactId>
+    <description>Apache Falcon ADF Integration</description>
+    <name>Apache Falcon ADF Integration</name>
     <packaging>jar</packaging>
 
     <properties>
