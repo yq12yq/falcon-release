@@ -461,10 +461,10 @@
             </modules>
         </profile>
         <profile>
-        <id>adf</id>
-        <modules>
-            <module>addons/adf</module>
-        </modules>
+            <id>adf</id>
+            <modules>
+                <module>addons/adf</module>
+            </modules>
         </profile>
         <profile>
             <id>hwx-common</id>

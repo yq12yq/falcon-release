@@ -97,11 +97,11 @@
             </dependencies>
         </profile>
         <profile>
-            <id>adfprovider</id>
+            <id>adf</id>
             <dependencies>
                 <dependency>
                     <groupId>org.apache.falcon</groupId>
-                    <artifactId>falcon-adf-provider</artifactId>
+                    <artifactId>falcon-adf</artifactId>
                     <version>${project.version}</version>
                 </dependency>
             </dependencies>
