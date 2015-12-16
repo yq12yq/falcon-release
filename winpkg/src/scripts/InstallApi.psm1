@@ -23,7 +23,7 @@
 ###
 $ScriptDir = Resolve-Path (Split-Path $MyInvocation.MyCommand.Path)
 
-$FinalName = "falcon-0.7-SNAPSHOT"
+$FinalName = "falcon-@falcon.version@"
 
 ###############################################################################
 ###
@@ -529,6 +529,13 @@ function Configure(
         {
             Write-Log "Configuring the Falcon configurations for hive hive-site.xml"
             $xml = Join-Path $ENV:HIVE_HOME "conf\hive-site.xml"
+            $config = @{ "hive.metastore.event.listeners"="org.apache.hive.hcatalog.listener.DbNotificationListener";
+            "hive.metastore.dml.events"="true";
+            "hive.server2.enable.doAs"="true"
+            }
+            UpdateXmlConfig $xml $config
+        }
+
         Write-Log "Falcon configuration finished"
     }
     else
