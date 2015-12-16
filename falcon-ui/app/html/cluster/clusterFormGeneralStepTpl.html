@@ -89,7 +89,7 @@
     <label class="light">Permissions</label>
     <input type="text" class="form-control" ng-disabled="xmlPreview.edit" validation-message="{{validations.messages.acl.permission}}"
            ng-required="true"
-           ng-pattern="validations.patterns.unixPermissions"
+           ng-pattern="validations.patterns.aclPermissions"
            ng-model="clusterEntity.clusterModel.cluster.ACL._permission"/>
   </div>
 
@@ -103,24 +103,103 @@
   <label class="col-xs-4">
     Version
   </label>
-  <div id="interfaces-detail" class="col-xs-24"
-       ng-repeat="_interface in clusterEntity.clusterModel.cluster.interfaces.interface">
+
+  <div class="col-xs-24 interfaces-detail">
     <div class="row">
       <div class="col-xs-4">
-
-          <input type="checkbox" ng-checked="registry.check" ng-model="registry.check"
-                 ng-if="_interface._type === 'registry'" ng-disabled="xmlPreview.edit"/> {{_interface._type}}
-
+        readonly
+      </div>
+      <div class="col-xs-16">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.osPath" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[readonlyPos]._endpoint">
+      </div>
+      <div class="col-xs-4">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[readonlyPos]._version"
+               validation-message="{{validations.messages.versionNumbers}}">
+      </div>
+    </div>
+  </div>
+  <div class="col-xs-24 interfaces-detail">
+    <div class="row">
+      <div class="col-xs-4">
+        write
+      </div>
+      <div class="col-xs-16">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.osPath" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[writePos]._endpoint">
+      </div>
+      <div class="col-xs-4">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[writePos]._version"
+               validation-message="{{validations.messages.versionNumbers}}">
+      </div>
+    </div>
+  </div>
+  <div class="col-xs-24 interfaces-detail">
+    <div class="row">
+      <div class="col-xs-4">
+        execute
+      </div>
+      <div class="col-xs-16">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.osPath" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[executePos]._endpoint">
+      </div>
+      <div class="col-xs-4">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[executePos]._version"
+               validation-message="{{validations.messages.versionNumbers}}">
+      </div>
+    </div>
+  </div>
+  <div class="col-xs-24 interfaces-detail">
+    <div class="row">
+      <div class="col-xs-4">
+        workflow
+      </div>
+      <div class="col-xs-16">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.osPath" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[workflowPos]._endpoint">
+      </div>
+      <div class="col-xs-4">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[workflowPos]._version"
+               validation-message="{{validations.messages.versionNumbers}}">
+      </div>
+    </div>
+  </div>
+  <div class="col-xs-24 interfaces-detail">
+    <div class="row">
+      <div class="col-xs-4">
+        messaging
+      </div>
+      <div class="col-xs-16">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.osPath" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[messagingPos]._endpoint">
+      </div>
+      <div class="col-xs-4">
+        <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers" ng-disabled="xmlPreview.edit"
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[messagingPos]._version"
+               validation-message="{{validations.messages.versionNumbers}}">
+      </div>
+    </div>
+  </div>
+  <div class="col-xs-24 interfaces-detail">
+    <div class="row">
+      <div class="col-xs-4">
+        <input type="checkbox"
+               ng-model="registry.check" ng-disabled="xmlPreview.edit" ng-change="transformRegistry()"> registry
       </div>
       <div class="col-xs-16">
         <input type="text" class="form-control" ng-pattern="validations.patterns.osPath"
-               ng-model="_interface._endpoint"
-               ng-disabled="_interface._type === 'registry' && !registry.check || xmlPreview.edit"/>
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[registryPos]._endpoint"
+               ng-disabled="!registry.check || xmlPreview.edit">
       </div>
       <div class="col-xs-4">
         <input type="text" class="form-control" ng-pattern="validations.patterns.versionNumbers"
-               ng-disabled="(_interface._type === 'registry' && !registry.check) || xmlPreview.edit"
-               ng-model="_interface._version" validation-message="{{validations.messages.versionNumbers}}">
+               ng-model="clusterEntity.clusterModel.cluster.interfaces.interface[registryPos]._version"
+               validation-message="{{validations.messages.versionNumbers}}"
+               ng-disabled="!registry.check || xmlPreview.edit">
       </div>
     </div>
   </div>
@@ -156,34 +235,53 @@
 
   <h4 class="col-xs-24"> Location </h4>
   <label class="col-xs-7">name</label><label class="col-xs-17">path</label>
-  <div ng-repeat="location in clusterEntity.clusterModel.cluster.locations.location" class="col-xs-24">
 
-    <div class="row" ng-if="location._name === 'staging' || location._name === 'working'">
+  <div class="col-xs-24">
+    <div class="row">
       <div class="col-xs-7 dynamic-table-spacer">
-        {{location._name}}
+        staging
       </div>
       <div class="col-xs-15 dynamic-table-spacer">
-        <input id="location.{{location._name}}" type="text" class="form-control" ng-model="location._path" ng-pattern="validations.patterns.osPath"
+        <input id="location.staging" type="text" class="form-control" ng-model="clusterEntity.clusterModel.cluster.locations.location[stagingPos]._path" ng-pattern="validations.patterns.osPath"
                ng-disabled="xmlPreview.edit" ng-required="true" validation-message="{{validations.messages.location}}"/>
         <span class="error" ng-show="locationsEqualError">Staging and Working location should be different</span>
       </div>
       <div class="col-xs-2 dynamic-table-spacer"></div>
       <div class="clearfix hidden-md"></div>
     </div>
+  </div>
 
-    <div class="row" ng-if="location._name === 'temp'">
+  <div class="col-xs-24">
+    <div class="row">
       <div class="col-xs-7 dynamic-table-spacer">
-        {{location._name}}
+        temp
       </div>
       <div class="col-xs-15 dynamic-table-spacer">
-        <input id="location.{{location._name}}" type="text" class="form-control" ng-model="location._path" ng-pattern="validations.patterns.osPath"
+        <input id="location.temp" type="text" class="form-control" ng-model="clusterEntity.clusterModel.cluster.locations.location[tempPos]._path" ng-pattern="validations.patterns.osPath"
                ng-disabled="xmlPreview.edit"/>
       </div>
       <div class="col-xs-2 dynamic-table-spacer"></div>
       <div class="clearfix hidden-md"></div>
     </div>
+  </div>
 
-    <div class="row" ng-if="location._name !== 'staging' && location._name !== 'working' && location._name !== 'temp'">
+  <div class="col-xs-24">
+    <div class="row">
+      <div class="col-xs-7 dynamic-table-spacer">
+        working
+      </div>
+      <div class="col-xs-15 dynamic-table-spacer">
+        <input id="location.working" type="text" class="form-control" ng-model="clusterEntity.clusterModel.cluster.locations.location[workingPos]._path" ng-pattern="validations.patterns.osPath"
+               ng-disabled="xmlPreview.edit" ng-required="true" validation-message="{{validations.messages.location}}"/>
+        <span class="error" ng-show="locationsEqualError">Staging and Working location should be different</span>
+      </div>
+      <div class="col-xs-2 dynamic-table-spacer"></div>
+      <div class="clearfix hidden-md"></div>
+    </div>
+  </div>
+
+  <div class="col-xs-24" ng-repeat="location in clusterEntity.clusterModel.cluster.locations.location" ng-if="$index != stagingPos && $index != tempPos && $index != workingPos">
+    <div class="row">
       <div class="col-xs-7 dynamic-table-spacer">
         <input type="text" class="form-control" ng-model="location._name"
                validation-optional-message="{{validations.messages.name}}"
@@ -197,14 +295,21 @@
                ng-disabled="xmlPreview.edit" ng-required="location._name" placeholder="path" />
       </div>
       <div class="col-xs-2 dynamic-table-spacer">
-        <button class="btn btn-default btn-xs" ng-click="removeLocation($index)" ng-if="$index>3"
-             ng-disabled="xmlPreview.edit" >
+        <button class="btn btn-default btn-xs" ng-click="removeLocation($index)" ng-disabled="xmlPreview.edit" >
           <span class="entypo minus"></span> delete
         </button>
       </div>
       <div class="clearfix hidden-md"></div>
     </div>
+    <div class="row" ng-show="duplicatedLocationNames[location._name]">
+      <div class="col-xs-24 dynamic-table-spacer">
+        <span class="error">Location Name duplicated</span>
+      </div>
+    </div>
+  </div>
 
+  <div class="col-xs-24 dynamic-table-spacer" ng-show="emptyNewLocation">
+    <span class="error">You must provide Name and Path</span>
   </div>
 
   <div class="col-xs-24 dynamic-table-spacer">
