@@ -65,10 +65,6 @@
         <inheritance:extends>org.apache.falcon.entity.v0.AccessControlList</inheritance:extends>
     </jaxb:bindings>
 
-    <jaxb:bindings schemaLocation="process-0.1.xsd" node="//xs:complexType[@name='notification']">
-        <inheritance:extends>org.apache.falcon.entity.v0.EntityNotification</inheritance:extends>
-    </jaxb:bindings>
-
     <jaxb:globalBindings>
         <xjc:simple/>
     </jaxb:globalBindings>
