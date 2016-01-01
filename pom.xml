@@ -15,8 +15,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <parent>
         <groupId>org.apache</groupId>
@@ -27,7 +26,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.falcon</groupId>
     <artifactId>falcon-main</artifactId>
-    <version>0.7-SNAPSHOT</version>
+    <version>0.6.1.2.3.5.0-81</version>
     <description>Data Management and Processing Platform over Hadoop</description>
     <name>Apache Falcon</name>
     <packaging>pom</packaging>
@@ -103,12 +102,12 @@
         <include.prism>true</include.prism>
 
         <slf4j.version>1.7.5</slf4j.version>
-        <oozie.version>4.2.0</oozie.version>
+        <oozie.version>4.2.0.2.3.5.0-81</oozie.version>
         <oozie.buildversion>${oozie.version}</oozie.buildversion>
         <oozie.forcebuild>false</oozie.forcebuild>
         <activemq.version>5.4.3</activemq.version>
-        <hive.version>1.2.1</hive.version>
-        <hcatalog.version>1.2.1</hcatalog.version>
+        <hive.version>2.0.0.2.3.5.0-81</hive.version>
+        <hcatalog.version>2.0.0.2.3.5.0-81</hcatalog.version>
         <jetty.version>6.1.26</jetty.version>
         <jersey.version>1.9</jersey.version>
         <internal.maven.repo>file:///tmp/falcontemprepo</internal.maven.repo>
@@ -120,10 +119,10 @@
         <profile>
             <id>hadoop-2</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>false</activeByDefault>
             </activation>
             <properties>
-                <hadoop.version>2.6.0</hadoop.version>
+                <hadoop.version>2.7.1.2.3.5.0-81</hadoop.version>
             </properties>
             <dependencyManagement>
                 <dependencies>
@@ -407,7 +406,7 @@
                 </plugins>
             </build>
             <properties>
-                <excluded.test.groups/>
+                <excluded.test.groups />
             </properties>
         </profile>
 
