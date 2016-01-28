@@ -95,6 +95,13 @@ public interface Storage extends Configurable {
                                         Date start, Date end) throws FalconException;
 
     /**
+     * Checks the availability status for a given feed instance.
+     */
+    FeedInstanceStatus.AvailabilityStatus getInstanceAvailabilityStatus(Feed feed, String clusterName,
+                                                                        LocationType locationType,
+                                                                        Date instanceTime) throws FalconException;
+
+    /**
      * Delete the instances of the feeds which are older than the retentionLimit specified.
      *
      * @param retentionLimit - retention limit of the feed e.g. hours(5).

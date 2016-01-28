@@ -372,6 +372,24 @@ public final class FeedHelper {
         return feedProperties;
     }
 
+    public static Date getFeedValidityStart(Feed feed, String clusterName) throws FalconException {
+        org.apache.falcon.entity.v0.feed.Cluster feedCluster = FeedHelper.getCluster(feed, clusterName);
+        if (feedCluster != null) {
+            return feedCluster.getValidity().getStart();
+        } else {
+            throw new FalconException("No matching cluster " + clusterName
+                    + "found for feed " + feed.getName());
+        }
+    }
+
+    public static Date getNextFeedInstanceDate(Date alignedDate, Feed feed) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(alignedDate);
+        calendar.add(feed.getFrequency().getTimeUnit().getCalendarUnit(),
+                feed.getFrequency().getFrequencyAsInt());
+        return calendar.getTime();
+    }
+
     /**
      *  Extracts date from the actual data path e.g., /path/2014/05/06 maps to 2014-05-06T00:00Z.
      * @param instancePath - actual data path
