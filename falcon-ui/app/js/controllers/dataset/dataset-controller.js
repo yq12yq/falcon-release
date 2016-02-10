@@ -28,6 +28,7 @@
 
 
       $scope.skipUndo = false;
+      $scope.secureMode = $rootScope.secureMode;
       $scope.$on('$destroy', function () {
 
         if (!$scope.skipUndo && !angular.equals($scope.UIModel, EntityModel.defaultValues.MirrorUIModel)) {
@@ -358,10 +359,22 @@
               item._value = findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'write');
             }
             if (item._name === 'sourceMetastoreUri') {
-              item._value = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'registry');
+              item._value = $scope.UIModel.source.hiveMetastoreUri;
             }
             if (item._name === 'targetMetastoreUri') {
-              item._value = findInterface($scope.targetClusterModel.cluster.interfaces.interface, 'registry');
+              item._value = $scope.UIModel.target.hiveMetastoreUri;
+            }
+            if (item._name === 'sourceHiveMetastoreKerberosPrincipal') {
+              item._value = $scope.UIModel.source.hiveMetastoreKerberosPrincipal;
+            }
+            if (item._name === 'targetHiveMetastoreKerberosPrincipal') {
+              item._value = $scope.UIModel.target.hiveMetastoreKerberosPrincipal;
+            }
+            if (item._name === 'sourceHive2KerberosPrincipal') {
+              item._value = $scope.UIModel.source.hive2KerberosPrincipal;
+            }
+            if (item._name === 'targetHive2KerberosPrincipal') {
+              item._value = $scope.UIModel.target.hive2KerberosPrincipal;
             }
             if (item._name === 'sourceTable') {
               if ($scope.UIModel.source.hiveDatabaseType === "databases") {
@@ -538,6 +551,24 @@
             }
             if (item._name === 'sourceCluster') {
               EntityModel.datasetModel.UIModel.source.cluster = item._value;
+            }
+            if(item._name === 'sourceMetastoreUri') {
+              EntityModel.datasetModel.UIModel.source.hiveMetastoreUri = item._value;
+            }
+            if (item._name === 'sourceHiveMetastoreKerberosPrincipal') {
+              EntityModel.datasetModel.UIModel.source.hiveMetastoreKerberosPrincipal = item._value;
+            }
+            if (item._name === 'sourceHive2KerberosPrincipal') {
+              EntityModel.datasetModel.UIModel.source.hive2KerberosPrincipal = item._value;
+            }
+            if(item._name === 'targetMetastoreUri') {
+              EntityModel.datasetModel.UIModel.target.hiveMetastoreUri = item._value;
+            }
+            if (item._name === 'targetHiveMetastoreKerberosPrincipal') {
+              EntityModel.datasetModel.UIModel.target.hiveMetastoreKerberosPrincipal = item._value;
+            }
+            if (item._name === 'targetHive2KerberosPrincipal') {
+              EntityModel.datasetModel.UIModel.target.hive2KerberosPrincipal = item._value;
             }
             if (item._name === 'drSourceClusterFS') {
               EntityModel.datasetModel.UIModel.source.url = item._value;

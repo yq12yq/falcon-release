@@ -264,7 +264,46 @@
       </div>
 
     </div>
-
+    <div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE' && secureMode === true">
+<div class="col-xs-10 p0"><label class="mt15">Hive2 Kerberos Principal</label></div>
+<div class="col-xs-14 mt15">
+  <input type="text"
+         name="sourceHive2KerberosPrincipal"
+         class="form-control"
+         ng-model="UIModel.source.hive2KerberosPrincipal"
+         placeholder="Hive2 Kerberos Principal"
+         ng-pattern="validations.patterns.kerberosPrincipal"
+         ng-required="UIModel.formType === 'HIVE'"
+         validation-message="{{validations.messages.kerberosPrincipal}}" />
+</div>
+</div>
+<div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE' && secureMode === true">
+<h4>Meta Store</h4>
+<div class="col-xs-10 p0"><label class="mt15">URI</label></div>
+<div class="col-xs-14 mt15">
+  <input type="text"
+         name="sourceMetastoreUri"
+         class="form-control"
+         ng-model="UIModel.source.hiveMetastoreUri"
+         placeholder="Source Metastore URI"
+         ng-pattern="validations.patterns.metastoreUri"
+         ng-required="UIModel.formType === 'HIVE'"
+         validation-message="{{validations.messages.metastoreUri}}" />
+</div>
+</div>
+<div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE' && secureMode === true">
+<div class="col-xs-10 p0"><label class="mt15">Kerberos Principal</label></div>
+<div class="col-xs-14 mt15">
+  <input type="text"
+         name="sourceMetastoreKerberosPrincipal"
+         class="form-control"
+         ng-model="UIModel.source.hiveMetastoreKerberosPrincipal"
+         placeholder="Kerberos Principal"
+         ng-pattern="validations.patterns.kerberosPrincipal"
+         ng-required="UIModel.formType === 'HIVE'"
+         validation-message="{{validations.messages.kerberosPrincipal}}" />
+</div>
+</div>
     <div class="col-xs-24 clusterBox">
       <h3>Target</h3>
       <div class="runJobOnBox">
@@ -321,7 +360,46 @@
           </option>
         </select>
       </div>
-
+      <div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE'&& secureMode === true">
+        <div class="col-xs-10 p0"><label class="mt15">Hive2 Kerberos Principal</label></div>
+        <div class="col-xs-14 mt15">
+          <input type="text"
+                 name="targetHive2KerberosPrincipal"
+                 class="form-control"
+                 ng-model="UIModel.target.hive2KerberosPrincipal"
+                 placeholder="Hive2 Kerberos Principal"
+                 ng-pattern="validations.patterns.kerberosPrincipal"
+                 ng-required="UIModel.formType === 'HIVE'"
+                 validation-message="{{validations.messages.kerberosPrincipal}}" />
+        </div>
+      </div>
+      <div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE'&& secureMode === true">
+        <h4>Meta Store</h4>
+        <div class="col-xs-10 p0"><label class="mt15">URI</label></div>
+        <div class="col-xs-14 mt15">
+          <input type="text"
+                 name="targetMetastoreUri"
+                 class="form-control"
+                 ng-model="UIModel.target.hiveMetastoreUri"
+                 placeholder="Target Metastore URI"
+                 ng-pattern="validations.patterns.metastoreUri"
+                 ng-required="UIModel.formType === 'HIVE'"
+                 validation-message="{{validations.messages.metastoreUri}}" />
+        </div>
+      </div>
+      <div class="col-xs-24 mt15" ng-if="UIModel.formType === 'HIVE' && secureMode === true">
+        <div class="col-xs-10 p0"><label class="mt15">Kerberos Principal</label></div>
+        <div class="col-xs-14 mt15">
+          <input type="text"
+                 name="targetMetastoreKerberosPrincipal"
+                 class="form-control"
+                 ng-model="UIModel.target.hiveMetastoreKerberosPrincipal"
+                 placeholder="Kerberos Principal"
+                 ng-pattern="validations.patterns.kerberosPrincipal"
+                 ng-required="UIModel.formType === 'HIVE'"
+                 validation-message="{{validations.messages.kerberosPrincipal}}" />
+        </div>
+      </div>
       <div ng-if="UIModel.target.location === 'azure' && UIModel.formType === 'HDFS'">
         <label class="db">Base URL
           <input type="text"
