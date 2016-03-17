@@ -429,6 +429,7 @@ public final class FeedHelper {
                     cal.set(var.getCalendarField(), 0);
                 }
             }
+            cal.set(Calendar.SECOND, 0);
             cal.set(Calendar.MILLISECOND, 0);
         }
         return cal.getTime();
