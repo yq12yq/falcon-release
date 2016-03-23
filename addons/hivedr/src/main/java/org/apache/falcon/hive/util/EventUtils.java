@@ -321,11 +321,15 @@ public class EventUtils {
     }
 
     public DistCpOptions getDistCpOptions() {
-        DistCpOptions distcpOptions = new DistCpOptions(new Path(sourceStagingUri), new Path(targetStagingUri));
-        distcpOptions.setSyncFolder(false);
+        // DistCpOptions expects the first argument to be a file OR a list of Paths
+        List<Path> sourceUris=new ArrayList<Path>();
+        sourceUris.add(new Path(sourceStagingUri));
+        DistCpOptions distcpOptions = new DistCpOptions(sourceUris, new Path(targetStagingUri));
+
+        // setSyncFolder(true) ensures directory structure is maintained when source is copied to target
+        distcpOptions.setSyncFolder(true);
+        // skipCRCCheck if TDE is enabled.
         if (Boolean.valueOf(conf.get(HiveDRArgs.TDE_ENCRYPTION_ENABLED.getName()))) {
-            // skipCRCCheck and update enabled
-            distcpOptions.setSyncFolder(true);
             distcpOptions.setSkipCRC(true);
         }
 
