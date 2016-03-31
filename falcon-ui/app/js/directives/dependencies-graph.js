@@ -270,8 +270,8 @@
 
             var graph = layout.graph();
 
-            svg.attr("width", graph.width);
-            svg.attr("height", graph.height);
+            svg.attr("width", graph.width+150);
+            svg.attr("height", graph.height+10);
 
             postRender();
           }
