@@ -212,11 +212,13 @@
               feedLocationsArray = [];
 
           // cluster locations
-          obj.feed.clusters.cluster[0].locations.location.forEach(function (item) {
-            if (item._path) {
-              clusterLocationsArray.push(item);
-            }
-          });
+          if(obj.feed.clusters.cluster[0].locations){
+            obj.feed.clusters.cluster[0].locations.location.forEach(function (item) {
+              if (item._path) {
+                clusterLocationsArray.push(item);
+              }
+            });
+          }
 
           if (clusterLocationsArray.length === 0) {
             delete obj.feed.clusters.cluster[0].locations;
@@ -225,11 +227,13 @@
           }
 
           // feed locations
-          obj.feed.locations.location.forEach(function (item) {
-            if (item._path) {
-              feedLocationsArray.push(item);
-            }
-          });
+          if(obj.feed.locations){
+            obj.feed.locations.location.forEach(function (item) {
+              if (item._path) {
+                feedLocationsArray.push(item);
+              }
+            });
+          }
 
           if (feedLocationsArray.length === 0) {
             delete obj.feed.locations;
