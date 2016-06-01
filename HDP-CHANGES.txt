@@ -46,6 +46,7 @@
 
 
   BUG FIXES
+    FALCON-1877 Falcon webUI returns 413 (Full head - Request entity too large) error when TLS is enabled in a secure cluster with AD integration
     FALCON-1487 In secure cluster setup Hcat process/feed scheduling or replication fails
     FALCON-1312 Falcon post processing action should use Oozie prepared configuration
 
