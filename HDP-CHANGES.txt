@@ -46,6 +46,8 @@
 
 
   BUG FIXES
+    FALCON-1372 Retention does not work in corner cases
+  
     FALCON-1595 In secure cluster, Falcon server loses ability to communicate with HDFS over time
   
     FALCON-1647 Unable to create feed: FilePermission error under cluster staging directory
