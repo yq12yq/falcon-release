@@ -122,13 +122,19 @@
           hiveDatabaseType: "databases",
           hiveDatabases: "",
           hiveDatabase: "",
-          hiveTables: ""
+          hiveTables: "",
+          hiveMetastoreUri : "thrift://localhost:9083",
+          hive2KerberosPrincipal : "hive/_HOST@EXAMPLE.COM",
+          hiveMetastoreKerberosPrincipal : "hive/_HOST@EXAMPLE.COM"
         },
         target: {
           location: "HDFS",
           cluster: "",
           url: "",
-          path: ""
+          path: "",
+          hive2KerberosPrincipal : "hive/_HOST@EXAMPLE.COM",
+          hiveMetastoreUri : "thrift://localhost:9083",
+          hiveMetastoreKerberosPrincipal : "hive/_HOST@EXAMPLE.COM"
         },
         alerts: {
           alert: { email: "" },
@@ -391,11 +397,27 @@
               },
               {
                 _name: "targetMetastoreUri",
-                _value: "thrift://240.0.0.11:9083"
+                _value: "thrift://localhost:9083"
               },
               {
                 _name: "sourceMetastoreUri",
-                _value: "thrift://240.0.0.10:9083"
+                _value: "thrift://localhost:9083"
+              },
+              {
+                _name: "targetHiveMetastoreKerberosPrincipal",
+                _value: "hive/_HOST@EXAMPLE.COM"
+              },
+              {
+                _name: "sourceHiveMetastoreKerberosPrincipal",
+                _value: "hive/_HOST@EXAMPLE.COM"
+              },
+              {
+                _name: "targetHive2KerberosPrincipal",
+                _value: "hive/_HOST@EXAMPLE.COM"
+              },
+              {
+                _name: "sourceHive2KerberosPrincipal",
+                _value: "hive/_HOST@EXAMPLE.COM"
               },
               {
                 _name: "sourceTable",
