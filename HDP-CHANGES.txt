@@ -46,6 +46,8 @@
 
 
   BUG FIXES
+    BUG-51884 Falcon UI Hive mirroring: Unable to provide security credentials
+    
     FALCON-1372 Retention does not work in corner cases
   
     FALCON-1595 In secure cluster, Falcon server loses ability to communicate with HDFS over time
