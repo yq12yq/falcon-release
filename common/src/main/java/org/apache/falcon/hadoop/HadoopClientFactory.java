@@ -175,7 +175,9 @@ public final class HadoopClientFactory {
 
         try {
             if (UserGroupInformation.isSecurityEnabled()) {
-                ugi.checkTGTAndReloginFromKeytab();
+                LOG.debug("Revalidating Auth Token with auth method {}",
+                        UserGroupInformation.getLoginUser().getAuthenticationMethod().name());
+                UserGroupInformation.getLoginUser().checkTGTAndReloginFromKeytab();
             }
         } catch (IOException ioe) {
             throw new FalconException("Exception while getting FileSystem. Unable to check TGT for user "
@@ -199,9 +201,7 @@ public final class HadoopClientFactory {
                     return FileSystem.get(uri, conf);
                 }
             });
-        } catch (InterruptedException ex) {
-            throw new FalconException("Exception creating FileSystem:" + ex.getMessage(), ex);
-        } catch (IOException ex) {
+        } catch (InterruptedException | IOException ex) {
             throw new FalconException("Exception creating FileSystem:" + ex.getMessage(), ex);
         }
     }
