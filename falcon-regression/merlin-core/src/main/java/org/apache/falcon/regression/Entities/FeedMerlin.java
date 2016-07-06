@@ -254,7 +254,7 @@ public class FeedMerlin extends Feed {
                 .withDataLocation(location + "/${YEAR}/${MONTH}/${DAY}/${HOUR}/${MINUTE}")
                 .withValidity(TimeUtil.addMinsToTime(startTime, -180),
                     TimeUtil.addMinsToTime(endTime, 180))
-                .withRetention("hours(20)", ActionType.DELETE)
+                .withRetention("months(2000)", ActionType.DELETE)
                 .build();
             addFeedCluster(feedCluster);
         }
