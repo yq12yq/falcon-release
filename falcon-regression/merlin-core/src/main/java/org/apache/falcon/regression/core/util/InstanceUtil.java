@@ -231,7 +231,43 @@ public final class InstanceUtil {
         Assert.assertEquals(Collections.frequency(statuses, InstancesResult.WorkflowStatus.KILLED),
             killedCount, "Killed Instances");
     }
-
+    
+     /**
+     * Checks that actual number of instances with different statuses are equal to expected number
+     * of instances with matching statuses. Count ready and waiting status together
+     *
+     * @param instancesResult kind of response from API which should contain information about
+     *                        instances <p/>
+     *                        All parameters below reflect number of expected instances with some
+     *                        kind of status.
+     * @param totalCount      total number of instances.
+     * @param runningCount    number of running instances.
+     * @param suspendedCount  number of suspended instance.
+     * @param waitingReadyCount    number of waiting and ready instance.
+     * @param killedCount     number of killed instance.
+     */
+    
+    public static void validateResponseWithReady(InstancesResult instancesResult, int totalCount,
+            int runningCount, int suspendedCount, int waitingReadyCount, int killedCount) {
+        InstancesResult.Instance[] instances = instancesResult.getInstances();
+        LOGGER.info("instances: " + Arrays.toString(instances));
+        Assert.assertNotNull(instances, "instances should be not null");
+        Assert.assertEquals(instances.length, totalCount, "Total Instances");
+        List<InstancesResult.WorkflowStatus> statuses = new ArrayList<>();
+        for (InstancesResult.Instance instance : instances) {
+            final InstancesResult.WorkflowStatus status = instance.getStatus();
+            LOGGER.info("status: " + status + ", instance: " + instance.getInstance());
+            statuses.add(status);
+        }
+        Assert.assertEquals(Collections.frequency(statuses, InstancesResult.WorkflowStatus.RUNNING),
+            runningCount, "Running Instances");
+        Assert.assertEquals(Collections.frequency(statuses, InstancesResult.WorkflowStatus.SUSPENDED),
+            suspendedCount, "Suspended Instances");
+        Assert.assertEquals(Collections.frequency(statuses, InstancesResult.WorkflowStatus.WAITING)+Collections.frequency(statuses, InstancesResult.WorkflowStatus.READY),
+            waitingReadyCount, "Waiting Instances");
+        Assert.assertEquals(Collections.frequency(statuses, InstancesResult.WorkflowStatus.KILLED),
+            killedCount, "Killed Instances");
+    }
     /**
      * Retrieves workflow IDs from every instances from response.
      * @param instancesResult response
