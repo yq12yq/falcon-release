@@ -440,6 +440,9 @@
 
           });
 
+          if ($rootScope.secureMode) {
+              $scope.model.workflow._path = '/apps/data-mirroring/workflows/hive-disaster-recovery-secure-workflow.xml';
+          }
         } else {
           console.log('error in form type');
         }
