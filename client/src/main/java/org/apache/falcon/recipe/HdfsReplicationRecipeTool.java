@@ -20,6 +20,8 @@ package org.apache.falcon.recipe;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Properties;
 import java.io.File;
 
@@ -40,7 +42,7 @@ public class HdfsReplicationRecipeTool implements Recipe {
     }
 
     @Override
-    public Properties getAdditionalSystemProperties(final Properties recipeProperties) {
+    public Properties getAdditionalSystemProperties(final Properties recipeProperties) throws Exception {
         Properties additionalProperties = new Properties();
 
         // Construct fully qualified hdfs src path
@@ -52,19 +54,50 @@ public class HdfsReplicationRecipeTool implements Recipe {
         if (StringUtils.isNotEmpty(srcFsPath)) {
             srcFsPath = StringUtils.removeEnd(srcFsPath, File.separator);
         }
-        if (StringUtils.isNotEmpty(srcPaths)) {
+
+        if (StringUtils.isNotBlank(srcPaths)) {
             String[] paths = srcPaths.split(COMMA_SEPARATOR);
 
+            URI pathUri;
             for (String path : paths) {
-                StringBuilder srcpath = new StringBuilder(srcFsPath);
-                srcpath.append(path.trim());
-                srcpath.append(COMMA_SEPARATOR);
-                absoluteSrcPaths.append(srcpath);
+                try {
+                    pathUri = new URI(path.trim());
+                } catch (URISyntaxException e) {
+                    throw new Exception(e);
+                }
+                String authority = pathUri.getAuthority();
+                if (authority == null) {
+                    StringBuilder srcpath = new StringBuilder(srcFsPath);
+                    srcpath.append(path.trim());
+                    srcpath.append(COMMA_SEPARATOR);
+                    absoluteSrcPaths.append(srcpath);
+                } else {
+                    StringBuilder srcpath = new StringBuilder();
+                    srcpath.append(path.trim());
+                    srcpath.append(COMMA_SEPARATOR);
+                    absoluteSrcPaths.append(srcpath);
+                }
             }
         }
-
         additionalProperties.put(HdfsReplicationRecipeToolOptions.REPLICATION_SOURCE_DIR.getName(),
                 StringUtils.removeEnd(absoluteSrcPaths.toString(), COMMA_SEPARATOR));
+
+        // Target dir shouldn't have the namenode
+        String targetDir = recipeProperties.getProperty(HdfsReplicationRecipeToolOptions.
+                REPLICATION_TARGET_DIR.getName());
+
+        URI targetPathUri;
+        try {
+            targetPathUri = new URI(targetDir.trim());
+        } catch (URISyntaxException e) {
+            throw new Exception(e);
+        }
+
+        if (targetPathUri.getScheme() != null) {
+            additionalProperties.put(HdfsReplicationRecipeToolOptions.REPLICATION_TARGET_DIR.getName(),
+                    targetPathUri.getPath());
+        }
+
         return additionalProperties;
     }
 }

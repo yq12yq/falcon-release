@@ -25,5 +25,5 @@ import java.util.Properties;
  */
 public interface Recipe {
     void validate(final Properties recipeProperties) throws Exception;
-    Properties getAdditionalSystemProperties(final Properties recipeProperties);
+    Properties getAdditionalSystemProperties(final Properties recipeProperties) throws Exception;
 }
