@@ -36,6 +36,7 @@ import java.util.Properties;
  */
 public class HiveReplicationRecipeTool implements Recipe {
     private static final String ALL_TABLES = "*";
+    private static final String NOT_APPLICABLE = "NA";
 
     @Override
     public void validate(final Properties recipeProperties) throws Exception {
@@ -128,6 +129,15 @@ public class HiveReplicationRecipeTool implements Recipe {
         if (StringUtils.isNotEmpty(recipeProperties.getProperty(RecipeToolOptions.RECIPE_NN_PRINCIPAL.getName()))) {
             additionalProperties.put(HiveReplicationRecipeToolOptions.CLUSTER_FOR_JOB_NN_KERBEROS_PRINCIPAL.getName(),
                     recipeProperties.getProperty(RecipeToolOptions.RECIPE_NN_PRINCIPAL.getName()));
+        }
+
+        if (StringUtils.isBlank(
+                recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_HS2_EXTRA_OPTS.getName()))) {
+            additionalProperties.put(HiveReplicationRecipeToolOptions.REPLICATION_SOURCE_HS2_EXTRA_OPTS.getName(), NOT_APPLICABLE);
+        }
+        if (StringUtils.isBlank(
+                recipeProperties.getProperty(HiveReplicationRecipeToolOptions.REPLICATION_TARGET_HS2_URI_EXTRA_OPTS.getName()))) {
+            additionalProperties.put(HiveReplicationRecipeToolOptions.REPLICATION_TARGET_HS2_URI_EXTRA_OPTS.getName(), NOT_APPLICABLE);
         }
         return additionalProperties;
     }

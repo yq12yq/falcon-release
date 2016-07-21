@@ -46,7 +46,10 @@
 
 
   BUG FIXES
+    FALCON-2072 BUG-78813 Hive2 URLs in Falcon should allow additional configuration elements in the URL (#421)
+
     FALCON-1487 In secure cluster setup Hcat process/feed scheduling or replication fails
+
     FALCON-1312 Falcon post processing action should use Oozie prepared configuration
 
     FALCON-1038 Log mover fails for map-reduce action

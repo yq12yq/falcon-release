@@ -104,6 +104,8 @@
             <arg>${sourceMetastoreUri}</arg>
             <arg>-sourceHiveServer2Uri</arg>
             <arg>${sourceHiveServer2Uri}</arg>
+            <arg>-sourceHiveServer2ExtraOpts</arg>
+            <arg>${sourceHiveServer2ExtraOpts}</arg>
             <arg>-sourceDatabase</arg>
             <arg>${sourceDatabase}</arg>
             <arg>-sourceTable</arg>
@@ -124,6 +126,8 @@
             <arg>${targetMetastoreUri}</arg>
             <arg>-targetHiveServer2Uri</arg>
             <arg>${targetHiveServer2Uri}</arg>
+            <arg>-targetHiveServer2ExtraOpts</arg>
+            <arg>${targetHiveServer2ExtraOpts}</arg>
             <arg>-targetStagingPath</arg>
             <arg>${targetStagingPath}</arg>
             <arg>-targetNN</arg>
@@ -200,6 +204,8 @@
             <arg>${sourceMetastoreUri}</arg>
             <arg>-sourceHiveServer2Uri</arg>
             <arg>${sourceHiveServer2Uri}</arg>
+            <arg>-sourceHiveServer2ExtraOpts</arg>
+            <arg>${sourceHiveServer2ExtraOpts}</arg>
             <arg>-sourceDatabase</arg>
             <arg>${sourceDatabase}</arg>
             <arg>-sourceTable</arg>
@@ -220,6 +226,8 @@
             <arg>${targetMetastoreUri}</arg>
             <arg>-targetHiveServer2Uri</arg>
             <arg>${targetHiveServer2Uri}</arg>
+            <arg>-targetHiveServer2ExtraOpts</arg>
+            <arg>${targetHiveServer2ExtraOpts}</arg>
             <arg>-targetStagingPath</arg>
             <arg>${targetStagingPath}</arg>
             <arg>-targetNN</arg>
@@ -298,6 +306,8 @@
             <arg>${sourceMetastoreUri}</arg>
             <arg>-sourceHiveServer2Uri</arg>
             <arg>${sourceHiveServer2Uri}</arg>
+            <arg>-sourceHiveServer2ExtraOpts</arg>
+            <arg>${sourceHiveServer2ExtraOpts}</arg>
             <arg>-sourceDatabase</arg>
             <arg>${sourceDatabase}</arg>
             <arg>-sourceTable</arg>
@@ -318,6 +328,8 @@
             <arg>${targetMetastoreUri}</arg>
             <arg>-targetHiveServer2Uri</arg>
             <arg>${targetHiveServer2Uri}</arg>
+            <arg>-targetHiveServer2ExtraOpts</arg>
+            <arg>${targetHiveServer2ExtraOpts}</arg>
             <arg>-targetStagingPath</arg>
             <arg>${targetStagingPath}</arg>
             <arg>-targetNN</arg>
