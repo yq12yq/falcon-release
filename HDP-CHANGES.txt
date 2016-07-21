@@ -49,7 +49,7 @@
   
     BUG-59343 Falcon web ui doesn't allow database with underscore(_)
   
-    BUG-56803 HiveDR in Falcon does not properly handle NN-HA in some cases
+    BUG-61679 HiveDR in Falcon does not properly handle NN-HA in some cases
   
     BUG-51884 Falcon UI Hive mirroring: Unable to provide security credentials
     
