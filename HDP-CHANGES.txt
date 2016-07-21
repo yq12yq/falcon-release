@@ -46,9 +46,20 @@
 
 
   BUG FIXES
+  
+    BUG-60906 Falcon web ui doesn't allow database with underscore(_)
+  
     BUG-56803 HiveDR in Falcon does not properly handle NN-HA in some cases
   
     BUG-51884 Falcon UI Hive mirroring: Unable to provide security credentials
+    
+    FALCON-2072 Hive2 URLs in Falcon should allow additional configuration elements in the URL
+    
+    FALCON-1894 HDFS Data replication cannot be initiated independent of Oozie server location
+    
+    FALCON-2007 Fix Hive DR Replication failing with "Can not create a Path from a null string"
+  
+    FALCON-1880 Add --skipcrccheck to distcp options for HiveDR when using Distcp to copy the file from Encyption to Encryption
     
     FALCON-1372 Retention does not work in corner cases
   
