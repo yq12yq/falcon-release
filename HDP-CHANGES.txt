@@ -46,6 +46,8 @@
 
 
   BUG FIXES
+    BUG-56803 HiveDR in Falcon does not properly handle NN-HA in some cases
+  
     BUG-51884 Falcon UI Hive mirroring: Unable to provide security credentials
     
     FALCON-1372 Retention does not work in corner cases
