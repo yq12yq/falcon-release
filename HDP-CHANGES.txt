@@ -53,6 +53,8 @@
   
     BUG-51884 Falcon UI Hive mirroring: Unable to provide security credentials
     
+    FALCON-2075 Falcon HiveDR tasks do not report progress and can get killed
+    
     FALCON-2072 Hive2 URLs in Falcon should allow additional configuration elements in the URL
     
     FALCON-1894 HDFS Data replication cannot be initiated independent of Oozie server location
