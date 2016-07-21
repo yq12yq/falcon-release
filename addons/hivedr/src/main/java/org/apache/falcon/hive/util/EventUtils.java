@@ -58,12 +58,14 @@ public class EventUtils {
 
     private Configuration conf = null;
     private String sourceHiveServer2Uri = null;
+    private String sourceHS2UriExtraOptions = null;
     private String sourceDatabase = null;
     private String sourceNN = null;
     private String sourceNNKerberosPrincipal = null;
     private String jobNN = null;
     private String jobNNKerberosPrincipal = null;
     private String targetHiveServer2Uri = null;
+    private String targetHS2UriExtraOptions = null;
     private String sourceStagingPath = null;
     private String targetStagingPath = null;
     private String targetNN = null;
@@ -87,6 +89,7 @@ public class EventUtils {
     public EventUtils(Configuration conf) {
         this.conf = conf;
         sourceHiveServer2Uri = conf.get(HiveDRArgs.SOURCE_HS2_URI.getName());
+        sourceHS2UriExtraOptions = conf.get(HiveDRArgs.SOURCE_HS2_URI_EXTRA_OPTS.getName());
         sourceDatabase = conf.get(HiveDRArgs.SOURCE_DATABASE.getName());
         sourceNN = conf.get(HiveDRArgs.SOURCE_NN.getName());
         sourceNNKerberosPrincipal = conf.get(HiveDRArgs.SOURCE_NN_KERBEROS_PRINCIPAL.getName());
@@ -95,6 +98,7 @@ public class EventUtils {
         jobNN = conf.get(HiveDRArgs.JOB_CLUSTER_NN.getName());
         jobNNKerberosPrincipal = conf.get(HiveDRArgs.JOB_CLUSTER_NN_KERBEROS_PRINCIPAL.getName());
         targetHiveServer2Uri = conf.get(HiveDRArgs.TARGET_HS2_URI.getName());
+        targetHS2UriExtraOptions = conf.get(HiveDRArgs.TARGET_HS2_URI_EXTRA_OPTS.getName());
         targetStagingPath = conf.get(HiveDRArgs.TARGET_STAGING_PATH.getName())
                 + File.separator + conf.get(HiveDRArgs.JOB_NAME.getName());
         targetNN = conf.get(HiveDRArgs.TARGET_NN.getName());
@@ -119,20 +123,53 @@ public class EventUtils {
 
         if (conf.get(HiveDRArgs.EXECUTION_STAGE.getName())
                 .equalsIgnoreCase(HiveDRUtils.ExecutionStage.EXPORT.name())) {
-            String connString = JDBC_PREFIX + sourceHiveServer2Uri + "/" + sourceDatabase;
+            String authString = null;
             if (StringUtils.isNotEmpty(conf.get(HiveDRArgs.SOURCE_HIVE2_KERBEROS_PRINCIPAL.getName()))) {
-                connString += authTokenString;
+                authString = authTokenString;
             }
+
+            String connString = getSourceHS2ConnectionUrl(authString);
             sourceConnection = DriverManager.getConnection(connString, user, password.getProperty("password"));
             sourceStatement = sourceConnection.createStatement();
         } else {
-            String connString = JDBC_PREFIX + targetHiveServer2Uri + "/" + sourceDatabase;
+            String authString = null;
             if (StringUtils.isNotEmpty(conf.get(HiveDRArgs.TARGET_HIVE2_KERBEROS_PRINCIPAL.getName()))) {
-                connString += authTokenString;
+                authString = authTokenString;
             }
+            String connString = getTargetHS2ConnectionUrl(authString);
             targetConnection = DriverManager.getConnection(connString, user, password.getProperty("password"));
             targetStatement = targetConnection.createStatement();
         }
+    }
+
+    private String getSourceHS2ConnectionUrl(final String authTokenString) {
+        return getHS2ConnectionUrl(sourceHiveServer2Uri, sourceDatabase,
+                authTokenString, sourceHS2UriExtraOptions);
+    }
+
+    private String getTargetHS2ConnectionUrl(final String authTokenString) {
+        return getHS2ConnectionUrl(targetHiveServer2Uri, sourceDatabase,
+                authTokenString, targetHS2UriExtraOptions);
+    }
+
+    public static String getHS2ConnectionUrl(final String hs2Uri, final String database,
+                                             final String authTokenString, final String hs2UriExtraOpts) {
+        StringBuilder connString = new StringBuilder();
+        connString.append(JDBC_PREFIX).append(StringUtils.removeEnd(hs2Uri, "/")).append("/").append(database);
+
+        if (StringUtils.isNotBlank(authTokenString)) {
+            connString.append(authTokenString);
+        }
+
+        if (StringUtils.isNotBlank(hs2UriExtraOpts) && !("NA".equalsIgnoreCase(hs2UriExtraOpts))) {
+            if (!hs2UriExtraOpts.startsWith(";")) {
+                connString.append(";");
+            }
+            connString.append(hs2UriExtraOpts);
+        }
+
+        LOG.info("getHS2ConnectionUrl connection uri: {}", connString);
+        return connString.toString();
     }
 
     public void initializeFS() throws IOException {
