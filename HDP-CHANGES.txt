@@ -47,7 +47,7 @@
 
   BUG FIXES
   
-    BUG-60906 Falcon web ui doesn't allow database with underscore(_)
+    BUG-59343 Falcon web ui doesn't allow database with underscore(_)
   
     BUG-56803 HiveDR in Falcon does not properly handle NN-HA in some cases
   
