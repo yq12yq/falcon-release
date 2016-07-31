@@ -37,6 +37,7 @@ import java.util.Date;
  */
 public class HadoopStartupListener implements ServletContextListener {
     private static final Logger LOG = LoggerFactory.getLogger(HadoopStartupListener.class);
+    public static final String FALCON_WEBAPP = "/falcon-webapp";
     private BrokerService broker;
     private final String shareLibPath = "target/share/lib";
     private static final String SHARE_LIB_PREFIX = "lib_";
@@ -44,13 +45,17 @@ public class HadoopStartupListener implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        try {
-            copyShareLib();
-            startBroker();
-            startHiveMetaStore();
-        } catch (Exception e) {
-            LOG.error("Unable to start daemons", e);
-            throw new RuntimeException("Unable to start daemons", e);
+        //this ServletContextListener would be invoked twice, once for the falcon webapp and once for the
+        //hadoop webapp and would be trying to bootstrap embedded hadoop and ActiveMQ twice, which would fail
+        if (FALCON_WEBAPP.equals(sce.getServletContext().getContextPath())) {
+            try {
+                copyShareLib();
+                startBroker();
+                startHiveMetaStore();
+            } catch (Exception e) {
+                LOG.error("Unable to start daemons", e);
+                throw new RuntimeException("Unable to start daemons", e);
+            }
         }
     }
 
@@ -104,12 +109,14 @@ public class HadoopStartupListener implements ServletContextListener {
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
-        try {
-            if (broker != null) {
-                broker.stop();
+        if (FALCON_WEBAPP.equals(sce.getServletContext().getContextPath())) {
+            try {
+                if (broker != null) {
+                    broker.stop();
+                }
+            } catch(Exception e) {
+                LOG.warn("Failed to stop activemq", e);
             }
-        } catch(Exception e) {
-            LOG.warn("Failed to stop activemq", e);
         }
     }
 
