@@ -286,10 +286,30 @@
               item._value = $scope.UIModel.allocation.hdfs.maxBandwidth;
             }
             if (item._name === 'drSourceDir') {
-              item._value = $scope.UIModel.source.path;
+              item._value = '';
+              var writeInterfaceEndPoint = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'write');
+              $scope.UIModel.source.path.split(',').forEach(function(sourcePath, index, sourcePaths) {
+                if (!sourcePath.startsWith(writeInterfaceEndPoint)) {
+                  item._value = item._value.concat(writeInterfaceEndPoint);
+                  if (!sourcePath.startsWith("/") && !writeInterfaceEndPoint.endsWith("/")) {
+                    item._value = item._value.concat("/");
+                  }
+                }
+                item._value = item._value.concat(sourcePath);
+                if (index < sourcePaths.length - 1) {
+                  item._value = item._value.concat(',');
+                }
+              });
             }
             if (item._name === 'drTargetDir') {
-              item._value = $scope.UIModel.target.path;
+              item._value = '';
+              var writeInterfaceEndPoint = findInterface($scope.sourceClusterModel.cluster.interfaces.interface, 'write');
+              $scope.UIModel.target.path.split(',').forEach(function(targetPath, index, targetPaths) {
+                item._value = item._value.concat(targetPath.replace(writeInterfaceEndPoint, ''));
+                if (index < targetPaths.length - 1) {
+                  item._value = item._value.concat(',');
+                }
+              });
             }
             if (item._name === 'drSourceClusterFS') {
               if ($scope.UIModel.source.location === 'HDFS') {
