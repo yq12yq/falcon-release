@@ -120,13 +120,16 @@ public class HiveDRTool extends Configured implements Tool {
         inputOptions = parseOptions(args);
         LOG.info("Input Options: {}", inputOptions);
 
-        Configuration sourceConf = FileUtils.getConfiguration(inputOptions.getSourceWriteEP(),
+        LOG.info("srcStagingPath: {}", inputOptions.getSourceStagingPath());
+        LOG.info("tgtStagingPath: {}", inputOptions.getTargetStagingPath());
+
+        Configuration sourceConf = FileUtils.getConfiguration(getConf(), inputOptions.getSourceWriteEP(),
                 inputOptions.getSourceNNKerberosPrincipal());
         sourceClusterFS = FileSystem.get(sourceConf);
-        Configuration targetConf = FileUtils.getConfiguration(inputOptions.getTargetWriteEP(),
+        Configuration targetConf = FileUtils.getConfiguration(getConf(), inputOptions.getTargetWriteEP(),
                 inputOptions.getTargetNNKerberosPrincipal());
         targetClusterFS = FileSystem.get(targetConf);
-        jobConf = FileUtils.getConfiguration(inputOptions.getJobClusterWriteEP(),
+        jobConf = FileUtils.getConfiguration(getConf(), inputOptions.getJobClusterWriteEP(),
                 inputOptions.getJobClusterNNPrincipal());
         jobFS = FileSystem.get(jobConf);
 
