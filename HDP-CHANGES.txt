@@ -14,6 +14,7 @@ IMPROVEMENTS:
     FALCON-1944 Ability to provide additional DistCP options
 
 BUG FIXES:
+    FALCON-2097 Feed update with replication delay creates random number of holes/overlaps
     FALCON-2280 Unable to create mirror on WASB target
     FALCON-2273 Disallow external entity injection and clean up some log messages
     FALCON-2281 HiveDRTest tests are getting permissions denied
