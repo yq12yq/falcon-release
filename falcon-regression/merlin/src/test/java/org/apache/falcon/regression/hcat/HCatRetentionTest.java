@@ -274,7 +274,7 @@ public class HCatRetentionTest extends BaseTestClass {
             RetentionUnit.DAYS,
             RetentionUnit.MONTHS,
         };
-        Integer[] periods = new Integer[]{7, 824, 43}; // a negative value like -4 should be covered
+        Integer[] periods = new Integer[]{8, 824, 42}; // a negative value like -4 should be covered
         // in validation scenarios.
         FreqType[] dataTypes =
             new FreqType[]{
