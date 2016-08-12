@@ -40,8 +40,8 @@
     </modules>
 
     <properties>
-        <oozie.version>3.2.2</oozie.version>
-        <hive.version>0.13.1</hive.version>
+        <oozie.version>4.1.0.2.2.6.19-2</oozie.version>
+        <hive.version>0.14.0.2.2.6.19-2</hive.version>
         <testng.include.pattern>**/Test*.java,**/*Test.java,**/*TestCase.java</testng.include.pattern>
     </properties>
 
