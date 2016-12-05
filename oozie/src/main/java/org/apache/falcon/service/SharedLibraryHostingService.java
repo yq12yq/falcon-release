@@ -95,6 +95,7 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
             return;
         }
 
+        final String FILTER_PATH = "/apps/falcon/extensions/mirroring/";
         Path extensionStorePath = store.getExtensionStorePath();
         LOG.info("extensionStorePath :{}", extensionStorePath);
         FileSystem falconFileSystem =
@@ -118,6 +119,10 @@ public class SharedLibraryHostingService implements ConfigurationChangeListener 
             while (fileStatusListIterator.hasNext()) {
                 LocatedFileStatus srcfileStatus = fileStatusListIterator.next();
                 Path filePath = Path.getPathWithoutSchemeAndAuthority(srcfileStatus.getPath());
+
+                if (filePath != null && filePath.toString().startsWith(FILTER_PATH)) {
+                    continue;
+                }
 
                 if (srcfileStatus.isDirectory()) {
                     if (!clusterFs.exists(filePath)) {
