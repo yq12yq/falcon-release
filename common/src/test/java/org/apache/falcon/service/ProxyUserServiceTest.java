@@ -142,7 +142,7 @@ public class ProxyUserServiceTest {
         proxyUserService.validate("foo", "www.example.com", "bar");
     }
 
-    @Test (expectedExceptions = AccessControlException.class,
+    @Test (enabled = false, expectedExceptions = AccessControlException.class,
            expectedExceptionsMessageRegExp = "Unauthorized proxyuser .*, not in proxyuser groups")
     public void testInvalidGroup() throws Exception {
         RuntimeProperties.get().setProperty("falcon.service.ProxyUserService.proxyuser.foo.hosts", "localhost");
