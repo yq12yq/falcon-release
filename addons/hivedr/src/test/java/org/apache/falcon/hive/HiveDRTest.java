@@ -56,6 +56,7 @@ import java.util.List;
 /**
  * Test for Hive DR export and import.
  */
+@Test(enabled = false)
 public class HiveDRTest {
     private FileSystem fileSystem;
     private HCatClient client;
@@ -67,6 +68,7 @@ public class HiveDRTest {
     private MessageFactory msgFactory = MessageFactory.getInstance();
 
     @BeforeMethod
+    @Test(enabled = false)
     public void setup() throws Exception {
         client = HCatClient.create(new HiveConf());
         initializeFileSystem();
@@ -102,7 +104,7 @@ public class HiveDRTest {
         }
     };
 
-    @Test
+    @Test(enabled = false)
     public void testExportImportReplication() throws Exception {
         Table t = new Table();
         t.setDbName(dbName);
@@ -162,7 +164,7 @@ public class HiveDRTest {
         }
     }
 
-    @Test
+    @Test(enabled = false)
     public void testImportReplication() throws Exception {
         Table t = new Table();
         t.setDbName("testdb");
@@ -245,6 +247,7 @@ public class HiveDRTest {
     }
 
     @AfterMethod
+    @Test(enabled = false)
     public void tearDown() throws Exception {
         client.close();
     }
