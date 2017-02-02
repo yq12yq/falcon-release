@@ -162,7 +162,7 @@
 				<label class="light" tooltip="datasource.password">Password<mandatory-field></mandatory-field></label>
 				<input type="text" class="form-control" ng-model="datasource.interfaces.interfaces[0].credential.passwordText"
 				ng-required="true"
-				validation-optional-message="{{validations.messages.dbPassword}}"
+				validation-optional-message="{{validations.messages.password}}"
 				ng-pattern="validations.patterns.password"
 				/>
 			</div>
@@ -171,7 +171,7 @@
 				<input type="text" class="form-control" ng-model="datasource.interfaces.interfaces[0].credential.passwordFile"
 				ng-required="true"
 				validation-optional-message="{{validations.messages.passwordFile}}"
-				ng-pattern="validations.patterns.password"
+				ng-pattern="validations.patterns.passwordFile"
 				/>
 			</div>
 			<div class="col-xs-10" ng-if="datasource.interfaces.interfaces[0].credential.type == 'password-alias'">
@@ -179,7 +179,7 @@
 				<input type="text" class="form-control" ng-model="datasource.interfaces.interfaces[0].credential.passwordAlias"
 				validation-optional-message="{{validations.messages.passwordAlias}}"
 				ng-required="true"
-				ng-pattern="validations.patterns.password"
+				ng-pattern="validations.patterns.passwordAlias"
 				/>
 			</div>
 
