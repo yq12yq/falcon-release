@@ -20,6 +20,8 @@ package org.apache.falcon.entity.v0;
 
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 
@@ -82,7 +84,11 @@ public abstract class Entity {
     public static Entity fromString(EntityType type, String str) {
         try {
             Unmarshaller unmarshaler = type.getUnmarshaller();
-            return (Entity) unmarshaler.unmarshal(new StringReader(str));
+            XMLInputFactory xif = XMLInputFactory.newFactory();
+            xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+            xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+            XMLStreamReader xsr = xif.createXMLStreamReader(new StringReader(str));
+            return (Entity) unmarshaler.unmarshal(xsr);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

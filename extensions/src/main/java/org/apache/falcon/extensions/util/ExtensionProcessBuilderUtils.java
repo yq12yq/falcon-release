@@ -39,6 +39,8 @@ import org.apache.falcon.util.NotificationType;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.ValidationEvent;
 import javax.xml.bind.ValidationEventHandler;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,8 +98,12 @@ public final class ExtensionProcessBuilderUtils {
                     }
                 }
             );
+            XMLInputFactory xif = XMLInputFactory.newFactory();
+            xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+            xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+            XMLStreamReader xsr = xif.createXMLStreamReader(new StringReader(processTemplate));
             process = (org.apache.falcon.entity.v0.process.Process)
-                    unmarshaller.unmarshal(new StringReader(processTemplate));
+                    unmarshaller.unmarshal(xsr);
         } catch (Exception e) {
             throw new FalconException(e);
         }
