@@ -129,12 +129,12 @@
         </div>
 
         <div class="col-xs-24" ng-if="UIModel.source.location === 'azure' && UIModel.type === 'HDFS'">
-          <div class="col-xs-5 p0"><label class="light">Base URL<mandatory-field></mandatory-field></label></div>
+          <div class="col-xs-5 p0"><label class="light">URL<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"
                    name="sourceClusterUrlInput"
                    class="form-control"
-                   ng-model="UIModel.source.url"
+                   ng-model="UIModel.source.path"
                    placeholder="URL"
                    ng-pattern="validations.patterns.azure"
                    ng-required="UIModel.source.location === 'azure'"
@@ -142,12 +142,12 @@
           </div>
         </div>
         <div class="col-xs-24" ng-if="UIModel.source.location === 's3' && UIModel.type === 'HDFS'">
-          <div class="col-xs-5 p0"><label class="light">Base URL<mandatory-field></mandatory-field></label></div>
+          <div class="col-xs-5 p0"><label class="light">URL<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"
                    name="sourceClusterUrlInput"
                    class="form-control"
-                   ng-model="UIModel.source.url"
+                   ng-model="UIModel.source.path"
                    placeholder="URL"
                    ng-pattern="validations.patterns.s3"
                    ng-required="UIModel.source.location === 's3'"
@@ -155,7 +155,7 @@
           </div>
         </div>
 
-        <div class="col-xs-24" ng-if="UIModel.type === 'HDFS'">
+        <div class="col-xs-24" ng-if="UIModel.type === 'HDFS' && UIModel.source.location === 'HDFS'">
           <div class="col-xs-5 p0"><label class="light">Path<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"
@@ -413,12 +413,12 @@
         </div>
 
         <div class="col-xs-24" ng-if="UIModel.target.location === 'azure' && UIModel.type === 'HDFS'">
-          <div class="col-xs-5 p0"><label class="light">Base URL<mandatory-field></mandatory-field></label></div>
+          <div class="col-xs-5 p0"><label class="light">URL<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"
                    name="targetClusterUrlInput"
                    class="form-control"
-                   ng-model="UIModel.target.url"
+                   ng-model="UIModel.target.path"
                    placeholder="URL"
                    ng-pattern="validations.patterns.azure"
                    ng-required="UIModel.target.location === 'azure'"
@@ -426,12 +426,12 @@
           </div>
         </div>
         <div class="col-xs-24" ng-if="UIModel.target.location === 'S3' && UIModel.type === 'HDFS'">
-          <div class="col-xs-5 p0"><label class="light">Base URL<mandatory-field></mandatory-field></label></div>
+          <div class="col-xs-5 p0"><label class="light">URL<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"
                    name="targetClusterUrlInput"
                    class="form-control"
-                   ng-model="UIModel.target.url"
+                   ng-model="UIModel.target.path"
                    placeholder="URL"
                    ng-pattern="validations.patterns.s3"
                    ng-required="UIModel.target.location === 'S3'"
@@ -439,7 +439,7 @@
           </div>
         </div>
 
-        <div class="col-xs-24" ng-if="UIModel.type === 'HDFS'">
+        <div class="col-xs-24" ng-if="UIModel.type === 'HDFS' && UIModel.target.location === 'HDFS'">
           <div class="col-xs-5 p0"><label class="light">Path<mandatory-field></mandatory-field></label></div>
           <div class="col-xs-13 mt10">
             <input type="text"

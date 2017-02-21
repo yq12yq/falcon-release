@@ -64,8 +64,12 @@
         extensionProps.jobAclPermission = extension.ACL.permission;
         extensionProps.tdeEncryptionEnabled = extension.tdeEncryptionEnabled;
 
-        extensionProps.sourceCluster = extension.source.cluster;
-        extensionProps.targetCluster = extension.target.cluster;
+        if (extension.source.cluster && extension.source.cluster !== "") {
+          extensionProps.sourceCluster = extension.source.cluster;
+        }
+        if (extension.target.cluster && extension.target.cluster !== "") {
+          extensionProps.targetCluster = extension.target.cluster;
+        }
         if (extension.runOn === 'source') {
           extensionProps.jobClusterName = extension.source.cluster;
         } else if (extension.runOn === 'target') {

@@ -39,10 +39,7 @@
     </div>
     <div ng-if="UIModel.type === 'HDFS'">
       <label>Path</label>:
-      <span>{{UIModel.source.path}}</span></div>
-    <div ng-if="UIModel.type === 'HDFS' && UIModel.source.location !== 'HDFS'">
-      <label>URL</label>:
-      <span>{{UIModel.source.url}}</span>
+      <span>{{UIModel.source.path}}</span>
     </div>
 
     <div ng-if="UIModel.type === 'HIVE'">I want to copy <span>{{UIModel.source.hiveDatabaseType}}</span></div>
@@ -100,10 +97,6 @@
     <div ng-if="UIModel.type === 'HDFS'">
       <label>Path</label>:
       <span>{{UIModel.target.path}}</span>
-    </div>
-    <div ng-if="UIModel.type === 'HDFS' && UIModel.target.location !== 'HDFS'">
-      <label>URL:</label>:
-      <span>{{UIModel.target.url}}</span>
     </div>
 
     <div ng-if="UIModel.type === 'HIVE'">
