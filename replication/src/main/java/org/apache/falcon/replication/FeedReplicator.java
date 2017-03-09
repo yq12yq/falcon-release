@@ -67,7 +67,6 @@ public class FeedReplicator extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         CommandLine cmd = getCommand(args);
-        DistCpOptions options = getDistCpOptions(cmd);
 
         Configuration conf = this.getConf();
         // inject wf configs
@@ -92,6 +91,8 @@ public class FeedReplicator extends Configured implements Tool {
         }
 
         conf.set("falcon.feed.availability.flag", availabilityFlag);
+
+        DistCpOptions options = getDistCpOptions(cmd);
         DistCp distCp = (includePathSet)
                 ? new CustomReplicator(conf, options)
                 : new DistCp(conf, options);
