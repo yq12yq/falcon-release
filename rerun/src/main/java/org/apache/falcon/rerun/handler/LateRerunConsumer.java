@@ -77,7 +77,7 @@ public class LateRerunConsumer<T extends LateRerunHandler<DelayedQueue<LaterunEv
 
             LOG.info("Late changes detected in the following feeds: {}", detectLate);
 
-            handler.getWfEngine().reRun(message.getClusterName(), message.getWfId(), null, true);
+            handler.getWfEngine().reRun(message.getClusterName(), message.getWfId(), null, false);
             LOG.info("Scheduled late rerun for wf-id: {} on cluster: {}",
                     message.getWfId(), message.getClusterName());
         } catch (Exception e) {
