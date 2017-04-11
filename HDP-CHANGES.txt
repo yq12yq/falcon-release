@@ -24,3 +24,7 @@ SUB-TASKS:
 
 OTHER:
     None
+
+IN HDP 2.5.5.0:
+    FALCON-2171 - BUG-76618 - Adding 'removeDeletedFiles' to hdfs-mirroring-workflow causes job failure
+    FALCON-2280 - BUG-73806 - Unable to create mirror on WASB target due to "Cluster entity not found"
