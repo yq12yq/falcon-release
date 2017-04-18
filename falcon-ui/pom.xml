@@ -43,7 +43,7 @@
             <configuration>
               <nodeVersion>v0.10.30</nodeVersion>
               <npmVersion>1.4.3</npmVersion>
-              <downloadRoot>http://nodejs.org/dist/</downloadRoot>
+              <nodeDownloadRoot>http://nodejs.org/dist/</nodeDownloadRoot>
 +             <npmInheritsProxyConfigFromMaven>false</npmInheritsProxyConfigFromMaven>
             </configuration>
           </execution>
