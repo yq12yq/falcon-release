@@ -96,6 +96,12 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.beanshell</groupId>
+                    <artifactId>bsh</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

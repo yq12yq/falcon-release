@@ -34,6 +34,12 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
             <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.beanshell</groupId>
+                    <artifactId>bsh</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
