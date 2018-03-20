@@ -12,6 +12,7 @@ IMPROVEMENTS:
     FALCON-2082 Add CSRF filter for REST APIs
     FALCON-2066 Extend support for Import and Export of various database types
     FALCON-1944 Ability to provide additional DistCP options
+    FALCON-2323 Upgrade Jackson and Spring versions to avoid security vulnerabilities
 
 BUG FIXES:
     FALCON-2041 Graphite notification plugin breaks if pipeline tag has space
